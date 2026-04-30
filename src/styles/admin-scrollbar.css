@@ -1,0 +1,166 @@
+/* Custom scrollbar styles for admin module */
+.admin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #b69754 #f1f5f9;
+}
+
+.admin-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.admin-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.admin-scrollbar::-webkit-scrollbar-thumb {
+  background: #b69754;
+  border-radius: 10px;
+  border: 1px solid #f1f5f9;
+}
+
+.admin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #9d8247;
+}
+
+.admin-scrollbar::-webkit-scrollbar-corner {
+  background: #f1f5f9;
+}
+
+/* Ensure scrollbar is visible on mobile */
+.admin-scrollbar {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Override for admin module PrimeReact components */
+.admin-panel .p-component::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.admin-panel .p-component::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+  border-radius: 10px !important;
+}
+
+.admin-panel .p-component::-webkit-scrollbar-thumb {
+  background: #b69754 !important;
+  border-radius: 10px !important;
+  border: 1px solid #f1f5f9 !important;
+}
+
+.admin-panel .p-component::-webkit-scrollbar-thumb:hover {
+  background: #9d8247 !important;
+}
+
+/* Admin dialog specific styles */
+.admin-panel .p-dialog.p-component .p-dialog-content::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.admin-panel .p-dialog.p-component .p-dialog-content::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+  border-radius: 10px !important;
+}
+
+.admin-panel .p-dialog.p-component .p-dialog-content::-webkit-scrollbar-thumb {
+  background: #b69754 !important;
+  border-radius: 10px !important;
+  border: 1px solid #f1f5f9 !important;
+}
+
+.admin-panel .p-dialog.p-component .p-dialog-content::-webkit-scrollbar-thumb:hover {
+  background: #9d8247 !important;
+}
+
+/* Global admin panel scrollbar override */
+.admin-panel *::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.admin-panel *::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+  border-radius: 10px !important;
+}
+
+.admin-panel *::-webkit-scrollbar-thumb {
+  background: #b69754 !important;
+  border-radius: 10px !important;
+  border: 1px solid #f1f5f9 !important;
+}
+
+.admin-panel *::-webkit-scrollbar-thumb:hover {
+  background: #9d8247 !important;
+}
+
+/* Admin panel table height - applies to all tables except order table */
+.table-container:not(.order-table-container) > div > div > table > tbody {
+  max-height: 305px;
+  overflow-y: auto;
+  display: block;
+}
+
+/* Keep table header fixed for non-order tables */
+.table-container:not(.order-table-container) > div > div > table > thead {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+/* Ensure table rows match header width for non-order tables */
+.table-container:not(.order-table-container) > div > div > table > tbody > tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+/* Reduce row spacing - compact table rows */
+.table-container > div > div > table > tbody > tr > td {
+  padding: 0.3rem 0.5rem !important;
+  line-height: 1.2 !important;
+  vertical-align: middle !important;
+}
+
+/* First column - add left padding */
+.table-container > div > div > table > tbody > tr > td:first-child {
+  padding-left: 1rem !important;
+}
+
+.table-container > div > div > table > thead > tr > th {
+  padding: 0.75rem 0.5rem !important;
+  line-height: 1.3 !important;
+}
+
+/* First header column - add left padding */
+.table-container > div > div > table > thead > tr > th:first-child {
+  padding-left: 1rem !important;
+}
+
+/* Remove extra spacing from PrimeReact DataTable */
+.p-datatable .p-datatable-tbody > tr {
+  height: auto !important;
+}
+
+.p-datatable .p-datatable-tbody > tr > td {
+  padding: 0.3rem 0.5rem !important;
+  line-height: 1.2 !important;
+  vertical-align: middle !important;
+}
+
+/* First column in PrimeReact DataTable */
+.p-datatable .p-datatable-tbody > tr > td:first-child {
+  padding-left: 1rem !important;
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  padding: 0.75rem 0.5rem !important;
+  line-height: 1.3 !important;
+}
+
+/* First header column in PrimeReact DataTable */
+.p-datatable .p-datatable-thead > tr > th:first-child {
+  padding-left: 1rem !important;
+}

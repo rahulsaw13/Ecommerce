@@ -1,0 +1,757 @@
+:root {
+  /* Color */
+  --custom-primary-color: black;
+  --custom-secondary-color: #FFC107;
+  --custom-tertiary-color: #3a3560;
+
+  /* Background color */
+  --primary-background-color: white;
+  --secondary-background-color: white;
+  --tertiary-background-color: white;
+
+  /* Button Background color */
+  --button-primary-background-color: white;
+  --button-secondary-background-color: #FFC107;
+  --button-tertiary-background-color: white;
+
+  /* Hover Background color */
+  --quater-background-color: #d4c89d;
+  --avatar-menu-background-color: #FFC107;
+  
+  /* Gradient */
+  --custom-gradient: linear-gradient(rgb(255, 193, 7) 0%, rgb(255, 213, 79) 100%);
+}
+
+[data-theme="dark"] {
+   /* Color */
+   --custom-primary-color: #1d1d1d;
+   --custom-secondary-color: #b9b9b9;
+   --custom-tertiary-color: white;
+   
+   /* Background color */
+   --primary-background-color: rgb(21 21 21 / var(--tw-bg-opacity));
+   --secondary-background-color: #1d1d1d;
+   --tertiary-background-color: #242424;
+
+   /* Hover Background color */
+  --quater-background-color: #1d1d1d;
+
+  --avatar-menu-background-color: #1d1d1d;
+}
+  
+/* For sidebar */
+.sidebar {
+    overflow-x: hidden;
+}
+.p-sidebar-content{
+  overflow: hidden;
+}
+
+.p-toast-message-content {
+  font-size: 12px;
+}
+.p-toast-message-icon {
+  scale: 0.6;
+}
+.p-toast {
+  max-width: 19rem;
+}
+
+.custom-dropdown > .p-dropdown-label {
+  font-size: 11px !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+.p-dropdown-items-wrapper {
+  font-size: 11px !important;
+}
+
+.custom-dropdown > .p-multiselect-label-container {
+  font-size: 11px !important;
+}
+
+.custom-dropdown > .p-multiselect-label-container > .p-multiselect-label{
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+.p-multiselect-item{
+  font-size: 12px;
+}
+
+.p-multiselect.p-multiselect-chip .p-multiselect-token {
+  padding: 0px;
+  background: white;
+}
+
+.sidebar.open {
+    transform: translateX(0);
+}
+
+.toggle-button {
+    transition: transform 0.3s ease;
+  }
+  
+  .icon {
+    display: inline-block;
+    transition: transform 0.3s ease;
+  }
+  
+  .rotate {
+    transform: rotate(180deg);
+  }
+
+  #pr_id_2_sub_0{
+    background-color: var(--secondary-background-color);
+  }
+
+  tr{
+    background-color: transparent;
+  }
+  th{
+    background-color: var(--secondary-background-color);
+    color: black !important;
+    font-size: 0.8rem;
+    padding: 0.75rem 0.75rem !important;
+  }
+  th:first-child {
+    padding-left: 1rem !important;
+  }
+  td{
+    background-color: var(--secondary-background-color);
+    color: black !important;
+    font-size: 0.7rem;
+    padding: 0.4rem 0.5rem !important;
+    line-height: 1.2 !important;
+  }
+  td:first-child {
+    padding-left: 1rem !important;
+  }
+  .nested > div > table > tbody > tr > td {
+    padding: 0rem 1rem;
+  }
+  .p-menu-list{
+    padding-bottom: 20px;
+  }
+  .p-menuitem{
+    font-weight: 600;
+    font-size: 14px;
+    margin-top: 4px;
+  }
+  .custom-menu-container > ul > li > .p-menuitem-content:hover{
+    background-color: var(--quater-background-color);
+  }
+  .custom-menu-container > ul > li > .sidebar-menu-content:hover{
+    color: white;
+    background-color: var(--custom-secondary-color);
+  }
+  .p-menu .p-menuitem:not(.p-highlight):not(.p-disabled).p-focus > .p-menuitem-content{
+    background-color: var(--quater-background-color);
+  }
+  .p-menu .p-menuitem:not(.p-highlight):not(.p-disabled).p-focus > .sidebar-menu-content{
+    color: white;
+    background-color: var(--custom-secondary-color) !important;
+  }
+  .p-menuitem-content{
+    border-radius: 4px;
+  }
+  .p-menuitem-icon{
+    font-size: 18px;
+  }
+  .p-paginator{
+    font-size: 0.8rem;
+    background-color: var(--secondary-background-color);
+  }
+  .p-menuitem-icon{
+    color: var(--custom-tertiary-color);
+  }
+  .p-menuitem-text{
+    color: var(--custom-tertiary-color);
+  }
+  .avatar-menu > ul > li > .p-menuitem-content{
+    background-color: var(--primary-background-color) !important;
+  }
+  .avatar-menu > ul > li > ul{
+    background-color: var(--primary-background-color) !important;
+  }
+  .avatar-menu > ul > li > .p-menuitem-content:hover{
+    background-color: var(--quater-background-color) !important;
+  }
+  .avatar-menu > ul > li > ul > li > .p-menuitem-content:hover{
+    background-color: var(--quater-background-color) !important;
+  }
+  .p-paginator-bottom > .p-dropdown.p-component.p-inputwrapper.p-inputwrapper-filled{
+    scale: 0.8 !important;
+  }
+  .p-button:focus {
+    box-shadow: none !important;
+  }
+
+  /* Sidebar */
+  .p-sidebar-header{
+    font-size: 20px;
+    font-weight: 600;
+  }
+
+  .p-sidebar-close{
+    box-shadow: none;;
+  }
+
+  /* Dialog */
+  .p-dialog-content{
+    background-color: #e9e9e9;
+    padding: 10px;
+  }
+  .p-dialog-footer{
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+  }
+
+  /* Accordian */
+  .custom-checkout-accordian-header > .p-accordion-tab > .p-accordion-header > .p-accordion-header-link > svg{
+    display: none;
+  }
+  .custom-checkout-accordian-header > .p-accordion-tab > .p-accordion-header{
+    background-color: white;
+    border-radius: 10px;
+  }
+  .custom-checkout-accordian-header > .p-accordion-tab > .p-accordion-header:hover{
+    background-color: white !important;
+  }
+
+  /* Radio Button */
+  .p-radiobutton .p-radiobutton-box{
+    background: var(--button-secondary-background-color) !important;
+  }
+
+  .p-radiobutton{
+    scale: 0.8;
+  }
+
+  .p-dialog-content{
+    overflow-y: scroll;
+  }
+
+  /* Table container */
+  .table-container {
+    width: 100%;
+    height: 420px; /* Set a fixed height for the scrollable body */
+    overflow: hidden; /* Hide the overflow on the container to make it scrollable on tbody */
+  }
+
+  /* Ensure the table is taking the full width */
+  .table-container > div > div > table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  /* Sticky header */
+  .table-container > div > div > table > thead > tr > th {
+    position: sticky;
+    top: 0; /* Stick the header to the top */
+    background-color: #fff; /* Avoid transparency */
+    z-index: 2; /* Make sure the header stays on top */
+  }
+
+  /* Table body cells styling */
+  .table-container > div > div > table > tbody > td {
+    padding: 4px 8px;
+    border: 1px solid #ddd;
+    line-height: 1.2;
+  }
+
+  /* Reduce row height */
+  .table-container > div > div > table > tbody > tr {
+    height: auto;
+  }
+
+  /* PrimeReact DataTable specific overrides */
+  .p-datatable .p-datatable-tbody > tr > td {
+    padding: 0.4rem 0.5rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .p-datatable .p-datatable-tbody > tr {
+    height: auto !important;
+  }
+
+  /* Scrollable tbody */
+  .table-container > div > div > table > tbody {
+    display: block; /* Allow tbody to scroll */
+    max-height: 260px; /* Height to show a limited number of rows */
+    overflow-y: auto; /* Enable vertical scrolling */
+  }
+
+  /* Correct the width for tbody cells */
+  .table-container > div > div > table > thead, tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed; /* Fix the layout so cells align */
+  }
+
+  /* Autocomplete */
+  .autocomplete{
+    border-radius: 4px;
+    border: 1px solid #ddd;
+  }
+  .autocomplete > input {
+    width: 100%;
+    padding: 8px 1rem;
+    font-size: 11px; 
+  }
+  .autocomplete > input:focus {
+    outline: none;
+  }
+  .autocomplete > button{
+    scale: 0.7;
+  }
+  .p-autocomplete-items-wrapper > ul > li{
+     font-size: 11px; 
+  }
+
+  /* scroll */
+  ::-webkit-scrollbar {
+    width: 6px; /* Set the width of the vertical scrollbar */
+    height: 12px; /* Set the height of the horizontal scrollbar */
+  }
+  
+  /* Style the draggable part (thumb) of the scrollbar */
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--custom-secondary-color); /* Set the thumb (draggable part) color to red */
+    border-radius: 10px; /* Optional: Add rounded corners to the thumb */
+  }
+  
+  /* Style the track (background area) of the scrollbar */
+  ::-webkit-scrollbar-track {
+    background-color: var(--primary-background-color); /* Light background color for the track */
+    border-radius: 10px; /* Optional: Add rounded corners to the track */
+  }
+
+  /* Rating Component */
+  .p-rating-item.p-focus{
+    box-shadow: none;
+  }
+  .p-rating-icon > path{
+    fill: #F59E0B
+  }
+
+  /* Picklist */
+  .custom-picklist > .p-picklist-source-controls.p-picklist-buttons{
+    display: none;
+  }
+  .custom-picklist > .p-picklist-target-controls.p-picklist-buttons{
+    display: none;
+  }
+  .p-picklist-filter > .p-inputtext:enabled:focus{
+    box-shadow: none;
+  }
+  .p-picklist-filter > .p-inputtext{
+    font-size: 0.8rem;
+  }
+  .p-picklist-header{
+    padding: 0.7rem;
+    font-size: 0.8rem;
+  } 
+  .p-picklist-filter-container{
+    padding: 0.7rem;
+  }
+  .p-picklist-item{
+    padding: 0px;
+  }
+  .p-picklist-buttons.p-picklist-transfer-buttons{
+    gap: 10px;
+  }
+  .p-picklist-buttons.p-picklist-transfer-buttons > button{
+    background-color: #dcdcdc;
+    border-radius: 50%;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+  .p-picklist-buttons.p-picklist-transfer-buttons > button > svg{
+    width: 12px;
+    height: 12px;
+  }
+
+  .p-picklist-buttons.p-picklist-transfer-buttons > button:hover{
+    cursor: pointer;
+  }
+  .p-picklist-list-wrapper.p-picklist-source-wrapper.p-picklist-list-wrapper{
+    border-radius: 4px;
+    box-shadow: rgba(0, 0, 0, 0.05) 0px 6px 24px 0px, rgba(0, 0, 0, 0.08) 0px 0px 0px 1px;
+  }
+  .p-picklist-list-wrapper.p-picklist-target-wrapper.p-picklist-list-wrapper{
+    border-radius: 4px;
+    box-shadow: rgba(0, 0, 0, 0.05) 0px 6px 24px 0px, rgba(0, 0, 0, 0.08) 0px 0px 0px 1px;
+  }
+
+  .p-checkbox {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+  }
+  
+  .p-checkbox-box {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--color-TextPrimaryColor);
+    background-color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+  
+  .p-checkbox-box:hover {
+    border-color: var(--color-TextPrimaryColor);
+  }
+  
+  .p-checkbox-box.p-highlight {
+    background-color: var(--color-TextPrimaryColor);
+    border-color: var(--color-TextPrimaryColor);
+  }
+  
+  .p-checkbox-icon {
+    color: white;
+    font-size: 14px;
+    pointer-events: none;
+  }
+  
+  /* Hide the native checkbox input */
+  .native-checkbox {
+    opacity: 0;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+  }
+
+  /* User Avatar Menu - Redesigned */
+  .user-avatar-menu {
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid #e5e7eb !important;
+    min-width: 220px !important;
+  }
+  
+  .user-avatar-menu .p-tieredmenu {
+    border: none !important;
+  }
+
+  /* User Menu Header (Name with Avatar) */
+  .user-menu-header .p-menuitem-content {
+    background-color: #f9fafb !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    padding: 0.35rem 0.5rem !important;
+  }
+
+  .user-menu-header .p-menuitem-content:hover {
+    background-color: #f9fafb !important;
+    cursor: default !important;
+  }
+
+  .user-menu-header .p-menuitem-link {
+    padding: 0 !important;
+  }
+
+  .user-menu-header .p-menuitem-text {
+    font-weight: 600 !important;
+    color: #1f2937 !important;
+    font-size: 0.85rem !important;
+  }
+
+  .user-menu-header .p-menuitem-icon {
+    font-size: 0.95rem !important;
+  }
+
+  /* Dashboard Menu Item (Yellow Theme - Highlighted) */
+  .user-menu-dashboard .p-menuitem-content {
+    padding: 0.35rem 0.5rem !important;
+    background: linear-gradient(135deg, #FFC107 0%, #FFD54F 100%) !important;
+  }
+
+  .user-menu-dashboard .p-menuitem-content:hover {
+    background: linear-gradient(135deg, #FFB300 0%, #FFC107 100%) !important;
+    transform: translateX(2px);
+    transition: all 0.2s ease;
+  }
+
+  .user-menu-dashboard .p-menuitem-icon {
+    color: #1f2937 !important;
+    font-size: 0.95rem !important;
+    margin-right: 0.4rem !important;
+    font-weight: 600 !important;
+  }
+
+  .user-menu-dashboard .p-menuitem-text {
+    color: #1f2937 !important;
+    font-weight: 600 !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* Regular Menu Items */
+  .user-menu-item .p-menuitem-content {
+    padding: 0.35rem 0.5rem !important;
+  }
+
+  .user-menu-item .p-menuitem-content:hover {
+    background-color: #f3f4f6 !important;
+    transform: translateX(2px);
+    transition: all 0.2s ease;
+  }
+
+  .user-menu-item .p-menuitem-icon {
+    color: #6b7280 !important;
+    font-size: 0.9rem !important;
+    margin-right: 0.4rem !important;
+  }
+
+  .user-menu-item .p-menuitem-text {
+    color: #374151 !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* Logout Menu Item (Red Theme) */
+  .user-menu-logout .p-menuitem-content:hover {
+    background-color: #fef2f2 !important;
+  }
+
+  .user-menu-logout .p-menuitem-icon {
+    color: #dc2626 !important;
+  }
+
+  .user-menu-logout .p-menuitem-text {
+    color: #dc2626 !important;
+    font-weight: 500 !important;
+  }
+
+  /* Menu Separator */
+  .user-avatar-menu .p-menuitem-separator {
+    height: 1px !important;
+    margin: 0.15rem 0 !important;
+    background-color: #e5e7eb !important;
+    border: none !important;
+  }
+
+  /* Otp Input */
+  .p-inputotp{
+    justify-content: center;
+  }
+  .p-inputotp-input{
+    height: 3rem;
+    width: 3rem;
+  }
+
+  /* Input */
+  .p-inputtext:enabled:focus {
+    outline: 0 none;
+    outline-offset: 0;
+    box-shadow: none;
+  }
+
+  /* Form Labels and Placeholders - Black Color */
+  label {
+    color: black !important;
+  }
+  
+  .p-inputtext {
+    color: black !important;
+  }
+  
+  .p-inputtext::placeholder {
+    color: #666 !important;
+  }
+  
+  /* Ensure email fields are never transformed */
+  input[type="email"],
+  input[name="email"],
+  [class*="email"] input {
+    text-transform: none !important;
+  }
+  
+  .p-dropdown-label {
+    color: black !important;
+  }
+  
+  .p-multiselect-label {
+    color: black !important;
+  }
+  
+  .p-calendar input {
+    color: black !important;
+  }
+  
+  .p-calendar input::placeholder {
+    color: #666 !important;
+  }
+  
+  .p-inputtextarea {
+    color: black !important;
+  }
+  
+  .p-inputtextarea::placeholder {
+    color: #666 !important;
+  }
+  
+  .p-inputnumber input {
+    color: black !important;
+  }
+  
+  .p-inputnumber input::placeholder {
+    color: #666 !important;
+  }
+  
+  .p-password input {
+    color: black !important;
+  }
+  
+  .p-password input::placeholder {
+    color: #666 !important;
+  }
+  
+  /* Form field labels */
+  .field label,
+  .p-field label,
+  .form-field label {
+    color: black !important;
+  }
+  
+  /* Custom input component labels */
+  .input-label,
+  .form-label {
+    color: black !important;
+  }
+  
+  /* Admin panel form styling overrides */
+  .admin-panel input,
+  .admin-panel textarea,
+  .admin-panel select {
+    color: black !important;
+  }
+  
+  .admin-panel input::placeholder,
+  .admin-panel textarea::placeholder {
+    color: #666 !important;
+  }
+  
+  .admin-panel label {
+    color: white !important;
+  }
+  
+  /* Specific overrides for common form classes */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  textarea,
+  select {
+    color: black !important;
+  }
+  
+  input[type="text"]::placeholder,
+  input[type="email"]::placeholder,
+  input[type="password"]::placeholder,
+  input[type="number"]::placeholder,
+  input[type="tel"]::placeholder,
+  textarea::placeholder {
+    color: #666 !important;
+  }
+
+  /* Custom Tooltip Styling to match admin theme */
+  .p-tooltip {
+    font-size: 0.75rem !important; /* 12px - matches button text size */
+    font-weight: 500 !important;
+    background-color: var(--custom-secondary-color) !important; /* #522e83 */
+    color: white !important;
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 6px 10px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    z-index: 9999 !important;
+  }
+
+  .p-tooltip .p-tooltip-arrow {
+    border-top-color: var(--custom-secondary-color) !important;
+    border-bottom-color: var(--custom-secondary-color) !important;
+    border-left-color: var(--custom-secondary-color) !important;
+    border-right-color: var(--custom-secondary-color) !important;
+  }
+
+  .p-tooltip .p-tooltip-text{
+    background: transparent;
+    color: #ffffff;
+    padding: 0.3rem 0.75rem;
+  }
+
+  /* Tree table */
+  .product-expander{
+    display: flex;
+    align-items: center;
+    width: 100% !important;
+  }
+
+  /* Avatar Image - Prevent FOUC (Flash of Unstyled Content) */
+  .p-avatar img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+  }
+  
+  .p-avatar {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+  }
+  
+  /* Ensure avatar has fixed dimensions */
+  .p-avatar.p-avatar-circle {
+    border-radius: 50% !important;
+    overflow: hidden !important;
+  }
+  
+  .p-avatar.p-avatar-image {
+    background-color: transparent !important;
+  }
+  
+  /* Default avatar size if not specified */
+  .p-avatar:not(.p-avatar-lg):not(.p-avatar-xl) {
+    width: 2.5rem !important;
+    height: 2.5rem !important;
+  }
+  
+  .p-avatar.p-avatar-lg {
+    width: 3rem !important;
+    height: 3rem !important;
+  }
+  
+  .p-avatar.p-avatar-xl {
+    width: 4rem !important;
+    height: 4rem !important;
+  }
+
+  /* Highlighted Order Row - Notification Click */
+  .highlighted-order-row {
+    background-color: #fff3cd !important;
+    animation: highlightFade 5s ease-in-out;
+  }
+
+  .highlighted-order-row > td {
+    background-color: #fff3cd !important;
+    border-left: 4px solid #FFC107 !important;
+  }
+
+  @keyframes highlightFade {
+    0% {
+      background-color: #fff3cd;
+    }
+    70% {
+      background-color: #fff3cd;
+    }
+    100% {
+      background-color: transparent;
+    }
+  }

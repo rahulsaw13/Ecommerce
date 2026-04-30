@@ -1,0 +1,617 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { Dialog } from 'primereact/dialog';
+import { allApiWithHeaderToken } from '@api/api';
+import { API_CONSTANTS } from '@constants/apiurl';
+import Header from '@common/Header';
+import Footer from '@common/Footer';
+import UserLoader from '@userpage-pages/UserLoader';
+
+const OrderHistoryPage = () => {
+  const { t } = useTranslation('msg');
+  const navigate = useNavigate();
+  const [orders, setOrders] = useState([]);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [menuList, setMenuList] = useState([]);
+  const [showReceipt, setShowReceipt] = useState(false);
+
+  // Get user details
+  let userDetails = null;
+  try {
+    const raw = localStorage.getItem('userDetails');
+    userDetails = raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    userDetails = null;
+  }
+
+  useEffect(() => {
+    if (!userDetails?.id) {
+      navigate('/sign-in');
+      return;
+    }
+    fetchOrders();
+    fetchMenuList();
+  }, [userDetails?.id]);
+
+  const fetchMenuList = async () => {
+    try {
+      const response = await allApiWithHeaderToken(API_CONSTANTS.MENU_LIST_URL, "", "get");
+      if (response?.status === 200) {
+        const menuData = response?.data || [];
+        setMenuList(menuData.filter((_, index) => index <= 6));
+      }
+    } catch (err) {
+      console.error("Error fetching menu:", err);
+    }
+  };
+
+  const fetchOrders = async () => {
+    setLoading(true);
+    try {
+      const response = await allApiWithHeaderToken(
+        `${API_CONSTANTS.COMMON_ORDER_URL}/get_by_user`,
+        { user_id: userDetails.id },
+        'post'
+      );
+
+      if (response.status === 200) {
+        const transformedOrders = response?.data?.data?.map(order => {
+          // Use stored values from backend - no recalculation needed
+          const totalPrice = Number(order.total_price || 0);
+          const taxPrice = Number(order.tax_price || 0);
+          const handlingFee = Number(order.handling_fee || 0);
+          const deliveryCharge = Number(order.delivery_charge || 0);
+          const totalShippingCost = Number(order.total_shipping_cost || 0);
+          
+          // Discount fields
+          const subtotalMrp = Number(order.subtotal_mrp || 0);
+          const subtotalSellingPrice = Number(order.subtotal_selling_price || 0);
+          const productDiscount = Number(order.product_discount || 0);
+          const promoDiscount = Number(order.promo_discount || 0);
+          const couponDiscount = Number(order.coupon_discount || 0);
+
+          return {
+            id: order.id,
+            orderId: order.order_id,
+            status: order.payment_status,
+            orderStatus: order.order_status,
+            paymentStatus: order.payment_status,
+            paymentMode: order.payment_mode,
+            orderType: order.order_type,
+            
+            // Use stored total_price as the final total
+            totalPrice: totalPrice,
+            totalAmount: totalPrice,
+            
+            // Pricing breakdown
+            subtotalMrp: subtotalMrp,
+            subtotalSellingPrice: subtotalSellingPrice,
+            productDiscount: productDiscount,
+            promoDiscount: promoDiscount,
+            couponCode: order.coupon_code,
+            couponDiscount: couponDiscount,
+            
+            // Individual components
+            basePrice: subtotalSellingPrice, // Use selling price as base
+            taxPrice: taxPrice,
+            handlingFee: handlingFee,
+            deliveryCharge: deliveryCharge,
+            shippingFee: taxPrice, // For backward compatibility
+            
+            // Dates
+            createdAt: order.created_at,
+            estimatedDeliveryDate: order.estimated_delivery_date,
+            orderFulfilledDate: order.order_fulfilled_date,
+            
+            // Related data
+            orderItems: order.order_items || [],
+            orderHistory: order.order_history || [],
+            shippingAddress: order.shipping_address,
+            deliveryNotes: order.delivery_notes, // Delivery agent notes
+            
+            // Shipping details
+            shippingCostPerCarton: order.shipping_cost_per_carton,
+            totalCartons: order.total_cartons,
+            totalShippingCost: totalShippingCost
+          };
+        }) || [];
+
+        // Sort by created date (newest first)
+        transformedOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setOrders(transformedOrders);
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusColor = (status) => {
+    const statusColors = {
+      initiated: 'bg-blue-100 text-blue-800 border-blue-200',
+      processing: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      shipped: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+      delivered: 'bg-green-100 text-green-800 border-green-200',
+      cancelled: 'bg-red-100 text-red-800 border-red-200',
+      refunded: 'bg-orange-100 text-orange-800 border-orange-200',
+      failed: 'bg-gray-100 text-gray-800 border-gray-200',
+      // Legacy statuses for backward compatibility
+      pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      packed: 'bg-purple-100 text-purple-800 border-purple-200',
+      created: 'bg-gray-100 text-gray-700 border-gray-300',
+      paid: 'bg-blue-100 text-blue-700 border-blue-300',
+      rejected: 'bg-gray-100 text-gray-800 border-gray-200'
+    };
+    return statusColors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800 border-gray-200';
+  };
+
+  const getPaymentStatusColor = (status) => {
+    const statusColors = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      paid_online: 'bg-green-100 text-green-800',
+      paid_offline: 'bg-blue-100 text-blue-800',
+      failed: 'bg-red-100 text-red-800',
+      refunded: 'bg-orange-100 text-orange-800',
+      // Legacy statuses for backward compatibility
+      paid: 'bg-green-100 text-green-800',
+      payment_pending: 'bg-yellow-100 text-yellow-800',
+      payment_paid: 'bg-green-100 text-green-800',
+      payment_failed: 'bg-red-100 text-red-800',
+      payment_offline: 'bg-blue-100 text-blue-800',
+      payment_refunded: 'bg-orange-100 text-orange-800'
+    };
+    return statusColors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const formatCurrency = (amount) => {
+    return `₹${Number(amount || 0).toFixed(2)}`;
+  };
+
+  // Filter orders based on search
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = order.orderId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         order.orderItems?.some(item => 
+                           item.name?.toLowerCase().includes(searchQuery.toLowerCase())
+                         );
+    return matchesSearch;
+  });
+
+  const handleViewReceipt = (order) => {
+    setSelectedOrder(order);
+    setShowReceipt(true);
+  };
+
+  // Receipt Component
+  const ReceiptContent = ({ order }) => {
+    if (!order) return null;
+
+    const formatAddress = (address) => {
+      if (!address) return 'N/A';
+      const parts = [
+        address.flat_no,
+        address.landmark,
+        address.city,
+        address.state,
+        address.zip_code,
+        address.country
+      ].filter(Boolean);
+      return parts.join(', ');
+    };
+
+    const products = order.orderItems || [];
+    
+    // Get pricing breakdown from order
+    const subtotalMrp = Number(order.subtotalMrp || 0);
+    const subtotalSellingPrice = Number(order.subtotalSellingPrice || 0);
+    const productDiscount = Number(order.productDiscount || 0);
+    const promoDiscount = Number(order.promoDiscount || 0);
+    const couponDiscount = Number(order.couponDiscount || 0);
+    const taxPrice = Number(order.taxPrice || 0);
+    const handlingFee = Number(order.handlingFee || 0);
+    const deliveryCharge = Number(order.deliveryCharge || 0);
+    const finalTotal = Number(order.totalAmount || 0);
+    
+    // Calculate total discounts
+    const totalDiscounts = productDiscount + promoDiscount + couponDiscount;
+    
+    // Calculate total taxes & charges
+    const totalTaxesAndCharges = taxPrice + handlingFee + deliveryCharge;
+
+    return (
+      <div className="bg-white p-6">
+        {/* Header */}
+        <div className="text-center mb-6 border-b pb-4">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">INVOICE</h1>
+          <div className="h-1 w-full bg-gray-300"></div>
+        </div>
+
+        {/* Invoice Info */}
+        <div className="grid grid-cols-2 gap-6 text-sm text-gray-700 mb-6">
+          <div>
+            <p className="mb-1"><strong>Invoice ID:</strong> #{order.orderId}</p>
+            <p className="mb-1"><strong>Date:</strong> {formatDate(order.createdAt)}</p>
+            {order.estimatedDeliveryDate && (
+              <p className="mb-1"><strong>Delivery Date:</strong> {formatDate(order.estimatedDeliveryDate)}</p>
+            )}
+          </div>
+          <div className="text-right">
+            <p className="mb-1"><strong>Order Status:</strong> <span className="capitalize">{order.orderStatus?.replace(/_/g, ' ')}</span></p>
+            <p className="mb-1"><strong>Payment Status:</strong> <span className="capitalize">{order.paymentStatus?.replace(/_/g, ' ')}</span></p>
+            <p className="mb-1"><strong>Payment Mode:</strong> <span className="capitalize">{order.paymentMode?.replace(/_/g, ' ')}</span></p>
+          </div>
+        </div>
+
+        {/* Customer & Shipping Information */}
+        {order.shippingAddress && (
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">Shipping Information</h2>
+            <div className="text-sm text-gray-700">
+              <p className="mb-1"><strong>Name:</strong> {order.shippingAddress.name || 'N/A'}</p>
+              <p className="mb-1"><strong>Phone:</strong> {order.shippingAddress.phone_number || 'N/A'}</p>
+              <p className="mb-1"><strong>Address:</strong> {formatAddress(order.shippingAddress)}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Delivery Notes (if available) */}
+        {order.deliveryNotes && (
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">Delivery Notes</h2>
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded">
+              <p className="text-sm text-gray-700 italic">{order.deliveryNotes}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Products Table */}
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">Order Details</h2>
+          
+          {/* Table Header */}
+          <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gray-50 border-b-2 border-gray-300 font-semibold text-sm text-gray-700">
+            <div className="col-span-1">#</div>
+            <div className="col-span-5">Product</div>
+            <div className="col-span-2 text-center">Qty</div>
+            <div className="col-span-2 text-center">Unit Price</div>
+            <div className="col-span-2 text-right">Subtotal</div>
+          </div>
+
+          {/* Table Body */}
+          <div className="divide-y divide-gray-200">
+            {products.map((item, index) => {
+              const itemPrice = Number(item.price || 0);
+              const itemQuantity = Number(item.quantity || 1);
+              const itemSubtotal = itemPrice * itemQuantity;
+              
+              return (
+                <div key={item.id || index} className="grid grid-cols-12 gap-4 px-4 py-4 text-sm">
+                  <div className="col-span-1 text-gray-600">{index + 1}</div>
+                  <div className="col-span-5">
+                    <p className="font-medium text-gray-900">{item.product_name || item.name}</p>
+                    {item.weight && (
+                      <p className="text-xs text-gray-500 mt-1">Weight: {item.weight}</p>
+                    )}
+                  </div>
+                  <div className="col-span-2 text-center text-gray-700">{itemQuantity}</div>
+                  <div className="col-span-2 text-center text-gray-700">₹{itemPrice.toFixed(2)}</div>
+                  <div className="col-span-2 text-right font-medium text-gray-900">
+                    ₹{itemSubtotal.toFixed(2)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Summary */}
+        <div className="flex justify-end mb-6">
+          <div className="w-80 border-t-2 border-gray-300 pt-4">
+            <div className="space-y-2">
+              {/* MRP Subtotal */}
+              {subtotalMrp > 0 && (
+                <div className="flex justify-between text-sm text-gray-700">
+                  <span>Subtotal (MRP):</span>
+                  <span>₹{subtotalMrp.toFixed(2)}</span>
+                </div>
+              )}
+              
+              {/* Product Discount */}
+              {productDiscount > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Product Discount:</span>
+                  <span>- ₹{productDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              
+              {/* Subtotal after product discount */}
+              {subtotalSellingPrice > 0 && (
+                <div className="flex justify-between text-sm text-gray-700">
+                  <span>Subtotal (Selling Price):</span>
+                  <span>₹{subtotalSellingPrice.toFixed(2)}</span>
+                </div>
+              )}
+              
+              {/* Promo Discount */}
+              {promoDiscount > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Promo Discount:</span>
+                  <span>- ₹{promoDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              
+              {/* Coupon Discount */}
+              {couponDiscount > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Coupon Discount {order.couponCode ? `(${order.couponCode})` : ''}:</span>
+                  <span>- ₹{couponDiscount.toFixed(2)}</span>
+                </div>
+              )}
+              
+              {/* Total Discounts */}
+              {totalDiscounts > 0 && (
+                <div className="flex justify-between text-sm font-semibold text-green-700 pt-1 border-t border-gray-200">
+                  <span>Total Discounts:</span>
+                  <span>- ₹{totalDiscounts.toFixed(2)}</span>
+                </div>
+              )}
+              
+              {/* Subtotal after all discounts */}
+              <div className="flex justify-between text-sm font-medium text-gray-800 pt-1 border-t border-gray-200">
+                <span>Subtotal (After Discounts):</span>
+                <span>₹{(subtotalSellingPrice - promoDiscount - couponDiscount).toFixed(2)}</span>
+              </div>
+              
+              {/* Tax */}
+              {taxPrice > 0 && (
+                <div className="flex justify-between text-sm text-gray-700">
+                  <span>Tax:</span>
+                  <span>₹{taxPrice.toFixed(2)}</span>
+                </div>
+              )}
+              
+              {/* Handling Fee */}
+              {handlingFee > 0 && (
+                <div className="flex justify-between text-sm text-gray-700">
+                  <span>Handling Fee:</span>
+                  <span>₹{handlingFee.toFixed(2)}</span>
+                </div>
+              )}
+              
+              {/* Delivery Charge */}
+              {deliveryCharge > 0 && (
+                <div className="flex justify-between text-sm text-gray-700">
+                  <span>Delivery Charge:</span>
+                  <span>₹{deliveryCharge.toFixed(2)}</span>
+                </div>
+              )}
+              
+              {/* Grand Total */}
+              <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t-2 border-gray-400">
+                <span>Grand Total:</span>
+                <span>₹{finalTotal.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-8 pt-6 border-t border-gray-300 text-center text-xs text-gray-500">
+          <p>Thank you for your business!</p>
+          <p className="mt-2">This is a computer generated invoice.</p>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return <UserLoader />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      
+      <main className="pt-[160px] md:pt-20 pb-20 md:pb-8">
+        <div className="p-4 md:p-6 mt-4 w-full max-w-screen-xl mx-auto">
+          {/* Page Title */}
+          <h1 className="text-[20px] sm:text-[24px] md:text-[36px] font-bold text-center mb-4 text-[#1D2E43] font-[playfair]">
+            {t('order_history') || 'Order History'}
+          </h1>
+
+          {/* Breadcrumb */}
+          <div className="flex justify-center mb-6 text-gray-600 text-sm">
+            <p className="text-[#1D2E43]">
+              <span 
+                onClick={() => navigate('/')} 
+                className="cursor-pointer hover:text-yellow-600"
+              >
+                Home
+              </span>
+              {" / "}
+              <span className="text-gray-600">{t('order_history') || 'Order History'}</span>
+            </p>
+          </div>
+
+          {/* Search Bar */}
+          <div className="bg-white rounded-lg border p-4 mb-6">
+            <div className="relative max-w-md">
+              <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+              <input
+                type="text"
+                placeholder={t('search_orders') || 'Search by order ID or product name...'}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              />
+            </div>
+          </div>
+
+          {filteredOrders.length === 0 ? (
+            <div className="bg-white rounded-xl p-12 text-center border">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="ri-shopping-bag-line text-4xl text-gray-400"></i>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">
+                {t('no_orders_found') || 'No orders found'}
+              </h2>
+              <p className="text-gray-600 mb-6">
+                {searchQuery
+                  ? t('try_different_search') || 'Try a different search term'
+                  : t('start_shopping') || 'Start shopping to see your orders here'}
+              </p>
+              <button
+                onClick={() => navigate('/')}
+                className="bg-yellow-400 text-gray-900 px-6 py-3 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
+              >
+                {t('continue_shopping') || 'Continue Shopping'}
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg border overflow-hidden">
+              {/* Header */}
+              <div className="p-4 border-b bg-gray-50">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Your Orders ({filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'})
+                </h2>
+              </div>
+
+              {/* Column Headers - Desktop Only */}
+              <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border-b text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                <div className="col-span-2">Order ID</div>
+                <div className="col-span-2">Date</div>
+                <div className="col-span-1">Items</div>
+                <div className="col-span-2">Status</div>
+                <div className="col-span-2">Payment</div>
+                <div className="col-span-2 text-right">Total</div>
+                <div className="col-span-1 text-center">Actions</div>
+              </div>
+
+              {/* Order Cards */}
+              <div className="divide-y divide-gray-200">
+                {filteredOrders.map((order) => (
+                  <div key={order.id} className="p-4 md:p-6 hover:bg-gray-50 transition-colors">
+                    {/* Desktop Layout */}
+                    <div className="hidden md:grid grid-cols-12 gap-4 items-center">
+                      <div className="col-span-2">
+                        <span className="text-sm font-bold text-gray-900">#{order.orderId}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-sm text-gray-600">{formatDate(order.createdAt)}</span>
+                      </div>
+                      <div className="col-span-1">
+                        <span className="text-sm text-gray-600">{order.orderItems?.length || 0} item(s)</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(order.orderStatus)}`}>
+                          {order.orderStatus?.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${getPaymentStatusColor(order.paymentStatus)}`}>
+                          {order.paymentStatus?.toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="col-span-2 text-right">
+                        <span className="text-sm font-bold text-gray-900">{formatCurrency(order.totalAmount)}</span>
+                      </div>
+                      <div className="col-span-1 flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleViewReceipt(order)}
+                          className="p-2 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                          title="View Receipt"
+                        >
+                          <i className="ri-file-text-line text-lg"></i>
+                        </button>
+                        <button
+                          onClick={() => navigate(`/track-order?orderId=${order.orderId}`)}
+                          className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Track Order"
+                        >
+                          <i className="ri-map-pin-line text-lg"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Mobile Layout */}
+                    <div className="md:hidden space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <span className="text-sm font-bold text-gray-900">#{order.orderId}</span>
+                          <p className="text-xs text-gray-500 mt-1">{formatDate(order.createdAt)}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleViewReceipt(order)}
+                            className="p-2 text-gray-600 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                            title="View Receipt"
+                          >
+                            <i className="ri-file-text-line text-lg"></i>
+                          </button>
+                          <button
+                            onClick={() => navigate(`/track-order?orderId=${order.orderId}`)}
+                            className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Track Order"
+                          >
+                            <i className="ri-map-pin-line text-lg"></i>
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 text-xs text-gray-600">
+                        <span>{order.orderItems?.length || 0} item(s)</span>
+                        <span>•</span>
+                        <span className={`inline-flex px-2 py-1 font-medium rounded-full ${getStatusColor(order.orderStatus)}`}>
+                          {order.orderStatus?.toUpperCase()}
+                        </span>
+                        <span>•</span>
+                        <span className={`inline-flex px-2 py-1 font-medium rounded-full ${getPaymentStatusColor(order.paymentStatus)}`}>
+                          {order.paymentStatus?.toUpperCase()}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <span className="text-xs text-gray-600">Total</span>
+                        <span className="text-sm font-bold text-gray-900">{formatCurrency(order.totalAmount)}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Receipt Modal */}
+      <Dialog
+        visible={showReceipt}
+        onHide={() => setShowReceipt(false)}
+        header={`Invoice - #${selectedOrder?.orderId}`}
+        style={{ width: '90vw', maxWidth: '800px' }}
+        modal
+        dismissableMask
+        draggable={false}
+      >
+        <ReceiptContent order={selectedOrder} />
+      </Dialog>
+
+      <Footer data={menuList} />
+    </div>
+  );
+};
+
+export default OrderHistoryPage;

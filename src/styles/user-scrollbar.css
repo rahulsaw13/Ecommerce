@@ -1,0 +1,212 @@
+/* Hide scrollbar for user pages - keep functionality */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+html,
+body {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
+  overflow-y: scroll; /* Keep scroll functionality */
+}
+
+/* Hide all scrollbars globally for user pages */
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+* {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
+}
+
+/* Utility class to hide scrollbar while keeping scroll functionality */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;  /* Firefox */
+}
+
+/* Hide scrollbar for all user page elements */
+.user-page::-webkit-scrollbar,
+.user-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.user-page,
+.user-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Custom scrollbar styles for user module (only for specific components if needed) */
+.user-scrollbar-visible {
+  scrollbar-width: thin;
+  scrollbar-color: #caa446 #f1f1f1;
+}
+
+.user-scrollbar-visible::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.user-scrollbar-visible::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.user-scrollbar-visible::-webkit-scrollbar-thumb {
+  background: #caa446;
+  border-radius: 10px;
+  border: 1px solid #f1f1f1;
+}
+
+.user-scrollbar-visible::-webkit-scrollbar-thumb:hover {
+  background: #b8932e;
+}
+
+.user-scrollbar-visible::-webkit-scrollbar-corner {
+  background: #f1f1f1;
+}
+
+/* Ensure scrollbar is visible on mobile */
+.user-scrollbar-visible {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* PrimeReact Dialog Content Scrollbar Styles for User Module */
+.p-dialog-content {
+  scrollbar-width: thin;
+  scrollbar-color: #caa446 #f1f1f1;
+}
+
+.p-dialog-content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.p-dialog-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.p-dialog-content::-webkit-scrollbar-thumb {
+  background: #caa446;
+  border-radius: 10px;
+  border: 1px solid #f1f1f1;
+}
+
+.p-dialog-content::-webkit-scrollbar-thumb:hover {
+  background: #b8932e;
+}
+
+.p-dialog-content::-webkit-scrollbar-corner {
+  background: #f1f1f1;
+}
+
+/* PrimeReact Dialog Mask and other dialog elements */
+.p-dialog .p-dialog-content {
+  scrollbar-width: thin;
+  scrollbar-color: #caa446 #f1f1f1;
+  -webkit-overflow-scrolling: touch;
+}
+
+.p-dialog .p-dialog-content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.p-dialog .p-dialog-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.p-dialog .p-dialog-content::-webkit-scrollbar-thumb {
+  background: #caa446;
+  border-radius: 10px;
+  border: 1px solid #f1f1f1;
+}
+
+.p-dialog .p-dialog-content::-webkit-scrollbar-thumb:hover {
+  background: #b8932e;
+}
+
+/* Sidebar content scrollbar for user module */
+.p-sidebar-content {
+  scrollbar-width: thin;
+  scrollbar-color: #caa446 #f1f1f1;
+}
+
+.p-sidebar-content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.p-sidebar-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.p-sidebar-content::-webkit-scrollbar-thumb {
+  background: #caa446;
+  border-radius: 10px;
+  border: 1px solid #f1f1f1;
+}
+
+.p-sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: #b8932e;
+}
+
+/* High specificity override for all PrimeReact components in user module */
+.p-component::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.p-component::-webkit-scrollbar-track {
+  background: #f1f1f1 !important;
+  border-radius: 10px !important;
+}
+
+.p-component::-webkit-scrollbar-thumb {
+  background: #caa446 !important;
+  border-radius: 10px !important;
+  border: 1px solid #f1f1f1 !important;
+}
+
+.p-component::-webkit-scrollbar-thumb:hover {
+  background: #b8932e !important;
+}
+
+/* Specific targeting for checkout dialog */
+.p-dialog.p-component .p-dialog-content::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.p-dialog.p-component .p-dialog-content::-webkit-scrollbar-track {
+  background: #f1f1f1 !important;
+  border-radius: 10px !important;
+}
+
+.p-dialog.p-component .p-dialog-content::-webkit-scrollbar-thumb {
+  background: #caa446 !important;
+  border-radius: 10px !important;
+  border: 1px solid #f1f1f1 !important;
+}
+
+.p-dialog.p-component .p-dialog-content::-webkit-scrollbar-thumb:hover {
+  background: #b8932e !important;
+}

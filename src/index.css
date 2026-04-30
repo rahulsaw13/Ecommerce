@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --color-BgPrimaryColor: #c5c0e92e;
+        --color-BgSecondaryColor: white;
+        --color-BgTertiaryColor: white;
+
+        --color-BorderColor: #d2d2ff;
+
+        --color-TextPrimaryColor: black;
+        --color-TextSecondaryColor: black;
+        
+        /* Custom gradient color */
+        --custom-secondary-gradient: linear-gradient(rgb(255, 193, 7) 0%, rgb(255, 213, 79) 100%);
+    }
+    :root[class="dark"] {
+        --color-BgPrimaryColor: #151515;
+        --color-BgSecondaryColor: #1d1d1d;
+        --color-BgTertiaryColor: #242424;
+
+        --color-BorderColor: #151515;
+
+        --color-TextPrimaryColor: #FFC107;
+        --color-TextSecondaryColor: #b9b9b9;
+        
+        /* Custom gradient color (same for dark mode) */
+        --custom-secondary-gradient: linear-gradient(rgb(255, 193, 7) 0%, rgb(255, 213, 79) 100%);
+    }
+}
+
+@layer utilities {
+    .bg-custom-secondary-gradient {
+        background: var(--custom-secondary-gradient);
+    }
+}
