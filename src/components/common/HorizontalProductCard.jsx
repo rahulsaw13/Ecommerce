@@ -64,11 +64,18 @@ const CollectionCard = ({ product }) => {
       setAddingToCart(true);
       try {
         console.log('handleAddToCart: Adding product', product.name);
-        
+        const userDetails = JSON.parse(localStorage.getItem('userDetails') || '{}');
+        const userId = userDetails?.id;
+        const variantId = optionsArray[0]?.productVariantId || optionsArray[0]?.id || product?.productVariantId;
+        if (!userId || !variantId) {
+          toast.error(!userId ? 'Please sign in first' : 'Product variant not found');
+          return;
+        }
         // Add to cart via Redux
-        await dispatch(reduxAddToCart({ 
-          product, 
-          quantity: 1 
+        await dispatch(reduxAddToCart({
+          user_id: userId,
+          product_variant_id: variantId,
+          quantity: 1
         })).unwrap();
 
         // Refresh cart
@@ -110,11 +117,18 @@ const CollectionCard = ({ product }) => {
 
     setAddingToCart(true);
     try {
+      const userDetails = JSON.parse(localStorage.getItem('userDetails') || '{}');
+      const userId = userDetails?.id;
+      const variantId = selectedVariant?.productVariantId || selectedVariant?.id;
+      if (!userId || !variantId) {
+        toast.error(!userId ? 'Please sign in first' : 'Variant not found');
+        return;
+      }
       // Add to cart via Redux
-      await dispatch(reduxAddToCart({ 
-        product, 
-        variant: selectedVariant, 
-        quantity: 1 
+      await dispatch(reduxAddToCart({
+        user_id: userId,
+        product_variant_id: variantId,
+        quantity: 1
       })).unwrap();
       
       // Refresh cart

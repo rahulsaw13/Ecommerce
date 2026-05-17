@@ -2007,7 +2007,13 @@ const handleAddToCart = async (product) => {
                         className="flex flex-col items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
                       >
                         <div className="w-14 h-14 bg-yellow-400 rounded-xl flex items-center justify-center shadow-sm border-2 border-yellow-500">
-                          <i className="ri-restaurant-line text-2xl text-gray-800"></i>
+                          {category.icon ? (
+                            <i className={`${category.icon} text-2xl text-gray-800`}></i>
+                          ) : category.image_url ? (
+                            <img src={category.image_url} alt={categoryName} className="w-8 h-8 object-contain" />
+                          ) : (
+                            <i className="ri-restaurant-line text-2xl text-gray-800"></i>
+                          )}
                         </div>
                         <span className="text-[10px] font-semibold text-gray-800 text-center leading-tight max-w-[60px]">
                           {categoryName}
@@ -2028,7 +2034,13 @@ const handleAddToCart = async (product) => {
                         className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
                       >
                         <div className="w-10 h-10 bg-yellow-400 rounded-md flex items-center justify-center shadow-sm flex-shrink-0">
-                          <i className="ri-restaurant-line text-xl text-gray-800"></i>
+                          {category.icon ? (
+                            <i className={`${category.icon} text-xl text-gray-800`}></i>
+                          ) : category.image_url ? (
+                            <img src={category.image_url} alt={categoryName} className="w-6 h-6 object-contain" />
+                          ) : (
+                            <i className="ri-restaurant-line text-xl text-gray-800"></i>
+                          )}
                         </div>
                         <span className="text-[10px] font-medium text-gray-800 whitespace-nowrap">
                           {categoryName}
@@ -2075,26 +2087,32 @@ const handleAddToCart = async (product) => {
                       <h3 className="font-semibold text-gray-800 text-sm line-clamp-2">{product.name}</h3>
                       {product.variants && product.variants[0] && (
                         <p className="text-lg font-bold text-green-600 mt-1">
-                          ₹{product.variants[0].actualPrice || product.variants[0].price || 0}
+                          ₹{product.variants[0].discountedPrice || product.variants[0].actualPrice || product.variants[0].price || 0}
                         </p>
                       )}
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAddToCart(product);
-                        }}
-                        disabled={addingToCart}
-                        className="mt-2 w-full bg-yellow-400 text-gray-900 py-1.5 rounded-md text-sm font-semibold hover:bg-yellow-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {addingToCart ? (
-                          <div className="flex items-center justify-center gap-1">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-                            Adding...
-                          </div>
-                        ) : (
-                          'Add to Cart'
-                        )}
-                      </button>
+                      {product.variants?.[0]?.in_stock === false ? (
+                        <button disabled className="mt-2 w-full bg-gray-100 text-gray-400 py-1.5 rounded-md text-sm font-semibold border border-gray-200 cursor-not-allowed">
+                          Out of Stock
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToCart(product);
+                          }}
+                          disabled={addingToCart}
+                          className="mt-2 w-full bg-yellow-400 text-gray-900 py-1.5 rounded-md text-sm font-semibold hover:bg-yellow-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {addingToCart ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                              Adding...
+                            </div>
+                          ) : (
+                            'Add to Cart'
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

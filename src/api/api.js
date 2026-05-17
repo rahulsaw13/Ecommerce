@@ -141,8 +141,14 @@ const allApi = axios.create({
   }
 });
 
-// ✅ token api
-const allApiWithHeaderToken = axios.create({
+// Strip "api/v1/" prefix from URLs (already in baseURL)
+allApi.interceptors.request.use((config) => {
+  if (config.url) config.url = config.url.replace(/^api\/v1\//, "");
+  return config;
+});
+
+// Internal axios instance for authenticated calls
+const _authAxios = axios.create({
   baseURL: BASE_URL,
   headers: {
     "Content-Type": "application/json",
@@ -150,27 +156,12 @@ const allApiWithHeaderToken = axios.create({
   }
 });
 
-// 🔥 token attach (FIXED)
-allApiWithHeaderToken.interceptors.request.use((config) => {
-  const tokenStr = localStorage.getItem("token");
-  if (tokenStr) {
-    let token = tokenStr;
-    try {
-      token = JSON.parse(tokenStr);
-    } catch (e) {
-      // It's a plain string
-    }
-    
-    if (token) {
-      config.headers["Authorization"] = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
-    }
-  }
-
+_authAxios.interceptors.request.use((config) => {
+  if (config.url) config.url = config.url.replace(/^api\/v1\//, "");
   return config;
 });
 
-// 🔥 response error handle
-allApiWithHeaderToken.interceptors.response.use(
+_authAxios.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
@@ -179,6 +170,37 @@ allApiWithHeaderToken.interceptors.response.use(
     return Promise.reject(err);
   }
 );
+
+// Backward-compatible wrapper: accepts (url, data, method, contentType)
+// Strips "api/v1/" prefix that some callers include (already in baseURL)
+const allApiWithHeaderToken = (url, data, method, contentType) => {
+  const tokenStr = localStorage.getItem("token");
+  let token = tokenStr;
+  try { token = JSON.parse(tokenStr); } catch (e) {}
+  const authHeader = token
+    ? (String(token).startsWith("Bearer ") ? String(token) : `Bearer ${token}`)
+    : undefined;
+
+  const cleanUrl = url ? url.replace(/^api\/v1\//, "") : url;
+
+  const headers = { "X-Tenant-Domain": "localhost" };
+  if (authHeader) headers["Authorization"] = authHeader;
+
+  if (contentType === "multipart/form-data") {
+    const formData = new FormData();
+    if (data && typeof data === "object") {
+      Object.keys(data).forEach((key) => formData.append(key, data[key]));
+    }
+    if (method === "put") return _authAxios.put(cleanUrl, formData, { headers });
+    return _authAxios.post(cleanUrl, formData, { headers });
+  }
+
+  if (method === "post") return _authAxios.post(cleanUrl, data, { headers });
+  if (method === "put") return _authAxios.put(cleanUrl, data, { headers });
+  if (method === "patch") return _authAxios.patch(cleanUrl, data, { headers });
+  if (method === "delete") return _authAxios.delete(cleanUrl, { headers });
+  return _authAxios.get(cleanUrl, { headers });
+};
 
 // ✅ exports
 export default allApi;

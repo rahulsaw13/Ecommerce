@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { addToCart as reduxAddToCart, getCart } from '../../redux/slices/cartSlice';
+import { addToCart as reduxAddToCart, getCart, removeFromCart, updateCartQuantity } from '../../redux/slices/cartSlice';
 import { allApiWithHeaderToken } from "@api/api";
 import { API_CONSTANTS } from "@constants/apiurl";
 import { Toast } from 'primereact/toast';
@@ -77,7 +77,7 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
     try {
       if (newQuantity === 0) {
         // Remove item from cart
-        await allApiWithHeaderToken(`${API_CONSTANTS.CART_URL}/${cartItemId}`, "", "delete");
+        await dispatch(removeFromCart({ cartItemId })).unwrap();
         toast.current?.show({
           severity: 'info',
           summary: 'Removed from Cart',
@@ -85,19 +85,14 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
           life: 2000,
         });
       } else {
-        // Update quantity (no toast notification)
-        await allApiWithHeaderToken(
-          API_CONSTANTS.CART_UPDATE_QUANTITY_URL,
-          { product_id: productId, weight: weight, quantity: newQuantity },
-          "patch"
-        );
+        // Update quantity
+        await dispatch(updateCartQuantity({ cartItemId, productId, weight, quantity: newQuantity })).unwrap();
       }
 
-      // Refresh cart items from API
-      const cartResponse = await allApiWithHeaderToken(API_CONSTANTS.CART_URL, "", "get");
-      if (cartResponse.status === 200 && cartResponse.data.success) {
-        window.dispatchEvent(new CustomEvent('cartUpdated', { detail: cartResponse.data.data.items || [] }));
-      }
+      // Refresh cart
+      const result = await dispatch(getCart()).unwrap();
+      const updatedItems = result?.data?.items || result?.items || [];
+      window.dispatchEvent(new CustomEvent('cartUpdated', { detail: updatedItems }));
     } catch (error) {
       toast.current?.show({
         severity: 'error',
@@ -129,11 +124,15 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
     setAddingToCart(true);
 
     try {
+      const userDetails = JSON.parse(localStorage.getItem('userDetails') || '{}');
+      const userId = userDetails?.id || user?.id || user?.user?.id;
+      const variantId = variant?.productVariantId;
+
       // Use Redux action
-      await dispatch(reduxAddToCart({ 
-        product: product.originalProduct || product, 
-        variant, 
-        quantity: 1 
+      await dispatch(reduxAddToCart({
+        user_id: userId,
+        product_variant_id: variantId,
+        quantity: 1
       })).unwrap();
 
       // Refresh cart items from API by dispatching getCart
@@ -243,71 +242,70 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
                     )}
                   </div>
                   {hasMultipleVariants ? (
-                    <button 
-                      onClick={(e) => handleOptionsClick(e, product)}
-                      disabled={addingToCart}
-                      className="w-full bg-white text-yellow-500 rounded-lg font-bold hover:bg-yellow-50 transition-colors disabled:opacity-50 border-2 border-yellow-400 py-1 md:py-2 text-[11px] md:text-sm"
-                    >
-                      Options
-                    </button>
+                    (() => {
+                      const allOutOfStock = product.originalProduct?.variants?.every(v => v.in_stock === false);
+                      return allOutOfStock ? (
+                        <button disabled className="w-full bg-gray-100 text-gray-400 rounded-lg font-bold border-2 border-gray-200 py-1 md:py-2 text-[11px] md:text-sm cursor-not-allowed">
+                          Out of Stock
+                        </button>
+                      ) : (
+                        <button
+                          onClick={(e) => handleOptionsClick(e, product)}
+                          disabled={addingToCart}
+                          className="w-full bg-white text-yellow-500 rounded-lg font-bold hover:bg-yellow-50 transition-colors disabled:opacity-50 border-2 border-yellow-400 py-1 md:py-2 text-[11px] md:text-sm"
+                        >
+                          Options
+                        </button>
+                      );
+                    })()
                   ) : (() => {
+                    const inStock = firstVariant?.in_stock !== false;
+                    const availableQty = firstVariant?.available_qty ?? null;
                     const cartItem = getCartItem(product.originalProduct?.id || product.id, firstVariant?.weight || product.weight);
                     const key = `${product.originalProduct?.id || product.id}_${firstVariant?.weight || product.weight}`;
                     const isUpdating = updatingQuantity[key];
 
+                    if (!inStock) {
+                      return (
+                        <button disabled className="w-full bg-gray-100 text-gray-400 rounded-lg font-bold border-2 border-gray-200 py-1 md:py-2 text-[11px] md:text-sm cursor-not-allowed">
+                          Out of Stock
+                        </button>
+                      );
+                    }
+
                     if (cartItem) {
                       return (
-                        <div 
-                          className="w-full flex items-center justify-between bg-white rounded-lg border-2 border-yellow-400 py-0.5 md:py-1 px-1 md:px-2"
-                        >
+                        <div className="w-full flex items-center justify-between bg-white rounded-lg border-2 border-yellow-400 py-0.5 md:py-1 px-1 md:px-2">
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateQuantity(
-                                product.originalProduct?.id || product.id,
-                                firstVariant?.weight || product.weight,
-                                cartItem.quantity - 1,
-                                cartItem.cart_item_id
-                              );
-                            }}
+                            onClick={(e) => { e.stopPropagation(); updateQuantity(product.originalProduct?.id || product.id, firstVariant?.weight || product.weight, cartItem.quantity - 1, cartItem.cart_item_id); }}
                             disabled={isUpdating}
                             className="text-yellow-500 hover:text-yellow-600 font-bold text-base md:text-lg disabled:opacity-50"
-                          >
-                            −
-                          </button>
-                          <span className="text-gray-900 font-bold text-[11px] md:text-sm px-1 md:px-3">
-                            {cartItem.quantity}
-                          </span>
+                          >−</button>
+                          <span className="text-gray-900 font-bold text-[11px] md:text-sm px-1 md:px-3">{cartItem.quantity}</span>
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateQuantity(
-                                product.originalProduct?.id || product.id,
-                                firstVariant?.weight || product.weight,
-                                cartItem.quantity + 1,
-                                cartItem.cart_item_id
-                              );
-                            }}
-                            disabled={isUpdating}
+                            onClick={(e) => { e.stopPropagation(); updateQuantity(product.originalProduct?.id || product.id, firstVariant?.weight || product.weight, cartItem.quantity + 1, cartItem.cart_item_id); }}
+                            disabled={isUpdating || (availableQty !== null && cartItem.quantity >= availableQty)}
                             className="text-yellow-500 hover:text-yellow-600 font-bold text-base md:text-lg disabled:opacity-50"
-                          >
-                            +
-                          </button>
+                          >+</button>
                         </div>
                       );
                     }
 
                     return (
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addToCart(product, firstVariant);
-                        }}
-                        disabled={addingToCart}
-                        className="w-full bg-white text-yellow-500 rounded-lg font-bold hover:bg-yellow-50 transition-colors disabled:opacity-50 border-2 border-yellow-400 py-1 md:py-2 text-[11px] md:text-sm"
-                      >
-                        Add
-                      </button>
+                      <div>
+                        {availableQty !== null && availableQty <= 10 && availableQty > 0 && (
+                          <p className="text-[9px] md:text-[10px] text-orange-500 font-medium mb-0.5 text-center">
+                            Only {availableQty} left
+                          </p>
+                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); addToCart(product, firstVariant); }}
+                          disabled={addingToCart}
+                          className="w-full bg-white text-yellow-500 rounded-lg font-bold hover:bg-yellow-50 transition-colors disabled:opacity-50 border-2 border-yellow-400 py-1 md:py-2 text-[11px] md:text-sm"
+                        >
+                          Add
+                        </button>
+                      </div>
                     );
                   })()}
                 </div>
@@ -343,18 +341,26 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
                   const key = `${selectedProduct.originalProduct?.id || selectedProduct.id}_${variant.weight}`;
                   const isUpdating = updatingQuantity[key];
 
+                  const variantInStock = variant.in_stock !== false;
+                  const variantAvailableQty = variant.available_qty ?? null;
+
                   return (
                     <div
                       key={variant.id}
-                      className="border border-gray-200 rounded-lg p-3 md:p-4 hover:border-yellow-400 hover:bg-yellow-50 transition-all"
+                      className={`border rounded-lg p-3 md:p-4 transition-all ${!variantInStock ? 'border-gray-200 bg-gray-50 opacity-75' : 'border-gray-200 hover:border-yellow-400 hover:bg-yellow-50'}`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1 md:mb-2">
                             <span className="text-xs md:text-sm font-semibold text-gray-900">{variant.weight}</span>
-                            {discount > 0 && (
+                            {discount > 0 && variantInStock && (
                               <span className="bg-yellow-400 text-gray-900 text-[10px] md:text-xs font-bold px-1.5 md:px-2 py-0.5 rounded">
                                 {discount}% OFF
+                              </span>
+                            )}
+                            {!variantInStock && (
+                              <span className="bg-gray-200 text-gray-500 text-[10px] md:text-xs font-bold px-1.5 md:px-2 py-0.5 rounded">
+                                Out of Stock
                               </span>
                             )}
                           </div>
@@ -368,37 +374,28 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
                               </span>
                             )}
                           </div>
+                          {variantInStock && variantAvailableQty !== null && variantAvailableQty <= 10 && (
+                            <p className="text-[10px] text-orange-500 font-medium mt-0.5">Only {variantAvailableQty} left</p>
+                          )}
                         </div>
-                        
-                        {cartItem ? (
+
+                        {!variantInStock ? (
+                          <button disabled className="bg-gray-200 text-gray-400 px-3 md:px-4 py-1.5 md:py-2 rounded-lg font-bold text-xs md:text-sm cursor-not-allowed">
+                            Out of Stock
+                          </button>
+                        ) : cartItem ? (
                           <div className="flex items-center gap-1 md:gap-2 bg-white rounded-lg border-2 border-yellow-400 px-2 md:px-3 py-1">
                             <button
-                              onClick={() => updateQuantity(
-                                selectedProduct.originalProduct?.id || selectedProduct.id,
-                                variant.weight,
-                                cartItem.quantity - 1,
-                                cartItem.cart_item_id
-                              )}
+                              onClick={() => updateQuantity(selectedProduct.originalProduct?.id || selectedProduct.id, variant.weight, cartItem.quantity - 1, cartItem.cart_item_id)}
                               disabled={isUpdating}
                               className="text-yellow-500 hover:text-yellow-600 font-bold text-base md:text-lg disabled:opacity-50"
-                            >
-                              −
-                            </button>
-                            <span className="text-gray-900 font-bold text-xs md:text-sm px-1 md:px-2">
-                              {cartItem.quantity}
-                            </span>
+                            >−</button>
+                            <span className="text-gray-900 font-bold text-xs md:text-sm px-1 md:px-2">{cartItem.quantity}</span>
                             <button
-                              onClick={() => updateQuantity(
-                                selectedProduct.originalProduct?.id || selectedProduct.id,
-                                variant.weight,
-                                cartItem.quantity + 1,
-                                cartItem.cart_item_id
-                              )}
-                              disabled={isUpdating}
+                              onClick={() => updateQuantity(selectedProduct.originalProduct?.id || selectedProduct.id, variant.weight, cartItem.quantity + 1, cartItem.cart_item_id)}
+                              disabled={isUpdating || (variantAvailableQty !== null && cartItem.quantity >= variantAvailableQty)}
                               className="text-yellow-500 hover:text-yellow-600 font-bold text-base md:text-lg disabled:opacity-50"
-                            >
-                              +
-                            </button>
+                            >+</button>
                           </div>
                         ) : (
                           <button

@@ -1,5 +1,5 @@
 // utils
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -10,6 +10,7 @@ import UserLoader from '@userpage-pages/UserLoader';
 import { ROUTES_CONSTANTS } from "@constants/routesurl";
 import { useDispatch, useSelector } from "react-redux";
 import { updateCartQuantity, removeFromCart, getCart, clearCart } from "../../redux/slices/cartSlice";
+import { fetchAllActiveProducts } from "../../redux/slices/productSlice";
 
 const ViewCart = () => {
   const [visible, setVisible] = useState(false);
@@ -110,14 +111,19 @@ const ViewCart = () => {
     if (cart.length > 0 && products.length > 0) {
       const enriched = cart.map((cartItem) => {
         const product = products.find(p => p.id === cartItem.product_id);
-        const variant = product?.variants?.[0] || {};
-        
+        const variant = product?.variants?.find(v => v.productVariantId === cartItem.product_variant_id)
+                     || product?.variants?.[0] || {};
+
+        const fallbackCartPrice = Number(cartItem?.price || 0);
+        const resolvedSellingPrice = Number(variant?.discountedPrice || variant?.actualPrice || fallbackCartPrice || 0);
+        const resolvedMrp = Number(variant?.actualPrice || variant?.discountedPrice || fallbackCartPrice || 0);
+
         return {
           ...cartItem,
           name: product?.name || cartItem.name || `Product ${cartItem.product_id}`,
           image_url: product?.image_url || '',
-          selling_price: variant?.price || variant?.selling_price || 0,
-          mrp: variant?.actualPrice || variant?.mrp || variant?.price || 0,
+          selling_price: resolvedSellingPrice,
+          mrp: resolvedMrp,
           weight: cartItem.weight || variant?.weight || ''
         };
       });
@@ -150,7 +156,8 @@ const ViewCart = () => {
   }, [cart, products]);
 
   const updateQuantity = async (cartItemId, productId, weight, amount) => {
-    const item = cartItemsWithDetails.find(i => i.cart_item_id === cartItemId);
+    const item = cartItemsWithDetails.find(i => i.cart_item_id === cartItemId)
+              || cart.find(i => i.cart_item_id === cartItemId);
     if (!item) return;
     
     const newQuantity = item.quantity + amount;
@@ -162,7 +169,7 @@ const ViewCart = () => {
     
     setUpdatingItems(prev => ({ ...prev, [cartItemId]: true }));
     try {
-      await dispatch(updateCartQuantity({ productId, weight, quantity: newQuantity })).unwrap();
+      await dispatch(updateCartQuantity({ cartItemId, productId, weight, quantity: newQuantity })).unwrap();
       await fetchCartData();
     } catch (error) {
       console.error("Update quantity error:", error);
@@ -174,14 +181,14 @@ const ViewCart = () => {
 
   const setDirectQuantity = async (cartItemId, productId, weight, newQuantity) => {
     if (newQuantity === '') return;
-    if (newQuantity.length > 1 && newQuantity.startsWith('0')) return;
-    
+    if (String(newQuantity).length > 1 && String(newQuantity).startsWith('0')) return;
+
     const quantity = parseInt(newQuantity);
     if (isNaN(quantity) || quantity < 1) return;
 
     setUpdatingItems(prev => ({ ...prev, [cartItemId]: true }));
     try {
-      await dispatch(updateCartQuantity({ productId, weight, quantity })).unwrap();
+      await dispatch(updateCartQuantity({ cartItemId, productId, weight, quantity })).unwrap();
       await fetchCartData();
     } catch (error) {
       console.error("Set quantity error:", error);
@@ -195,7 +202,7 @@ const ViewCart = () => {
     if (value === '' || parseInt(value) < 1) {
       setUpdatingItems(prev => ({ ...prev, [cartItemId]: true }));
       try {
-        await dispatch(updateCartQuantity({ productId, weight, quantity: 1 })).unwrap();
+        await dispatch(updateCartQuantity({ cartItemId, productId, weight, quantity: 1 })).unwrap();
         await fetchCartData();
       } catch (error) {
         console.error("Quantity blur error:", error);
@@ -371,7 +378,9 @@ const ViewCart = () => {
     if (isLoggedIn) {
       fetchCartData();
     }
-  }, [fetchCartData, checkUserLoginStatus]);
+    // Always refresh products on cart page so variant prices are available
+    dispatch(fetchAllActiveProducts());
+  }, [dispatch, fetchCartData, checkUserLoginStatus]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -381,6 +390,22 @@ const ViewCart = () => {
   }, [dispatch]);
 
   const displayItems = cartItemsWithDetails.length > 0 ? cartItemsWithDetails : cart;
+
+  const sortedDisplayItems = useMemo(() => {
+    return [...displayItems].sort((a, b) => {
+      const nameA = (a?.name || a?.product_name || '').toString().toLowerCase();
+      const nameB = (b?.name || b?.product_name || '').toString().toLowerCase();
+      const nameCompare = nameA.localeCompare(nameB);
+      if (nameCompare !== 0) return nameCompare;
+
+      const weightA = (a?.weight || '').toString().toLowerCase();
+      const weightB = (b?.weight || '').toString().toLowerCase();
+      const weightCompare = weightA.localeCompare(weightB);
+      if (weightCompare !== 0) return weightCompare;
+
+      return (a?.cart_item_id || a?.id || 0) - (b?.cart_item_id || b?.id || 0);
+    });
+  }, [displayItems]);
 
   if (loader || productsLoading) {
     return <UserLoader />;
@@ -456,7 +481,7 @@ const ViewCart = () => {
                 
                 {/* Cart Items */}
                 <div className="divide-y divide-gray-100">
-                  {displayItems.map((item) => {
+                  {sortedDisplayItems.map((item) => {
                     const imageUrl = item.image_url || '';
                     const sellingPrice = item.selling_price || 0;
                     const mrp = item.mrp || sellingPrice;

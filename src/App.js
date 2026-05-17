@@ -16,6 +16,7 @@ import { checkAuth } from './redux/slices/authSlice';
 
 // Admin pages
 const DashboardPage = lazy(() => import("@pages/DashboardPage"));
+const AdminLogin = lazy(() => import("@adminpage-layouts/Login"));
 const NotAuthorizedPage = lazy(() => import("@pages/NotAuthorizedPage"));
 const HelpdeskPage = lazy(() => import("@userpage-pages/HelpdeskPage"));
 const ProfilePage = lazy(() => import("@userpage-pages/ProfilePage"));
@@ -91,6 +92,9 @@ function App() {
   return (
     <Suspense fallback={<RouteLoader />}>
         <Routes>
+          {/* Admin login */}
+          <Route path="/admin/login" element={<AdminLogin />}/>
+
           {/* Routes for user screen */}
           <Route path="/" element={<MainPage />}/>
           <Route path="/sign-in" element={<SignIn />}/>

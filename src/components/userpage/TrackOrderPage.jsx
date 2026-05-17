@@ -17,24 +17,24 @@ const TrackOrderPage = () => {
   const [menuList, setMenuList] = useState([]);
   const [userLocation, setUserLocation] = useState(null);
   const [showAllOrders, setShowAllOrders] = useState(false);
+  const [actualRoadDistance, setActualRoadDistance] = useState(null);
 
-  // Store location from SHOP_INFO (note: longitude/latitude labels are swapped)
+  // Note: SHOP_INFO.longitude holds the latitude value (23.x) and .latitude holds longitude (72.x)
   const storeLocation = {
-    lat: parseFloat(SHOP_INFO.longitude), // SHOP_INFO.longitude is actually latitude (23.x)
-    lng: parseFloat(SHOP_INFO.latitude)   // SHOP_INFO.latitude is actually longitude (72.x)
+    lat: parseFloat(SHOP_INFO.longitude),
+    lng: parseFloat(SHOP_INFO.latitude)
   };
 
   useEffect(() => {
     fetchOrders();
     fetchMenuList();
     getUserLocation();
-    
-    // Load Google Maps API for Distance Matrix
+
     const googleMapsScript = document.createElement('script');
     googleMapsScript.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
     googleMapsScript.async = true;
     document.body.appendChild(googleMapsScript);
-    
+
     return () => {
       if (document.body.contains(googleMapsScript)) {
         document.body.removeChild(googleMapsScript);
@@ -52,7 +52,6 @@ const TrackOrderPage = () => {
           });
         },
         () => {
-          console.log("Location access denied or unavailable");
           setUserLocation(null);
         }
       );
@@ -74,20 +73,16 @@ const TrackOrderPage = () => {
         "post"
       );
 
-      console.log("Orders API Response:", response);
-
       if (response?.status === 200) {
         const ordersList = response?.data?.data || response?.data || [];
-        console.log("Orders List:", ordersList);
-        
-        // Filter out completed/cancelled orders - only show trackable orders
-        const trackableStatuses = ['created', 'paid', 'processing', 'shipped'];
-        const trackableOrders = ordersList.filter(order => 
-          trackableStatuses.includes(order.order_status?.toLowerCase())
+
+        const nonTrackableStatuses = ['delivered', 'cancelled', 'failed', 'refunded'];
+        const trackableOrders = ordersList.filter(order =>
+          !nonTrackableStatuses.includes(order.order_status?.toLowerCase())
         );
-        
+
         setOrders(trackableOrders);
-        
+
         if (trackableOrders.length > 0) {
           setSelectedOrder(trackableOrders[0]);
         }
@@ -125,20 +120,28 @@ const TrackOrderPage = () => {
     return statusColors[status] || 'bg-gray-100 text-gray-700 border-gray-300';
   };
 
-
-
   const getStatusSteps = () => {
     return [
-      { key: 'created', label: 'Created', icon: 'ri-file-list-3-line' },
-      { key: 'paid', label: 'Paid', icon: 'ri-check-double-line' },
-      { key: 'processing', label: 'Processing', icon: 'ri-loader-4-line' },
+      { key: 'in_review', label: 'In Review', icon: 'ri-file-list-3-line' },
+      { key: 'pending', label: 'Pending', icon: 'ri-time-line' },
+      { key: 'manufacturing_started', label: 'Manufacturing', icon: 'ri-tools-line' },
+      { key: 'packaging', label: 'Packaging', icon: 'ri-box-3-line' },
       { key: 'shipped', label: 'Shipped', icon: 'ri-truck-line' },
       { key: 'delivered', label: 'Delivered', icon: 'ri-checkbox-circle-line' }
     ];
   };
 
   const getStepStatus = (stepKey, currentStatus) => {
-    const statusOrder = ['created', 'paid', 'processing', 'shipped', 'delivered'];
+    const statusOrder = [
+      'in_review',
+      'pending',
+      'manufacturing_started',
+      'manufacturing_completed',
+      'packaging',
+      'packed',
+      'shipped',
+      'delivered'
+    ];
     const currentIndex = statusOrder.indexOf(currentStatus);
     const stepIndex = statusOrder.indexOf(stepKey);
 
@@ -148,30 +151,27 @@ const TrackOrderPage = () => {
 
     if (stepIndex < currentIndex) return 'completed';
     if (stepIndex === currentIndex) return 'current';
+
+    if (stepKey === 'manufacturing_started' && currentStatus === 'manufacturing_completed') return 'completed';
+    if (stepKey === 'packaging' && currentStatus === 'packed') return 'completed';
+
     return 'inactive';
   };
 
-  // Calculate distance between two coordinates using Haversine formula
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Radius of the Earth in kilometers
+    const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
+    const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const straightLineDistance = R * c; // Distance in kilometers
-    
-    // Apply road distance multiplier (typically 1.3-1.5x for urban areas)
-    // This accounts for roads not being straight lines
-    const roadDistanceMultiplier = 1.4; // Adjust based on your area
-    const estimatedRoadDistance = straightLineDistance * roadDistanceMultiplier;
-    
-    return estimatedRoadDistance.toFixed(2);
+    const straightLineDistance = R * c;
+    const roadDistanceMultiplier = 1.4;
+    return (straightLineDistance * roadDistanceMultiplier).toFixed(2);
   };
 
-  // Get distance between store and user location
   const getDeliveryDistance = () => {
     if (userLocation) {
       return calculateDistance(
@@ -184,15 +184,12 @@ const TrackOrderPage = () => {
     return null;
   };
 
-  // Fetch actual road distance from Google Distance Matrix API
-  const [actualRoadDistance, setActualRoadDistance] = useState(null);
-  
   useEffect(() => {
     if (userLocation && window.google && window.google.maps) {
       const service = new window.google.maps.DistanceMatrixService();
       const origin = new window.google.maps.LatLng(storeLocation.lat, storeLocation.lng);
       const destination = new window.google.maps.LatLng(userLocation.lat, userLocation.lng);
-      
+
       service.getDistanceMatrix(
         {
           origins: [origin],
@@ -203,35 +200,28 @@ const TrackOrderPage = () => {
         (response, status) => {
           if (status === 'OK' && response.rows[0].elements[0].status === 'OK') {
             const distanceInMeters = response.rows[0].elements[0].distance.value;
-            const distanceInKm = (distanceInMeters / 1000).toFixed(2);
-            setActualRoadDistance(distanceInKm);
+            setActualRoadDistance((distanceInMeters / 1000).toFixed(2));
           }
         }
       );
     }
   }, [userLocation]);
 
-  // Calculate delivery charge based on distance
   const calculateDeliveryCharge = () => {
-    // Use actual road distance if available, otherwise use estimated distance
     const distance = actualRoadDistance || getDeliveryDistance();
     if (distance) {
-      const costPerKm = 10; // ₹10 per km - you can fetch this from settings
+      const costPerKm = 10;
       return (parseFloat(distance) * costPerKm).toFixed(2);
     }
     return null;
   };
 
-  // Generate map URL - using proper Google Maps embed format
   const getMapUrl = () => {
     if (userLocation) {
-      // Show both locations with markers - using search query format
       const storeCoords = `${storeLocation.lat},${storeLocation.lng}`;
       const userCoords = `${userLocation.lat},${userLocation.lng}`;
-      // This shows both markers on the map
       return `https://maps.google.com/maps?q=${storeCoords}+to+${userCoords}&output=embed`;
     } else {
-      // Show only store location with marker
       return `https://maps.google.com/maps?q=${storeLocation.lat},${storeLocation.lng}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
     }
   };
@@ -243,21 +233,16 @@ const TrackOrderPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      
+
       <main className="pt-[160px] md:pt-20 pb-20 md:pb-8">
         <div className="p-4 md:p-6 mt-4 w-full max-w-screen-xl mx-auto">
-          {/* Page Title - Matching ViewCart style */}
           <h1 className="text-[20px] sm:text-[24px] md:text-[36px] font-bold text-center mb-4 text-[#1D2E43] font-[playfair]">
             {t("track_order") || "Track Your Orders"}
           </h1>
 
-          {/* Breadcrumb - Matching ViewCart style */}
           <div className="flex justify-center mb-6 text-gray-600 text-sm">
             <p className="text-[#1D2E43]">
-              <span 
-                onClick={() => navigate('/')} 
-                className="cursor-pointer hover:text-yellow-600"
-              >
+              <span onClick={() => navigate('/')} className="cursor-pointer hover:text-yellow-600">
                 Home
               </span>
               {" / "}
@@ -265,10 +250,8 @@ const TrackOrderPage = () => {
             </p>
           </div>
 
-          {/* Order Status - Horizontal Timeline (Below Breadcrumb) */}
           {selectedOrder && (
             <div className="mb-6">
-              {/* Horizontal Status Steps */}
               <div className="relative max-w-4xl mx-auto">
                 <div className="flex items-center justify-between mb-2">
                   {getStatusSteps().map((step, index) => {
@@ -277,7 +260,6 @@ const TrackOrderPage = () => {
 
                     return (
                       <div key={step.key} className="flex flex-col items-center flex-1 relative">
-                        {/* Connector Line */}
                         {!isLast && (
                           <div
                             className={`absolute top-5 left-1/2 w-full h-0.5 ${
@@ -286,8 +268,6 @@ const TrackOrderPage = () => {
                             style={{ zIndex: 0 }}
                           />
                         )}
-
-                        {/* Icon */}
                         <div
                           className={`relative z-10 w-12 h-12 rounded-full flex items-center justify-center mb-2 ${
                             status === 'completed'
@@ -299,8 +279,6 @@ const TrackOrderPage = () => {
                         >
                           <i className={`${step.icon} text-xl`}></i>
                         </div>
-
-                        {/* Label */}
                         <span
                           className={`text-sm font-medium text-center ${
                             status === 'inactive' ? 'text-gray-400' : 'text-gray-900'
@@ -314,7 +292,6 @@ const TrackOrderPage = () => {
                 </div>
               </div>
 
-              {/* Cancelled/Failed Status */}
               {(selectedOrder.order_status === 'cancelled' || selectedOrder.order_status === 'failed') && (
                 <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg max-w-4xl mx-auto">
                   <div className="flex items-center gap-3">
@@ -351,9 +328,8 @@ const TrackOrderPage = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Left Column - Your Orders & Order Items */}
               <div className="lg:col-span-2 space-y-6">
-                {/* Your Orders */}
+                {/* Orders list */}
                 <div className="bg-white rounded-lg border">
                   <div className="p-4 border-b bg-gray-50">
                     <h2 className="text-lg font-semibold text-gray-900">
@@ -361,7 +337,6 @@ const TrackOrderPage = () => {
                     </h2>
                   </div>
                   <div className="p-4">
-                    {/* Compact List View */}
                     <div className="space-y-2">
                       {(showAllOrders ? orders : orders.slice(0, 3)).map((order) => (
                         <div
@@ -373,7 +348,6 @@ const TrackOrderPage = () => {
                               : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                           }`}
                         >
-                          {/* Left: Order Number & Date */}
                           <div className="flex items-center gap-3 flex-1">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
                               selectedOrder?.id === order.id ? 'bg-yellow-400' : 'bg-gray-100'
@@ -381,9 +355,7 @@ const TrackOrderPage = () => {
                               <i className="ri-file-list-3-line text-lg"></i>
                             </div>
                             <div>
-                              <div className="text-sm font-bold text-gray-900">
-                                Order #{order.id}
-                              </div>
+                              <div className="text-sm font-bold text-gray-900">Order #{order.id}</div>
                               <div className="text-xs text-gray-600">
                                 {order.created_at ? new Date(order.created_at).toLocaleDateString('en-US', {
                                   year: 'numeric',
@@ -393,15 +365,11 @@ const TrackOrderPage = () => {
                               </div>
                             </div>
                           </div>
-
-                          {/* Middle: Price */}
                           <div className="text-right px-4">
                             <div className="text-sm font-bold text-gray-900">
                               ₹{order.total_price ? parseFloat(order.total_price).toFixed(2) : '0.00'}
                             </div>
                           </div>
-
-                          {/* Right: Status Badge */}
                           <div>
                             <span className={`text-xs px-3 py-1 rounded-full font-medium border whitespace-nowrap ${getStatusColor(order.order_status)}`}>
                               {order.order_status ? order.order_status.charAt(0).toUpperCase() + order.order_status.slice(1) : 'Unknown'}
@@ -411,7 +379,6 @@ const TrackOrderPage = () => {
                       ))}
                     </div>
 
-                    {/* Show More Button */}
                     {orders.length > 3 && (
                       <div className="mt-4 text-center">
                         <button
@@ -419,15 +386,9 @@ const TrackOrderPage = () => {
                           className="px-6 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors inline-flex items-center gap-2"
                         >
                           {showAllOrders ? (
-                            <>
-                              <i className="ri-arrow-up-s-line"></i>
-                              Show Less
-                            </>
+                            <><i className="ri-arrow-up-s-line"></i> Show Less</>
                           ) : (
-                            <>
-                              <i className="ri-arrow-down-s-line"></i>
-                              Show More ({orders.length - 3} more)
-                            </>
+                            <><i className="ri-arrow-down-s-line"></i> Show More ({orders.length - 3} more)</>
                           )}
                         </button>
                       </div>
@@ -435,13 +396,11 @@ const TrackOrderPage = () => {
                   </div>
                 </div>
 
-                {/* Order Items */}
+                {/* Order items */}
                 {selectedOrder && (
                   <div className="bg-white rounded-lg border">
                     <div className="p-4 border-b bg-gray-50">
-                      <h2 className="text-lg font-semibold text-gray-900">
-                        Order Items
-                      </h2>
+                      <h2 className="text-lg font-semibold text-gray-900">Order Items</h2>
                     </div>
                     <div className="p-4">
                       <div className="space-y-3">
@@ -482,40 +441,31 @@ const TrackOrderPage = () => {
                   </div>
                 )}
 
-                {/* Bill Details */}
+                {/* Bill details */}
                 {selectedOrder && (
                   <div className="bg-white rounded-lg border">
                     <div className="p-4 border-b bg-gray-50">
-                      <h2 className="text-lg font-semibold text-gray-900">
-                        Bill Details
-                      </h2>
+                      <h2 className="text-lg font-semibold text-gray-900">Bill Details</h2>
                     </div>
                     <div className="p-4 space-y-3">
-                      {/* Subtotal MRP */}
                       {selectedOrder.subtotal_mrp && (
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Subtotal (MRP)</span>
                           <span className="text-gray-900 font-medium">₹{parseFloat(selectedOrder.subtotal_mrp).toFixed(2)}</span>
                         </div>
                       )}
-
-                      {/* Product Discount */}
                       {selectedOrder.product_discount && parseFloat(selectedOrder.product_discount) > 0 && (
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Product Discount</span>
                           <span className="text-green-600 font-medium">-₹{parseFloat(selectedOrder.product_discount).toFixed(2)}</span>
                         </div>
                       )}
-
-                      {/* Subtotal Selling Price */}
                       {selectedOrder.subtotal_selling_price && (
                         <div className="flex items-center justify-between text-sm pt-2 border-t">
                           <span className="text-gray-900 font-semibold">Subtotal (Selling Price)</span>
                           <span className="text-gray-900 font-semibold">₹{parseFloat(selectedOrder.subtotal_selling_price).toFixed(2)}</span>
                         </div>
                       )}
-
-                      {/* Promo Discount */}
                       {selectedOrder.promo_discount && parseFloat(selectedOrder.promo_discount) > 0 && (
                         <div className="flex items-center justify-between text-sm bg-green-50 -mx-4 px-4 py-2">
                           <div className="flex items-center gap-2">
@@ -525,8 +475,6 @@ const TrackOrderPage = () => {
                           <span className="text-green-600 font-bold">-₹{parseFloat(selectedOrder.promo_discount).toFixed(2)}</span>
                         </div>
                       )}
-
-                      {/* Coupon Discount */}
                       {selectedOrder.coupon_code && selectedOrder.coupon_discount && parseFloat(selectedOrder.coupon_discount) > 0 && (
                         <div className="flex items-center justify-between text-sm bg-yellow-50 -mx-4 px-4 py-2">
                           <div className="flex items-center gap-2">
@@ -539,50 +487,28 @@ const TrackOrderPage = () => {
                           <span className="text-green-600 font-bold">-₹{parseFloat(selectedOrder.coupon_discount).toFixed(2)}</span>
                         </div>
                       )}
-
-                      {/* Taxes */}
-                      {selectedOrder.igst_amount && parseFloat(selectedOrder.igst_amount) > 0 && (
+                      {selectedOrder.tax_price && parseFloat(selectedOrder.tax_price) > 0 && (
                         <div className="flex items-center justify-between text-sm pt-2 border-t">
-                          <span className="text-gray-600">IGST ({selectedOrder.igst_rate}%)</span>
-                          <span className="text-gray-900">₹{parseFloat(selectedOrder.igst_amount).toFixed(2)}</span>
+                          <span className="text-gray-600">Tax</span>
+                          <span className="text-gray-900">₹{parseFloat(selectedOrder.tax_price).toFixed(2)}</span>
                         </div>
                       )}
-                      {selectedOrder.cgst_amount && parseFloat(selectedOrder.cgst_amount) > 0 && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">CGST ({selectedOrder.cgst_rate}%)</span>
-                          <span className="text-gray-900">₹{parseFloat(selectedOrder.cgst_amount).toFixed(2)}</span>
-                        </div>
-                      )}
-                      {selectedOrder.sgst_amount && parseFloat(selectedOrder.sgst_amount) > 0 && (
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">SGST ({selectedOrder.sgst_rate}%)</span>
-                          <span className="text-gray-900">₹{parseFloat(selectedOrder.sgst_amount).toFixed(2)}</span>
-                        </div>
-                      )}
-
-                      {/* Handling Fee */}
                       {selectedOrder.handling_fee && parseFloat(selectedOrder.handling_fee) > 0 && (
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Handling Charge</span>
                           <span className="text-gray-900">₹{parseFloat(selectedOrder.handling_fee).toFixed(2)}</span>
                         </div>
                       )}
-
-                      {/* Delivery Charge */}
                       {selectedOrder.delivery_charge && parseFloat(selectedOrder.delivery_charge) > 0 && (
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-gray-600">Delivery Charge</span>
                           <span className="text-gray-900">₹{parseFloat(selectedOrder.delivery_charge).toFixed(2)}</span>
                         </div>
                       )}
-
-                      {/* Grand Total */}
                       <div className="flex items-center justify-between text-base font-bold pt-3 border-t-2 border-gray-300">
                         <span className="text-gray-900">Grand Total</span>
                         <span className="text-gray-900">₹{selectedOrder.total_price ? parseFloat(selectedOrder.total_price).toFixed(2) : '0.00'}</span>
                       </div>
-
-                      {/* Payment Mode */}
                       {selectedOrder.payment_mode && (
                         <div className="flex items-center justify-between text-sm pt-2 border-t">
                           <span className="text-gray-600">Payment Mode</span>
@@ -596,14 +522,14 @@ const TrackOrderPage = () => {
                 )}
               </div>
 
-              {/* Right Column - Store Location Map */}
+              {/* Right column — map */}
               <div className="lg:col-span-1">
                 {selectedOrder && (
                   <div className="bg-white rounded-lg border p-6 sticky top-20">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">
                       {userLocation ? 'Delivery Route' : 'Store Location'}
                     </h2>
-                    
+
                     <div className="w-full h-[400px] rounded-lg overflow-hidden border border-gray-200">
                       <iframe
                         width="100%"
@@ -621,9 +547,7 @@ const TrackOrderPage = () => {
                         <div>
                           <h4 className="text-sm font-bold text-gray-900 mb-1">Store Address</h4>
                           <p className="text-sm text-gray-600">{SHOP_INFO.address}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Pincode: {SHOP_INFO.pincode}
-                          </p>
+                          <p className="text-xs text-gray-500 mt-1">Pincode: {SHOP_INFO.pincode}</p>
                           {userLocation && (
                             <>
                               <div className="mt-3 pt-3 border-t border-gray-200">

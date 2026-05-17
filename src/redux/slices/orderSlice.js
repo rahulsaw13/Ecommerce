@@ -4,13 +4,14 @@ import API from "../../services/api";
 // ✅ Place Order from Cart
 export const placeOrderFromCart = createAsyncThunk(
   "order/placeOrderFromCart",
-  async ({ userId, totalPrice, addressId, paymentMethod = 'cod' }, thunkAPI) => {
+  async ({ userId, totalPrice, addressId, paymentMethod = 'cod', orderType = 'home_delivery' }, thunkAPI) => {
     try {
       const orderData = {
         user_id: userId,
         total_price: totalPrice.toString(),
         address_id: addressId,
-        payment_method: paymentMethod
+        payment_method: paymentMethod,
+        order_type: orderType
       };
       
       console.log("Placing order with data:", orderData);

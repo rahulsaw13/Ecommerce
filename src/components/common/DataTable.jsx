@@ -28,9 +28,10 @@ const Datatable = ({ columns, data=[], skip, rows, total, loader, className, sho
             field={col?.field}
             header={col?.header}
             style={col?.style}
+            bodyStyle={col?.bodyStyle || col?.style}
             body={loader ? (col?.skeletonBody || <Skeleton />) : col?.body}
             className="capitalize"
-            headerStyle={col.headerStyle}
+            headerStyle={col.headerStyle || col?.style}
           />
         ))}
       </DataTable>

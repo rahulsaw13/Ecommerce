@@ -138,7 +138,7 @@ const openPrintWindow = (orderData) => {
                   <div>
                     <p class="mb-1"><strong>Workorder ID:</strong> \${orderData.workorder_number || orderData.batch_number}</p>
                     <p class="mb-1"><strong>Order ID:</strong> #\${orderData.order_id}</p>
-                    <p class="mb-1"><strong>Date:</strong> \${orderData.created_at ? new Date(orderData.created_at).toLocaleDateString() : ''}</p>
+                    <p class="mb-1"><strong>Date:</strong> \${orderData.created_at ? new Date(String(orderData.created_at).replace(/\\[.*?\\]$/, '')).toLocaleDateString() : ''}</p>
                     \${orderData.estimated_delivery_date ? \`
                       <p class="mb-1"><strong>Estimated Delivery:</strong> \${new Date(orderData.estimated_delivery_date).toLocaleDateString()} at \${new Date(orderData.estimated_delivery_date).toLocaleTimeString()}</p>
                     \` : ''}
@@ -266,6 +266,14 @@ export const printOrderInvoice = async (orderId) => {
   }
 };
 
+const normalizeDate = (val) => {
+  if (!val) return null;
+  // Strip Java ZonedDateTime suffix like [Asia/Kolkata]
+  const clean = String(val).replace(/\[.*?\]$/, '');
+  const d = new Date(clean);
+  return isNaN(d.getTime()) ? null : d;
+};
+
 const OrderList = ({search}) => {
   const toast = useRef(null);
   const { t } = useTranslation("msg");
@@ -300,142 +308,106 @@ const OrderList = ({search}) => {
   const [data, setData] = useState([]);
 
   const actionBodyTemplate = (rowData) => {
-    const isCompleted = rowData.order_status?.toLowerCase() === 'delivered' ||
-                       rowData.payment_status?.toLowerCase() === 'paid_online' ||
-                       rowData.payment_status?.toLowerCase() === 'paid_offline';
-    const isPacked = rowData.order_status?.toLowerCase() === 'packed';
-    const isPaymentPending = rowData.payment_status?.toLowerCase() === 'pending';
-    const isPaymentOffline = rowData.payment_status?.toLowerCase() === 'paid_offline';
-    const hasBatchNumber = rowData.batch_number && rowData.batch_number.trim() !== '';
-    const isManufacturingStarted = ['manufacturing_started', 'manufacturing_completed', 'packaging', 'packed', 'shipped', 'delivered'].includes(rowData.order_status?.toLowerCase());
-    const isShipped = rowData.order_status?.toLowerCase() === 'shipped' || rowData.order_status?.toLowerCase() === 'delivered';
-    const isPaymentPaid = rowData.payment_status?.toLowerCase() === 'paid_online' || rowData.payment_status?.toLowerCase() === 'paid_offline';
-    // Download bill button removed as requested
-    const showDownloadBill = false;
-    const showPrintOrder = true; // Always show print order button
+    const status = rowData.order_status?.toLowerCase();
+    const payStatus = rowData.payment_status?.toLowerCase();
+    const isCOD = rowData.payment_mode === 'cash_on_delivery';
+    const isPaid = payStatus === 'paid_online' || payStatus === 'paid_offline';
+
+    // Primary action button config based on order status
+    const primaryAction = {
+      initiated:  { label: 'Accept',        icon: 'ri-check-line',       color: 'bg-blue-600',   next: 'processing' },
+      processing: { label: 'Out for Delivery', icon: 'ri-truck-line',    color: 'bg-indigo-600', next: 'shipped'    },
+      shipped:    { label: 'Mark Delivered', icon: 'ri-checkbox-circle-line', color: 'bg-green-600', next: 'delivered' },
+    }[status];
 
     return (
-      <div className="flex items-center gap-2">
-        {/* Dropdowns Container - Vertical Stack */}
-        <div className="flex flex-col gap-2.5">
-          {/* Order Status Dropdown with Floating Label */}
-          <div className="relative">
-            <select
-              value={rowData?.order_status || ''}
-              onChange={(e) => handleStatusChangeDirectly(rowData, e.target.value)}
-              className="px-2.5 py-1.5 pt-2 border border-gray-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-[160px] appearance-none cursor-pointer"
-              style={{
-                fontSize: '11px',
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 0.65rem center',
-                paddingRight: '2.25rem'
-              }}
-            >
-              {orderList.map((status) => (
-                <option 
-                  key={status.value} 
-                  value={status.value}
-                  disabled={status.value === 'created'}
-                >
-                  {status.name}
-                </option>
-              ))}
-            </select>
-            <label className="absolute -top-1.5 left-2.5 px-1 bg-white text-[10px] text-gray-600 font-medium">
-              Order Status
-            </label>
-          </div>
-          
-          {/* Payment Status Dropdown with Floating Label */}
-          <div className="relative">
-            <select
-              value={rowData?.payment_status || ''}
-              onChange={(e) => handlePaymentStatusChange(rowData, e.target.value)}
-              className="px-2.5 py-1.5 pt-2 border border-gray-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 w-[160px] appearance-none cursor-pointer"
-              style={{
-                fontSize: '11px',
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 0.65rem center',
-                paddingRight: '2.25rem'
-              }}
-            >
-              {paymentStatusList.map((status) => (
-                <option 
-                  key={status.value} 
-                  value={status.value}
-                >
-                  {status.name}
-                </option>
-              ))}
-            </select>
-            <label className="absolute -top-1.5 left-2.5 px-1 bg-white text-[10px] text-gray-600 font-medium">
-              Payment Status
-            </label>
-          </div>
-        </div>
-        
-        {/* Action Buttons - Vertically Centered */}
-        <div className="flex flex-col gap-2 justify-center">
-          {isPacked && isPaymentPending && (
-            <ButtonComponent
-              icon="ri-money-dollar-circle-line"
-              className="text-[1rem] w-[30px] text-green-600"
-              onClick={() => acceptOfflinePayment(rowData)}
-              tooltip="Accept Offline Payment"
-              tooltipOptions={{
-                position: "top",
-                at: "center top-5",
-                my: "center bottom"
-              }}
-            />
-          )}
-          {isPaymentOffline && (
-            <ButtonComponent
-              icon="ri-download-line"
-              className="text-[1rem] w-[30px] text-blue-600"
-              onClick={() => downloadBankingReceipt(rowData.id)}
-              tooltip="Download Banking Receipt"
-              tooltipOptions={{
-                position: "top",
-                at: "center top-5",
-                my: "center bottom"
-              }}
-            />
-          )}
-          {/* View Details Button */}
-          <ButtonComponent
-            icon="ri-eye-line"
-            className="text-[1rem] w-[30px] text-blue-600"
-            onClick={() => handleViewDetails(rowData)}
-          />
-          {/* Print Order Button */}
-          <ButtonComponent
-            icon="ri-printer-line"
-            className="text-[1rem] w-[30px] text-purple-600"
-            onClick={() => printOrder(rowData)}
-            tooltip="Print Order"
-            tooltipOptions={{
-              position: "top",
-              at: "center top-5",
-              my: "center bottom"
+      <div className="flex flex-col gap-2 min-w-[170px]">
+
+        {/* Primary action button */}
+        {primaryAction && (
+          <button
+            onClick={() => updateOrderStatus(rowData, primaryAction.next)}
+            className={`flex items-center gap-1.5 ${primaryAction.color} text-white text-[11px] font-medium px-3 py-1.5 rounded-md hover:opacity-90 transition-opacity`}
+          >
+            <i className={`${primaryAction.icon} text-sm`}></i>
+            {primaryAction.label}
+          </button>
+        )}
+
+        {/* Cancel button for active orders */}
+        {['initiated', 'processing', 'shipped'].includes(status) && (
+          <button
+            onClick={() => handleStatusChangeDirectly(rowData, 'cancelled')}
+            className="flex items-center gap-1.5 bg-red-50 text-red-600 border border-red-200 text-[11px] font-medium px-3 py-1.5 rounded-md hover:bg-red-100 transition-colors"
+          >
+            <i className="ri-close-circle-line text-sm"></i>
+            Cancel
+          </button>
+        )}
+
+        {/* COD: Mark paid when delivered */}
+        {status === 'delivered' && isCOD && !isPaid && (
+          <button
+            onClick={() => handlePaymentStatusChange(rowData, 'paid_offline')}
+            className="flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-300 text-[11px] font-medium px-3 py-1.5 rounded-md hover:bg-green-100 transition-colors"
+          >
+            <i className="ri-money-rupee-circle-line text-sm"></i>
+            Collect COD
+          </button>
+        )}
+
+        {/* Delivered badge */}
+        {status === 'delivered' && isPaid && (
+          <span className="flex items-center gap-1 text-[11px] font-medium text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-md">
+            <i className="ri-checkbox-circle-fill"></i> Completed
+          </span>
+        )}
+
+        {/* Cancelled / refunded badge */}
+        {['cancelled', 'refunded', 'failed'].includes(status) && (
+          <span className="flex items-center gap-1 text-[11px] font-medium text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-md">
+            <i className="ri-close-circle-fill"></i> {rowData.order_status}
+          </span>
+        )}
+
+        {/* Payment status select */}
+        <div className="relative">
+          <select
+            value={rowData?.payment_status || ''}
+            onChange={(e) => handlePaymentStatusChange(rowData, e.target.value)}
+            className="w-full px-2 py-1 pt-3 border border-gray-300 rounded bg-white text-[11px] appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-green-400"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'right 0.5rem center',
+              paddingRight: '1.75rem'
             }}
-          />
-          {showDownloadBill && (
-              <ButtonComponent
-                icon="ri-file-text-line"
-                className="text-[1rem] w-[30px] text-blue-600"
-                onClick={() => downloadBillOrWorkOrder(rowData)}
-                tooltip="Download Bill"
-                tooltipOptions={{
-                  position: "top",
-                  at: "center top-5",
-                  my: "center bottom"
-                }}
-              />
-            )}
+          >
+            {paymentStatusList.map((s) => (
+              <option key={s.value} value={s.value}>{s.name}</option>
+            ))}
+          </select>
+          <label className="absolute top-0.5 left-2 text-[9px] text-gray-500 font-medium">Payment</label>
         </div>
+
+        {/* Icon buttons row */}
+        <div className="flex gap-2">
+          <button
+            onClick={() => handleViewDetails(rowData)}
+            className="text-blue-600 hover:text-blue-800 text-lg"
+            title="View Details"
+          >
+            <i className="ri-eye-line"></i>
+          </button>
+          <button
+            onClick={() => printOrder(rowData)}
+            className="text-purple-600 hover:text-purple-800 text-lg"
+            title="Print Invoice"
+          >
+            <i className="ri-printer-line"></i>
+          </button>
+        </div>
+
       </div>
     );
   };
@@ -796,7 +768,7 @@ const OrderList = ({search}) => {
                   </div>
                   <div class="info-item">
                     <div class="info-label">Date of Invoice:</div>
-                    <div class="info-value">${orderData.created_at ? new Date(orderData.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</div>
+                    <div class="info-value">${orderData.created_at ? new Date(String(orderData.created_at).replace(/\[.*?\]$/, '')).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</div>
                   </div>
                   <div class="info-item">
                     <div class="info-label">HSN Code:</div>
@@ -1230,15 +1202,17 @@ const OrderList = ({search}) => {
       paymentDot = 'bg-gray-400';
     }
     
-    // Dates - Parse ISO 8601 strings with timezone
-    const orderDate = rowData.created_at ? new Date(rowData.created_at) : null;
-    const expectedDeliveryDate = rowData.estimated_delivery_date ? new Date(rowData.estimated_delivery_date) : null;
-    const deliveryTimeSlot = rowData.delivery_time_slot; // Get the time slot from backend
+    const orderDate = normalizeDate(rowData.created_at);
+    const expectedDeliveryDate = normalizeDate(rowData.estimated_delivery_date);
+    const deliveryTimeSlot = rowData.delivery_time_slot;
     
+    const itemsSummary = rowData.items_summary || '';
+    const itemsCount = rowData.items_count || 0;
+
     return (
-      <div className="text-xs flex flex-col">
+      <div className="text-xs flex flex-col gap-1">
         {/* Order Type & Payment Mode */}
-        <div className="flex items-center gap-2 pb-1">
+        <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
             <i className={`${orderTypeIcon} text-sm`}></i>
             <span className="font-medium text-gray-700">{orderTypeDisplay}</span>
@@ -1249,8 +1223,19 @@ const OrderList = ({search}) => {
             <span className="font-medium text-gray-700">{paymentDisplay}</span>
           </div>
         </div>
-        
-        {/* Order & Expected Dates - Separate Rows */}
+
+        {/* Items summary */}
+        {itemsSummary && (
+          <div className="text-[10px] text-gray-800 font-medium leading-tight line-clamp-2 max-w-[150px]" title={itemsSummary}>
+            <i className="ri-shopping-bag-line text-orange-500 mr-0.5"></i>
+            {itemsSummary}
+          </div>
+        )}
+        {!itemsSummary && itemsCount > 0 && (
+          <div className="text-[10px] text-gray-500">{itemsCount} item{itemsCount > 1 ? 's' : ''}</div>
+        )}
+
+        {/* Order & Expected Dates */}
         <div className="flex flex-col gap-0.5">
           {orderDate && (
             <div className="flex items-center gap-1">
@@ -1270,9 +1255,7 @@ const OrderList = ({search}) => {
                 {expectedDeliveryDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
               </span>
               {deliveryTimeSlot ? (
-                <span className="text-gray-500 text-[10px]">
-                  {deliveryTimeSlot}
-                </span>
+                <span className="text-gray-500 text-[10px]">{deliveryTimeSlot}</span>
               ) : (
                 <span className="text-gray-500 text-[10px]">
                   {expectedDeliveryDate.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
@@ -1300,7 +1283,7 @@ const OrderList = ({search}) => {
     }
     
     // For home delivery, show delivery date and delivered by
-    const actualDeliveryDate = rowData.order_fulfilled_date ? new Date(rowData.order_fulfilled_date) : null;
+    const actualDeliveryDate = normalizeDate(rowData.order_fulfilled_date);
     const deliveredBy = rowData.delivery_agent?.name || 'N/A';
     
     return (
@@ -1325,29 +1308,8 @@ const OrderList = ({search}) => {
             <div className="text-gray-500 text-[10px]">By: {deliveredBy}</div>
           </>
         ) : (
-          <div className="relative">
-            <select
-              value={rowData?.delivery_agent?.id || ''}
-              onChange={(e) => handleDeliveryAgentAssignment(rowData, e.target.value)}
-              className="px-2 py-1.5 pt-2 border border-gray-300 rounded bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 w-[110px] appearance-none cursor-pointer"
-              style={{
-                fontSize: '10px',
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 0.5rem center',
-                paddingRight: '2rem'
-              }}
-            >
-              <option value="">Select Agent</option>
-              {deliveryAgents.map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.name}
-                </option>
-              ))}
-            </select>
-            <label className="absolute -top-1.5 left-2 px-1 bg-white text-[9px] text-gray-600 font-medium">
-              Delivery Agent
-            </label>
+          <div className="text-gray-500 text-[10px]">
+            By: {rowData?.delivery_agent?.name || 'Not assigned'}
           </div>
         )}
       </div>
@@ -1479,7 +1441,7 @@ const OrderList = ({search}) => {
     { header: "Order Info & Dates", body: orderInfoBodyTemplate, style: { width: "160px"}},
     { header: "Delivery Date / By", body: actualDeliveryDateBodyTemplate, style: { width: "160px"}},
     { header: "Status", body: paymentAndOrderStatusBodyTemplate, style: { width: "150px"}},
-    { header: t("action"), body: actionBodyTemplate, style: { width: "220px"}, headerStyle: { paddingLeft: '3%' } },
+    // { header: t("action"), body: actionBodyTemplate, style: { width: "220px"}, headerStyle: { paddingLeft: '3%' } },
   ];
 
   const editOrder = (item) => {
@@ -1709,11 +1671,11 @@ const OrderList = ({search}) => {
                 <div className="text-right">
                   <p className="text-xs text-gray-600">Order Date</p>
                   <p className="text-sm font-medium text-gray-900">
-                    {new Date(orderDetails.created_at).toLocaleDateString('en-US', {
+                    {normalizeDate(orderDetails.created_at)?.toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'short',
                       day: 'numeric'
-                    })}
+                    }) || 'N/A'}
                   </p>
                 </div>
               </div>
@@ -1755,11 +1717,10 @@ const OrderList = ({search}) => {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Date:</span>
                     <span className="font-medium text-gray-900">
-                      {orderDetails.estimated_delivery_date ? 
-                        new Date(orderDetails.estimated_delivery_date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric'
-                        }) : 'N/A'}
+                      {normalizeDate(orderDetails.estimated_delivery_date)?.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric'
+                      }) || 'N/A'}
                     </span>
                   </div>
                 </div>

@@ -504,6 +504,7 @@ import { signupUser, clearStatus, googleSignIn } from "../../redux/slices/authSl
 const initialValues = {
   name: "",
   email: "",
+  phone: "",
   password: "",
   confirmPassword: "",
   gender: ""
@@ -683,6 +684,7 @@ const Register = () => {
   const validationSchema = yup.object().shape({
     name: yup.string().required(t("name_is_required")),
     email: yup.string().email(t("invalid_email")).required(t("email_is_required")),
+    phone: yup.string().matches(/^[0-9]{10}$/, "Phone number must be 10 digits").required("Phone number is required"),
     password: yup.string().min(6, t("password_must_be_at_least_6_characters")).required(t("password_is_required")),
     confirmPassword: yup.string()
       .oneOf([yup.ref('password'), null], t("passwords_must_match"))
@@ -699,6 +701,7 @@ const Register = () => {
     const registerData = {
       name: values.name,
       email: values.email,
+      phone: values.phone,
       password: values.password,
       gender: values.gender
     };
@@ -845,7 +848,18 @@ const Register = () => {
                         touched={touched?.email}
                         className="text-[0.8rem] rounded-none w-full border border-gray-300 px-4 py-2 focus:outline-none focus:ring-1 focus:ring-gray-700"
                       />
-                      
+
+                      <InputTextComponent
+                        value={values?.phone}
+                        onChange={handleInputChange}
+                        type="tel"
+                        placeholder="Phone Number"
+                        name="phone"
+                        error={errors?.phone}
+                        touched={touched?.phone}
+                        className="text-[0.8rem] rounded-none w-full border border-gray-300 px-4 py-2 focus:outline-none focus:ring-1 focus:ring-gray-700"
+                      />
+
                       <div>
                         <select
                           value={values?.gender}

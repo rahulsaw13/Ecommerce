@@ -226,7 +226,7 @@ export const removeFromCart = createAsyncThunk(
 // ✅ UPDATE QUANTITY
 export const updateCartQuantity = createAsyncThunk(
   "cart/updateCartQuantity",
-  async ({ productId, weight, quantity }, thunkAPI) => {
+  async ({ cartItemId, productId, weight, quantity }, thunkAPI) => {
     try {
       // Get userId from localStorage
       let userId = null;
@@ -239,12 +239,13 @@ export const updateCartQuantity = createAsyncThunk(
       } catch (e) {
         console.error("Error getting user details:", e);
       }
-      
+
       if (!userId) {
         return thunkAPI.rejectWithValue("User not found");
       }
-      
+
       const res = await API.put("/cart/update_quantity", {
+        cart_item_id: cartItemId,
         user_id: userId,
         product_id: productId,
         weight: weight,
@@ -334,19 +335,18 @@ const cartSlice = createSlice({
       })
       .addCase(removeFromCart.fulfilled, (state, action) => {
         state.loading = false;
-        const cartData = action.payload?.data?.items || action.payload?.items || action.payload?.data || [];
-        state.items = Array.isArray(cartData) ? cartData : [];
+        // Backend returns {message} only — remove item locally by ID
+        const { cartItemId } = action.meta.arg;
+        state.items = state.items.filter(i => i.cart_item_id !== cartItemId);
         state.totalItems = state.items.length;
         state.totalPrice = state.items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
         state.error = null;
-        console.log("Item removed from cart");
       })
       .addCase(removeFromCart.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        console.error("Remove from cart rejected:", action.payload);
       })
-      
+
       // UPDATE QUANTITY
       .addCase(updateCartQuantity.pending, (state) => {
         state.loading = true;
@@ -354,16 +354,20 @@ const cartSlice = createSlice({
       })
       .addCase(updateCartQuantity.fulfilled, (state, action) => {
         state.loading = false;
-        const cartData = action.payload?.data?.items || action.payload?.items || action.payload?.data || [];
-        state.items = Array.isArray(cartData) ? cartData : state.items;
+        // Backend returns {message, cart_item_id, quantity} — update item in-place
+        const cartItemId = action.payload?.cart_item_id;
+        const newQty = action.payload?.quantity;
+        if (cartItemId && newQty != null) {
+          const item = state.items.find(i => i.cart_item_id === cartItemId);
+          if (item) item.quantity = newQty;
+        }
         state.totalItems = state.items.length;
         state.totalPrice = state.items.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0);
         state.error = null;
       })
       .addCase(updateCartQuantity.rejected, (state, action) => {
         state.loading = false;
-        state.error = acti
-        on.payload;
+        state.error = action.payload;
       });
   },
 });

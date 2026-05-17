@@ -786,20 +786,16 @@ const Header = ({ onSearch }) => {
     });
   };
 
-  // Fetch user profile on mount if token exists
+  // Fetch user profile on mount if token exists (skip for delivery agents - role_id 3)
   useEffect(() => {
     const token = localStorage.getItem('token');
-    const userId = userDetails?.id || (() => {
-      try {
-        const raw = localStorage.getItem("userDetails");
-        const details = raw ? JSON.parse(raw) : null;
-        return details?.id;
-      } catch (e) {
-        return null;
-      }
-    })();
-    
-    if (token && userId && !userProfile) {
+    const raw = localStorage.getItem("userDetails");
+    let details = null;
+    try { details = raw ? JSON.parse(raw) : null; } catch (e) {}
+    const userId = userDetails?.id || details?.id;
+    const roleId = userDetails?.role_id ?? details?.role_id;
+
+    if (token && userId && !userProfile && roleId !== 3) {
       dispatch(fetchUserProfile(userId));
     }
   }, [dispatch, userProfile, userDetails]);
@@ -1068,7 +1064,8 @@ const Header = ({ onSearch }) => {
         )
       }
     ] : []),
-    ...((userDetails?.role_id === 2 || userDetails?.user?.role_id === 2) ? [
+    ...((userDetails?.role_id !== 1 && userDetails?.role_id !== 3 &&
+         userDetails?.user?.role_id !== 1 && userDetails?.user?.role_id !== 3) ? [
       {
         template: () => (
           <button

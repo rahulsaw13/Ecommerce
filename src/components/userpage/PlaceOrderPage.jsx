@@ -23,7 +23,6 @@ const PlaceOrderPage = () => {
   const [address, setAddress] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
-  const [orderType, setOrderType] = useState('home_delivery');
   const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
   const [minDate, setMinDate] = useState('');
   const [cartTotals, setCartTotals] = useState({ 
@@ -115,10 +114,9 @@ const PlaceOrderPage = () => {
       if (hasFetchedData.current) return;
       hasFetchedData.current = true;
       
-      const token = localStorage.getItem('token');
       const userDetails = JSON.parse(localStorage.getItem('userDetails') || '{}');
-      
-      if (token && userDetails?.id) {
+
+      if (userDetails?.id) {
         await dispatch(getCart());
         await dispatch(fetchUserAddresses(userDetails.id));
       }
@@ -278,7 +276,8 @@ const PlaceOrderPage = () => {
         userId: userDetails.id,
         totalPrice: cartTotals.grand_total.toFixed(2),
         addressId: addressId,
-        paymentMethod: paymentMethod
+        paymentMethod: paymentMethod,
+        orderType: 'home_delivery'
       })).unwrap();
       
     } catch (error) {
@@ -403,49 +402,9 @@ const PlaceOrderPage = () => {
             </div>
           </div>
 
-          {/* Select Order Type */}
+          {/* Order Items */}
           <div className="bg-white rounded-lg">
-            <h3 className="font-bold text-gray-900 mb-4 text-base">Select Order Type</h3>
-            <div className="flex gap-6">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  orderType === 'home_delivery' ? 'border-[#FFC107]' : 'border-gray-300'
-                }`}>
-                  {orderType === 'home_delivery' && (
-                    <div className="w-3 h-3 rounded-full bg-[#FFC107]"></div>
-                  )}
-                </div>
-                <input
-                  type="radio"
-                  name="orderType"
-                  value="home_delivery"
-                  checked={orderType === 'home_delivery'}
-                  onChange={(e) => setOrderType(e.target.value)}
-                  className="hidden"
-                />
-                <span className="text-sm text-gray-900 font-medium">Home Delivery</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                  orderType === 'in_store_pickup' ? 'border-[#FFC107]' : 'border-gray-300'
-                }`}>
-                  {orderType === 'in_store_pickup' && (
-                    <div className="w-3 h-3 rounded-full bg-[#FFC107]"></div>
-                  )}
-                </div>
-                <input
-                  type="radio"
-                  name="orderType"
-                  value="in_store_pickup"
-                  checked={orderType === 'in_store_pickup'}
-                  onChange={(e) => setOrderType(e.target.value)}
-                  className="hidden"
-                />
-                <span className="text-sm text-gray-900 font-medium">In-Store Pick Up</span>
-              </label>
-            </div>
-
-            <button 
+            <button
               onClick={() => setShowItems(!showItems)}
               className="w-full mt-4 bg-blue-50 border border-gray-300 rounded-lg py-2.5 flex items-center justify-between px-4 hover:bg-blue-100 transition-colors"
             >

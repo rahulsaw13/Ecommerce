@@ -13,6 +13,13 @@ import FileUpload from "@common/FileUpload";
 import { useFormik } from "formik";
 import * as yup from "yup";
 
+const normalizeDate = (value) => {
+  if (!value) return null;
+  const cleaned = String(value).replace(/\[.*?\]$/, '');
+  const d = new Date(cleaned);
+  return isNaN(d.getTime()) ? null : d;
+};
+
 const DeliveryDashboard = () => {
   const toast = useRef(null);
   const navigate = useNavigate();
@@ -47,84 +54,33 @@ const DeliveryDashboard = () => {
       image_url: ""
     },
     validationSchema,
-    onSubmit: async (values) => {
-      try {
-        setLoading(true);
-        let body = {
-          name: values.name,
-          phone_number: values.phoneNumber,
-        };
-        if (values.image) {
-          body['image'] = values.image;
-        }
-
-        const response = await allApiWithHeaderToken(
-          `${API_CONSTANTS.COMMON_CUSTOMERS_URL}/${userDetails?.id}`,
-          body,
-          "put",
-          'multipart/form-data'
-        );
-
-        if (response.status === 200) {
-          const updatedUserDetails = {
-            ...userDetails,
-            name: values.name,
-            phone_number: values.phoneNumber
-          };
-          localStorage.setItem("userDetails", JSON.stringify(updatedUserDetails));
-
-          toast.current.show({
-            severity: "success",
-            summary: "Success",
-            detail: "Profile updated successfully",
-            life: 3000,
-          });
-
-          setShowProfileDialog(false);
-          window.location.reload();
-        }
-      } catch (error) {
-        toast.current.show({
-          severity: "error",
-          summary: "Error",
-          detail: "Failed to update profile",
-          life: 3000,
-        });
-      } finally {
-        setLoading(false);
-      }
+    onSubmit: (values) => {
+      const updatedUserDetails = {
+        ...userDetails,
+        name: values.name,
+        phone_number: values.phoneNumber,
+      };
+      localStorage.setItem("userDetails", JSON.stringify(updatedUserDetails));
+      toast.current.show({
+        severity: "success",
+        summary: "Success",
+        detail: "Profile updated successfully",
+        life: 3000,
+      });
+      setShowProfileDialog(false);
+      window.location.reload();
     }
   });
 
-  const handleEditProfile = async () => {
-    try {
-      setLoading(true);
-      const response = await allApiWithHeaderToken(
-        `${API_CONSTANTS.COMMON_CUSTOMERS_URL}/${userDetails?.id}`,
-        "",
-        "get"
-      );
-
-      if (response.status === 200) {
-        formik.setValues({
-          name: response.data.name || "",
-          phoneNumber: response.data.phone_number || "",
-          email: response.data.email || "",
-          image: null,
-          image_url: response.data.image_url || ""
-        });
-        setShowProfileDialog(true);
-      }
-    } catch (error) {
-      toast.current.show({
-        severity: "error",
-        summary: "Error",
-        detail: "Failed to load profile",
-        life: 3000,
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleEditProfile = () => {
+    formik.setValues({
+      name: userDetails?.name || "",
+      phoneNumber: userDetails?.phone_number || "",
+      email: userDetails?.email || "",
+      image: null,
+      image_url: userDetails?.image_url || ""
+    });
+    setShowProfileDialog(true);
   };
 
   // User menu items
@@ -204,7 +160,7 @@ const DeliveryDashboard = () => {
       const response = await allApiWithHeaderToken(url, "", "get");
 
       if (response.status === 200) {
-        setOrders(response.data.data);
+        setOrders(response.data.orders ?? []);
       }
     } catch (error) {
       toast.current.show({
@@ -228,7 +184,7 @@ const DeliveryDashboard = () => {
   };
 
   // No client-side filtering needed - all filtering is done server-side
-  const filteredOrders = orders;
+  const filteredOrders = orders ?? [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -470,16 +426,16 @@ const DeliveryDashboard = () => {
                         <span className="text-[10px] text-gray-500">{viewMode === "pending" ? "Ordered: " : "Delivered: "}</span>
                         <span className="font-medium text-gray-800">
                           {viewMode === "pending" ? (
-                            new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                            normalizeDate(order.created_at)?.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) ?? '-'
                           ) : (
-                            order.order_fulfilled_date ? new Date(order.order_fulfilled_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '-'
+                            normalizeDate(order.order_fulfilled_date)?.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) ?? '-'
                           )}
                         </span>
                         <span className="text-[10px] text-gray-600 ml-1">
                           {viewMode === "pending" ? (
-                            new Date(order.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()
+                            normalizeDate(order.created_at)?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase() ?? ''
                           ) : (
-                            order.order_fulfilled_date ? new Date(order.order_fulfilled_date).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase() : ''
+                            normalizeDate(order.order_fulfilled_date)?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase() ?? ''
                           )}
                         </span>
                       </div>
@@ -487,9 +443,9 @@ const DeliveryDashboard = () => {
                         <span className="text-[10px] text-gray-500">{viewMode === "pending" ? "Est. Delivery: " : "Ordered: "}</span>
                         <span className="font-medium text-gray-800">
                           {viewMode === "pending" ? (
-                            order.estimated_delivery_date ? new Date(order.estimated_delivery_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '-'
+                            normalizeDate(order.estimated_delivery_date)?.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) ?? '-'
                           ) : (
-                            new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                            normalizeDate(order.created_at)?.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) ?? '-'
                           )}
                         </span>
                         {viewMode === "pending" && order.delivery_time_slot && (
@@ -497,7 +453,7 @@ const DeliveryDashboard = () => {
                         )}
                         {viewMode === "history" && (
                           <span className="text-[10px] text-gray-600 ml-1">
-                            {new Date(order.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase()}
+                            {normalizeDate(order.created_at)?.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase() ?? ''}
                           </span>
                         )}
                       </div>

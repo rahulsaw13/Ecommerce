@@ -18,7 +18,6 @@ const OrderHistoryPage = () => {
   const [menuList, setMenuList] = useState([]);
   const [showReceipt, setShowReceipt] = useState(false);
 
-  // Get user details
   let userDetails = null;
   try {
     const raw = localStorage.getItem('userDetails');
@@ -51,6 +50,10 @@ const OrderHistoryPage = () => {
   const fetchOrders = async () => {
     setLoading(true);
     try {
+      // Backend endpoint: POST /orders/get_by_user with { user_id }
+      // Returns array of orders with payment_status field set by backend
+      // Payment status values: "PENDING", "paid_online", "paid_offline", "failed", "refunded"
+      // To update payment_status, use: PUT /orders/{orderId}/status with { payment_status: value }
       const response = await allApiWithHeaderToken(
         `${API_CONSTANTS.COMMON_ORDER_URL}/get_by_user`,
         { user_id: userDetails.id },
@@ -59,14 +62,12 @@ const OrderHistoryPage = () => {
 
       if (response.status === 200) {
         const transformedOrders = response?.data?.data?.map(order => {
-          // Use stored values from backend - no recalculation needed
           const totalPrice = Number(order.total_price || 0);
           const taxPrice = Number(order.tax_price || 0);
           const handlingFee = Number(order.handling_fee || 0);
           const deliveryCharge = Number(order.delivery_charge || 0);
           const totalShippingCost = Number(order.total_shipping_cost || 0);
-          
-          // Discount fields
+
           const subtotalMrp = Number(order.subtotal_mrp || 0);
           const subtotalSellingPrice = Number(order.subtotal_selling_price || 0);
           const productDiscount = Number(order.product_discount || 0);
@@ -76,51 +77,50 @@ const OrderHistoryPage = () => {
           return {
             id: order.id,
             orderId: order.order_id,
-            status: order.payment_status,
+            status: order.order_status,
             orderStatus: order.order_status,
             paymentStatus: order.payment_status,
             paymentMode: order.payment_mode,
             orderType: order.order_type,
-            
-            // Use stored total_price as the final total
+
             totalPrice: totalPrice,
             totalAmount: totalPrice,
-            
-            // Pricing breakdown
+
             subtotalMrp: subtotalMrp,
             subtotalSellingPrice: subtotalSellingPrice,
             productDiscount: productDiscount,
             promoDiscount: promoDiscount,
             couponCode: order.coupon_code,
             couponDiscount: couponDiscount,
-            
-            // Individual components
-            basePrice: subtotalSellingPrice, // Use selling price as base
+
+            basePrice: subtotalSellingPrice,
             taxPrice: taxPrice,
             handlingFee: handlingFee,
             deliveryCharge: deliveryCharge,
-            shippingFee: taxPrice, // For backward compatibility
-            
-            // Dates
-            createdAt: order.created_at,
-            estimatedDeliveryDate: order.estimated_delivery_date,
-            orderFulfilledDate: order.order_fulfilled_date,
-            
-            // Related data
+            shippingFee: taxPrice,
+
+            createdAt: order.created_at || order.createdAt,
+            estimatedDeliveryDate: order.estimated_delivery_date || order.estimatedDeliveryDate,
+            orderFulfilledDate: order.order_fulfilled_date || order.orderFulfilledDate,
+
             orderItems: order.order_items || [],
             orderHistory: order.order_history || [],
             shippingAddress: order.shipping_address,
-            deliveryNotes: order.delivery_notes, // Delivery agent notes
-            
-            // Shipping details
+            deliveryNotes: order.delivery_notes,
+
             shippingCostPerCarton: order.shipping_cost_per_carton,
             totalCartons: order.total_cartons,
             totalShippingCost: totalShippingCost
           };
         }) || [];
 
-        // Sort by created date (newest first)
-        transformedOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        transformedOrders.sort((a, b) => {
+          const dateA = normalizeDateValue(a.createdAt);
+          const dateB = normalizeDateValue(b.createdAt);
+          const timeA = dateA ? dateA.getTime() : 0;
+          const timeB = dateB ? dateB.getTime() : 0;
+          return timeB - timeA;
+        });
         setOrders(transformedOrders);
       }
     } catch (error) {
@@ -139,7 +139,6 @@ const OrderHistoryPage = () => {
       cancelled: 'bg-red-100 text-red-800 border-red-200',
       refunded: 'bg-orange-100 text-orange-800 border-orange-200',
       failed: 'bg-gray-100 text-gray-800 border-gray-200',
-      // Legacy statuses for backward compatibility
       pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
       packed: 'bg-purple-100 text-purple-800 border-purple-200',
       created: 'bg-gray-100 text-gray-700 border-gray-300',
@@ -156,35 +155,121 @@ const OrderHistoryPage = () => {
       paid_offline: 'bg-blue-100 text-blue-800',
       failed: 'bg-red-100 text-red-800',
       refunded: 'bg-orange-100 text-orange-800',
-      // Legacy statuses for backward compatibility
       paid: 'bg-green-100 text-green-800',
-      payment_pending: 'bg-yellow-100 text-yellow-800',
-      payment_paid: 'bg-green-100 text-green-800',
-      payment_failed: 'bg-red-100 text-red-800',
-      payment_offline: 'bg-blue-100 text-blue-800',
-      payment_refunded: 'bg-orange-100 text-orange-800'
+      due: 'bg-yellow-100 text-yellow-800',
+      overdue: 'bg-red-100 text-red-800',
+      'partial refund': 'bg-orange-100 text-orange-800',
+      'credit note generated': 'bg-purple-100 text-purple-800',
+      cleared: 'bg-green-100 text-green-800',
     };
     return statusColors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
+  const getPaymentStatusLabel = (status) => {
+    const labels = {
+      pending: 'Pending',
+      paid_online: 'Paid Online',
+      paid_offline: 'Paid (Cash)',
+      failed: 'Payment Failed',
+      refunded: 'Refunded',
+      paid: 'Paid',
+      due: 'Due',
+      overdue: 'Overdue',
+      'partial refund': 'Partial Refund',
+      'credit note generated': 'Credit Note',
+      cleared: 'Cleared',
+    };
+    const key = status?.toLowerCase();
+    return labels[key] || status?.replace(/_/g, ' ')?.replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
+  };
+
+  const getOrderStatusLabel = (status) => {
+    const labels = {
+      in_review: 'In Review',
+      pending: 'Pending',
+      initiated: 'Initiated',
+      processing: 'Processing',
+      manufacturing_started: 'Manufacturing',
+      manufacturing_completed: 'Manufactured',
+      packaging: 'Packaging',
+      packed: 'Packed',
+      shipped: 'Shipped',
+      delivered: 'Delivered',
+      cancelled: 'Cancelled',
+      failed: 'Failed',
+      created: 'Created',
+      rejected: 'Rejected',
+      refunded: 'Refunded',
+    };
+    const key = status?.toLowerCase();
+    return labels[key] || status?.replace(/_/g, ' ')?.replace(/\b\w/g, c => c.toUpperCase()) || 'Unknown';
+  };
+
+  const normalizeDateValue = (value) => {
+    if (value === null || value === undefined || value === '') return null;
+
+    if (typeof value === 'number' && !Number.isNaN(value)) {
+      return new Date(value);
+    }
+
+    if (typeof value === 'object') {
+      if (value instanceof Date) return value;
+      if (value.seconds != null) {
+        return new Date(value.seconds * 1000 + (value.nanos ? value.nanos / 1e6 : 0));
+      }
+      value = String(value);
+    }
+
+    let dateString = String(value).trim();
+    if (dateString === '') return null;
+
+    // Handle Java 8+ timestamp format: "2026-05-09T23:41:40.135428+05:30[Asia/Kolkata]"
+    // Strip timezone and zone info
+    dateString = dateString.replace(/\[.*?\]$/, '').trim();
+    
+    // Handle ISO 8601 with timezone offset
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?[+-]\d{2}:\d{2}$/.test(dateString)) {
+      // Parse directly - JavaScript Date handles ISO 8601 with offset
+      const parsed = new Date(dateString);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+
+    // Handle space-separated format: "2026-05-09 23:41:40.135428+05:30"
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d+)?[+-]\d{2}:\d{2}$/.test(dateString)) {
+      dateString = dateString.replace(' ', 'T');
+      const parsed = new Date(dateString);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+
+    // Handle simple ISO date: "2026-05-09"
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+      dateString = `${dateString}T00:00:00`;
+    }
+
+    const parsed = new Date(dateString);
+    if (!isNaN(parsed.getTime())) return parsed;
+
+    const fallback = Date.parse(dateString);
+    return Number.isNaN(fallback) ? null : new Date(fallback);
+  };
+
+  const formatDate = (dateValue) => {
+    if (dateValue === null || dateValue === undefined || dateValue === '') return 'N/A';
+    const date = normalizeDateValue(dateValue);
+    return date ? date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
-    });
+    }) : 'Invalid Date';
   };
 
   const formatCurrency = (amount) => {
     return `₹${Number(amount || 0).toFixed(2)}`;
   };
 
-  // Filter orders based on search
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.orderId?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         order.orderItems?.some(item => 
+                         order.orderItems?.some(item =>
                            item.name?.toLowerCase().includes(searchQuery.toLowerCase())
                          );
     return matchesSearch;
@@ -195,7 +280,6 @@ const OrderHistoryPage = () => {
     setShowReceipt(true);
   };
 
-  // Receipt Component
   const ReceiptContent = ({ order }) => {
     if (!order) return null;
 
@@ -213,8 +297,7 @@ const OrderHistoryPage = () => {
     };
 
     const products = order.orderItems || [];
-    
-    // Get pricing breakdown from order
+
     const subtotalMrp = Number(order.subtotalMrp || 0);
     const subtotalSellingPrice = Number(order.subtotalSellingPrice || 0);
     const productDiscount = Number(order.productDiscount || 0);
@@ -224,22 +307,16 @@ const OrderHistoryPage = () => {
     const handlingFee = Number(order.handlingFee || 0);
     const deliveryCharge = Number(order.deliveryCharge || 0);
     const finalTotal = Number(order.totalAmount || 0);
-    
-    // Calculate total discounts
+
     const totalDiscounts = productDiscount + promoDiscount + couponDiscount;
-    
-    // Calculate total taxes & charges
-    const totalTaxesAndCharges = taxPrice + handlingFee + deliveryCharge;
 
     return (
       <div className="bg-white p-6">
-        {/* Header */}
         <div className="text-center mb-6 border-b pb-4">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">INVOICE</h1>
           <div className="h-1 w-full bg-gray-300"></div>
         </div>
 
-        {/* Invoice Info */}
         <div className="grid grid-cols-2 gap-6 text-sm text-gray-700 mb-6">
           <div>
             <p className="mb-1"><strong>Invoice ID:</strong> #{order.orderId}</p>
@@ -249,13 +326,12 @@ const OrderHistoryPage = () => {
             )}
           </div>
           <div className="text-right">
-            <p className="mb-1"><strong>Order Status:</strong> <span className="capitalize">{order.orderStatus?.replace(/_/g, ' ')}</span></p>
-            <p className="mb-1"><strong>Payment Status:</strong> <span className="capitalize">{order.paymentStatus?.replace(/_/g, ' ')}</span></p>
+            <p className="mb-1"><strong>Order Status:</strong> {getOrderStatusLabel(order.orderStatus)}</p>
+            <p className="mb-1"><strong>Payment Status:</strong> {getPaymentStatusLabel(order.paymentStatus)}</p>
             <p className="mb-1"><strong>Payment Mode:</strong> <span className="capitalize">{order.paymentMode?.replace(/_/g, ' ')}</span></p>
           </div>
         </div>
 
-        {/* Customer & Shipping Information */}
         {order.shippingAddress && (
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">Shipping Information</h2>
@@ -267,7 +343,6 @@ const OrderHistoryPage = () => {
           </div>
         )}
 
-        {/* Delivery Notes (if available) */}
         {order.deliveryNotes && (
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-gray-800 mb-3 border-b pb-1">Delivery Notes</h2>
@@ -277,11 +352,9 @@ const OrderHistoryPage = () => {
           </div>
         )}
 
-        {/* Products Table */}
         <div className="mb-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">Order Details</h2>
-          
-          {/* Table Header */}
+
           <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-gray-50 border-b-2 border-gray-300 font-semibold text-sm text-gray-700">
             <div className="col-span-1">#</div>
             <div className="col-span-5">Product</div>
@@ -290,13 +363,12 @@ const OrderHistoryPage = () => {
             <div className="col-span-2 text-right">Subtotal</div>
           </div>
 
-          {/* Table Body */}
           <div className="divide-y divide-gray-200">
             {products.map((item, index) => {
               const itemPrice = Number(item.price || 0);
               const itemQuantity = Number(item.quantity || 1);
               const itemSubtotal = itemPrice * itemQuantity;
-              
+
               return (
                 <div key={item.id || index} className="grid grid-cols-12 gap-4 px-4 py-4 text-sm">
                   <div className="col-span-1 text-gray-600">{index + 1}</div>
@@ -317,89 +389,67 @@ const OrderHistoryPage = () => {
           </div>
         </div>
 
-        {/* Summary */}
         <div className="flex justify-end mb-6">
           <div className="w-80 border-t-2 border-gray-300 pt-4">
             <div className="space-y-2">
-              {/* MRP Subtotal */}
               {subtotalMrp > 0 && (
                 <div className="flex justify-between text-sm text-gray-700">
                   <span>Subtotal (MRP):</span>
                   <span>₹{subtotalMrp.toFixed(2)}</span>
                 </div>
               )}
-              
-              {/* Product Discount */}
               {productDiscount > 0 && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Product Discount:</span>
                   <span>- ₹{productDiscount.toFixed(2)}</span>
                 </div>
               )}
-              
-              {/* Subtotal after product discount */}
               {subtotalSellingPrice > 0 && (
                 <div className="flex justify-between text-sm text-gray-700">
                   <span>Subtotal (Selling Price):</span>
                   <span>₹{subtotalSellingPrice.toFixed(2)}</span>
                 </div>
               )}
-              
-              {/* Promo Discount */}
               {promoDiscount > 0 && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Promo Discount:</span>
                   <span>- ₹{promoDiscount.toFixed(2)}</span>
                 </div>
               )}
-              
-              {/* Coupon Discount */}
               {couponDiscount > 0 && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Coupon Discount {order.couponCode ? `(${order.couponCode})` : ''}:</span>
                   <span>- ₹{couponDiscount.toFixed(2)}</span>
                 </div>
               )}
-              
-              {/* Total Discounts */}
               {totalDiscounts > 0 && (
                 <div className="flex justify-between text-sm font-semibold text-green-700 pt-1 border-t border-gray-200">
                   <span>Total Discounts:</span>
                   <span>- ₹{totalDiscounts.toFixed(2)}</span>
                 </div>
               )}
-              
-              {/* Subtotal after all discounts */}
               <div className="flex justify-between text-sm font-medium text-gray-800 pt-1 border-t border-gray-200">
                 <span>Subtotal (After Discounts):</span>
                 <span>₹{(subtotalSellingPrice - promoDiscount - couponDiscount).toFixed(2)}</span>
               </div>
-              
-              {/* Tax */}
               {taxPrice > 0 && (
                 <div className="flex justify-between text-sm text-gray-700">
                   <span>Tax:</span>
                   <span>₹{taxPrice.toFixed(2)}</span>
                 </div>
               )}
-              
-              {/* Handling Fee */}
               {handlingFee > 0 && (
                 <div className="flex justify-between text-sm text-gray-700">
                   <span>Handling Fee:</span>
                   <span>₹{handlingFee.toFixed(2)}</span>
                 </div>
               )}
-              
-              {/* Delivery Charge */}
               {deliveryCharge > 0 && (
                 <div className="flex justify-between text-sm text-gray-700">
                   <span>Delivery Charge:</span>
                   <span>₹{deliveryCharge.toFixed(2)}</span>
                 </div>
               )}
-              
-              {/* Grand Total */}
               <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t-2 border-gray-400">
                 <span>Grand Total:</span>
                 <span>₹{finalTotal.toFixed(2)}</span>
@@ -408,7 +458,6 @@ const OrderHistoryPage = () => {
           </div>
         </div>
 
-        {/* Footer */}
         <div className="mt-8 pt-6 border-t border-gray-300 text-center text-xs text-gray-500">
           <p>Thank you for your business!</p>
           <p className="mt-2">This is a computer generated invoice.</p>
@@ -424,21 +473,16 @@ const OrderHistoryPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      
+
       <main className="pt-[160px] md:pt-20 pb-20 md:pb-8">
         <div className="p-4 md:p-6 mt-4 w-full max-w-screen-xl mx-auto">
-          {/* Page Title */}
           <h1 className="text-[20px] sm:text-[24px] md:text-[36px] font-bold text-center mb-4 text-[#1D2E43] font-[playfair]">
             {t('order_history') || 'Order History'}
           </h1>
 
-          {/* Breadcrumb */}
           <div className="flex justify-center mb-6 text-gray-600 text-sm">
             <p className="text-[#1D2E43]">
-              <span 
-                onClick={() => navigate('/')} 
-                className="cursor-pointer hover:text-yellow-600"
-              >
+              <span onClick={() => navigate('/')} className="cursor-pointer hover:text-yellow-600">
                 Home
               </span>
               {" / "}
@@ -446,7 +490,6 @@ const OrderHistoryPage = () => {
             </p>
           </div>
 
-          {/* Search Bar */}
           <div className="bg-white rounded-lg border p-4 mb-6">
             <div className="relative max-w-md">
               <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
@@ -482,14 +525,12 @@ const OrderHistoryPage = () => {
             </div>
           ) : (
             <div className="bg-white rounded-lg border overflow-hidden">
-              {/* Header */}
               <div className="p-4 border-b bg-gray-50">
                 <h2 className="text-lg font-semibold text-gray-900">
                   Your Orders ({filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'})
                 </h2>
               </div>
 
-              {/* Column Headers - Desktop Only */}
               <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 border-b text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 <div className="col-span-2">Order ID</div>
                 <div className="col-span-2">Date</div>
@@ -500,11 +541,10 @@ const OrderHistoryPage = () => {
                 <div className="col-span-1 text-center">Actions</div>
               </div>
 
-              {/* Order Cards */}
               <div className="divide-y divide-gray-200">
                 {filteredOrders.map((order) => (
                   <div key={order.id} className="p-4 md:p-6 hover:bg-gray-50 transition-colors">
-                    {/* Desktop Layout */}
+                    {/* Desktop */}
                     <div className="hidden md:grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-2">
                         <span className="text-sm font-bold text-gray-900">#{order.orderId}</span>
@@ -517,12 +557,12 @@ const OrderHistoryPage = () => {
                       </div>
                       <div className="col-span-2">
                         <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(order.orderStatus)}`}>
-                          {order.orderStatus?.toUpperCase()}
+                          {getOrderStatusLabel(order.orderStatus)}
                         </span>
                       </div>
                       <div className="col-span-2">
                         <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${getPaymentStatusColor(order.paymentStatus)}`}>
-                          {order.paymentStatus?.toUpperCase()}
+                          {getPaymentStatusLabel(order.paymentStatus)}
                         </span>
                       </div>
                       <div className="col-span-2 text-right">
@@ -546,7 +586,7 @@ const OrderHistoryPage = () => {
                       </div>
                     </div>
 
-                    {/* Mobile Layout */}
+                    {/* Mobile */}
                     <div className="md:hidden space-y-3">
                       <div className="flex items-start justify-between">
                         <div>
@@ -570,19 +610,19 @@ const OrderHistoryPage = () => {
                           </button>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center gap-2 text-xs text-gray-600">
                         <span>{order.orderItems?.length || 0} item(s)</span>
                         <span>•</span>
                         <span className={`inline-flex px-2 py-1 font-medium rounded-full ${getStatusColor(order.orderStatus)}`}>
-                          {order.orderStatus?.toUpperCase()}
+                          {getOrderStatusLabel(order.orderStatus)}
                         </span>
                         <span>•</span>
                         <span className={`inline-flex px-2 py-1 font-medium rounded-full ${getPaymentStatusColor(order.paymentStatus)}`}>
-                          {order.paymentStatus?.toUpperCase()}
+                          {getPaymentStatusLabel(order.paymentStatus)}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center justify-between pt-2 border-t">
                         <span className="text-xs text-gray-600">Total</span>
                         <span className="text-sm font-bold text-gray-900">{formatCurrency(order.totalAmount)}</span>
@@ -596,7 +636,6 @@ const OrderHistoryPage = () => {
         </div>
       </main>
 
-      {/* Receipt Modal */}
       <Dialog
         visible={showReceipt}
         onHide={() => setShowReceipt(false)}

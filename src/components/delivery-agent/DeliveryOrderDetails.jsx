@@ -13,6 +13,13 @@ import InputTextComponent from "@common/InputTextComponent";
 import { QRCodeSVG } from "qrcode.react";
 import axios from "axios";
 
+const normalizeDate = (value) => {
+  if (!value) return null;
+  const cleaned = String(value).replace(/\[.*?\]$/, '');
+  const d = new Date(cleaned);
+  return isNaN(d.getTime()) ? null : d;
+};
+
 const DeliveryOrderDetails = () => {
   const toast = useRef(null);
   const navigate = useNavigate();
@@ -29,26 +36,23 @@ const DeliveryOrderDetails = () => {
   // QR code state
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [qrRevealed, setQrRevealed] = useState(false);
-  const [upiSettings, setUpiSettings] = useState({ upi_id: '', merchant_name: '' });
   
   // Camera state
   const [showCameraDialog, setShowCameraDialog] = useState(false);
   const [cameraStream, setCameraStream] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
-  const [currentAction, setCurrentAction] = useState(''); // 'damaged', 'delivered', 'cancel'
+  const [currentAction, setCurrentAction] = useState(''); // 'delivered', 'cancel'
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   
   // Action dialogs state
-  const [showDamagedDialog, setShowDamagedDialog] = useState(false);
   const [showDeliveredDialog, setShowDeliveredDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
-  const [damageReason, setDamageReason] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [cancellationReason, setCancellationReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [selectedOrderStatus, setSelectedOrderStatus] = useState(null);
-  
+
   // Validation errors
   const [paymentErrors, setPaymentErrors] = useState({
     receiverName: '',
@@ -57,33 +61,12 @@ const DeliveryOrderDetails = () => {
 
   const orderStatusOptions = [
     { label: 'Mark as Delivered', value: 'delivered', icon: 'ri-check-line', severity: 'success' },
-    { label: 'Mark as Damaged', value: 'damaged', icon: 'ri-error-warning-line', severity: 'danger' },
-    { label: 'Cancel / Return Order', value: 'cancelled', icon: 'ri-close-circle-line', severity: 'warning' }
+    { label: 'Cancel Order', value: 'cancelled', icon: 'ri-close-circle-line', severity: 'warning' }
   ];
 
   useEffect(() => {
     fetchOrderDetails();
-    fetchUpiSettings();
   }, [orderId]);
-
-  const fetchUpiSettings = async () => {
-    try {
-      const response = await allApiWithHeaderToken(
-        API_CONSTANTS.SETTINGS_URL,
-        "",
-        "get"
-      );
-      if (response.status === 200) {
-        const settings = response.data;
-        setUpiSettings({
-          upi_id: settings.upi_id || 'merchant@upi',
-          merchant_name: settings.upi_merchant_name || 'Srirammart'
-        });
-      }
-    } catch (error) {
-      console.error("Failed to fetch UPI settings:", error);
-    }
-  };
 
   const fetchOrderDetails = async () => {
     try {
@@ -95,29 +78,26 @@ const DeliveryOrderDetails = () => {
       );
 
       if (response.status === 200) {
-        setOrder(response.data.data);
-        // Set payment method if already selected, otherwise default to UPI for COD orders
-        if (response.data.data.delivery?.cod_payment_method) {
-          setPaymentMethod(response.data.data.delivery.cod_payment_method);
-          if (response.data.data.delivery.cash_received_amount) {
-            setCashAmount(response.data.data.delivery.cash_received_amount);
+        const data = response.data;
+        setOrder(data);
+        if (data.delivery?.cod_payment_method) {
+          setPaymentMethod(data.delivery.cod_payment_method);
+          if (data.delivery.cash_received_amount) {
+            setCashAmount(data.delivery.cash_received_amount);
           }
-          if (response.data.data.delivery.cash_receiver_name) {
-            setReceiverName(response.data.data.delivery.cash_receiver_name);
+          if (data.delivery.cash_receiver_name) {
+            setReceiverName(data.delivery.cash_receiver_name);
           }
-        } else if (response.data.data.payment_mode === 'cash_on_delivery') {
-          // Default to UPI for COD orders
+        } else if (data.payment_mode === 'cash_on_delivery') {
           setPaymentMethod('upi');
-          // Auto-save the default payment method
           handlePaymentMethodChange('upi');
         }
-        // Set QR revealed status from DB
-        if (response.data.data.delivery?.qr_revealed) {
+        if (data.delivery?.qr_revealed) {
           setQrRevealed(true);
         }
       }
     } catch (error) {
-      toast.current.show({
+      toast.current?.show({
         severity: "error",
         summary: "Error",
         detail: "Failed to fetch order details",
@@ -248,11 +228,11 @@ const DeliveryOrderDetails = () => {
 
   // Generate UPI payment string
   const generateUpiString = () => {
-    const { upi_id, merchant_name } = upiSettings;
+    const upiId = process.env.REACT_APP_UPI_ID || 'merchant@upi';
+    const merchantName = process.env.REACT_APP_UPI_MERCHANT_NAME || 'Srirammart';
     const amount = parseFloat(order.total_price).toFixed(2);
     const transactionNote = `Order #${order.id}`;
-    
-    return `upi://pay?pa=${upi_id}&pn=${encodeURIComponent(merchant_name)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+    return `upi://pay?pa=${upiId}&pn=${encodeURIComponent(merchantName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
   };
 
   // Open camera for specific action
@@ -362,12 +342,6 @@ const DeliveryOrderDetails = () => {
   };
 
   // Open action dialogs
-  const openDamagedDialog = () => {
-    setDamageReason('');
-    setCapturedImage(null);
-    setShowDamagedDialog(true);
-  };
-
   const openDeliveredDialog = () => {
     setDeliveryNotes('');
     setCapturedImage(null);
@@ -422,66 +396,8 @@ const DeliveryOrderDetails = () => {
       }
       
       openDeliveredDialog();
-    } else if (e.value === 'damaged') {
-      openDamagedDialog();
     } else if (e.value === 'cancelled') {
       openCancelDialog();
-    }
-  };
-
-  // Submit mark as damaged
-  const handleMarkDamaged = async () => {
-    if (!capturedImage || !damageReason) {
-      toast.current.show({
-        severity: "warn",
-        summary: "Warning",
-        detail: "Please capture photo and enter damage reason",
-        life: 3000,
-      });
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      const formData = new FormData();
-      formData.append('damage_image', capturedImage.blob, 'damage-proof.jpg');
-      formData.append('damage_reason', damageReason);
-
-      const token = localStorage.getItem('token');
-      const cleanToken = token ? token.replace(/"/g, '').replace(/^Bearer\s+/, '') : '';
-      const baseURL = process.env.REACT_APP_BASE_URL || 'http://localhost:3000';
-      
-      const response = await axios.patch(
-        `${baseURL}/api/v1/delivery_agent/orders/${orderId}/mark_damaged`,
-        formData,
-        {
-          headers: {
-            'Authorization': `Bearer ${cleanToken}`,
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
-
-      if (response.status === 200) {
-        toast.current.show({
-          severity: "success",
-          summary: "Success",
-          detail: "Order marked as damaged",
-          life: 3000,
-        });
-        setShowDamagedDialog(false);
-        setSelectedOrderStatus(null);
-        navigate('/delivery-dashboard');
-      }
-    } catch (error) {
-      toast.current.show({
-        severity: "error",
-        summary: "Error",
-        detail: error.response?.data?.message || "Failed to mark as damaged",
-        life: 3000,
-      });
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -509,10 +425,10 @@ const DeliveryOrderDetails = () => {
 
       const token = localStorage.getItem('token');
       const cleanToken = token ? token.replace(/"/g, '').replace(/^Bearer\s+/, '') : '';
-      const baseURL = process.env.REACT_APP_BASE_URL || 'http://localhost:3000';
+      const baseURL = `${process.env.REACT_APP_BASE_URL || 'http://localhost:8070'}/api/v1/ecommerce`;
       
       const response = await axios.patch(
-        `${baseURL}/api/v1/delivery_agent/orders/${orderId}/mark_delivered`,
+        `${baseURL}/delivery_agent/orders/${orderId}/mark_delivered`,
         formData,
         {
           headers: {
@@ -567,10 +483,10 @@ const DeliveryOrderDetails = () => {
 
       const token = localStorage.getItem('token');
       const cleanToken = token ? token.replace(/"/g, '').replace(/^Bearer\s+/, '') : '';
-      const baseURL = process.env.REACT_APP_BASE_URL || 'http://localhost:3000';
+      const baseURL = `${process.env.REACT_APP_BASE_URL || 'http://localhost:8070'}/api/v1/ecommerce`;
       
       const response = await axios.patch(
-        `${baseURL}/api/v1/delivery_agent/orders/${orderId}/cancel_order`,
+        `${baseURL}/delivery_agent/orders/${orderId}/cancel_order`,
         formData,
         {
           headers: {
@@ -606,6 +522,7 @@ const DeliveryOrderDetails = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
+        <Toast ref={toast} />
         {/* Header Skeleton */}
         <div 
           className="shadow-md sticky top-0 z-50"
@@ -664,6 +581,7 @@ const DeliveryOrderDetails = () => {
   if (!order) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Toast ref={toast} />
         <div className="text-center">
           <i className="ri-inbox-line text-4xl text-gray-300"></i>
           <p className="text-gray-500 mt-4 text-sm">Order not found</p>
@@ -751,11 +669,11 @@ const DeliveryOrderDetails = () => {
               <p className="text-xs font-semibold text-gray-800 mb-1">Delivery Info</p>
               <div className="flex justify-between text-xs">
                 <span className="text-gray-600">
-                  {new Date(order.estimated_delivery_date).toLocaleDateString('en-IN', {
+                  {normalizeDate(order.estimated_delivery_date)?.toLocaleDateString('en-IN', {
                     day: 'numeric',
                     month: 'short',
                     year: 'numeric'
-                  })}
+                  }) ?? '-'}
                 </span>
                 {order.delivery_time_slot && (
                   <span className="text-gray-600">{order.delivery_time_slot}</span>
@@ -967,7 +885,6 @@ const DeliveryOrderDetails = () => {
               <div className="absolute top-4 left-0 right-0 flex justify-center">
                 <div className="bg-black/60 px-4 py-2 rounded-full">
                   <p className="text-white text-sm font-medium">
-                    {currentAction === 'damaged' && 'Capture Damage Photo'}
                     {currentAction === 'delivered' && 'Capture Delivery Proof'}
                     {currentAction === 'cancel' && 'Capture Photo (Optional)'}
                   </p>
@@ -1078,7 +995,7 @@ const DeliveryOrderDetails = () => {
           <div className="w-full text-center bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg py-2.5 px-4 border border-gray-200">
             <p className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wider">Merchant UPI ID</p>
             <p className="text-sm font-mono font-bold text-gray-800 break-all">
-              {upiSettings.upi_id}
+              {process.env.REACT_APP_UPI_ID || 'merchant@upi'}
             </p>
           </div>
 
@@ -1089,117 +1006,6 @@ const DeliveryOrderDetails = () => {
           >
             Close
           </button>
-        </div>
-      </Dialog>
-
-      {/* Mark as Damaged Dialog */}
-      <Dialog
-        visible={showDamagedDialog}
-        style={{ width: "90vw", maxWidth: "450px" }}
-        onHide={() => {
-          setShowDamagedDialog(false);
-          setSelectedOrderStatus(null);
-        }}
-        breakpoints={{ '960px': '80vw', '640px': '95vw' }}
-        showHeader={false}
-        contentClassName="p-0"
-      >
-        <div className="p-4 space-y-4">
-          {/* Photo Section */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-2">
-              Damage Photo <span className="text-red-500">*</span>
-            </label>
-            {!capturedImage ? (
-              <button
-                onClick={() => openCameraForAction('damaged')}
-                className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-red-500 hover:bg-red-50 transition-colors flex flex-col items-center justify-center gap-2"
-              >
-                <i className="ri-camera-line text-3xl text-gray-400"></i>
-                <span className="text-sm font-medium text-gray-600">Tap to Capture Photo</span>
-                <span className="text-xs text-gray-500">Required to document damage</span>
-              </button>
-            ) : (
-              <div className="relative rounded-lg overflow-hidden border-2 border-red-500">
-                <img 
-                  src={capturedImage.url} 
-                  alt="Damage" 
-                  className="w-full h-48 object-cover"
-                />
-                <div className="absolute top-2 right-2 flex gap-2">
-                  <button
-                    onClick={() => {
-                      setCapturedImage(null);
-                      openCameraForAction('damaged');
-                    }}
-                    className="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-9 h-9 flex items-center justify-center shadow-lg transition-colors"
-                    title="Edit photo"
-                  >
-                    <i className="ri-edit-line text-lg"></i>
-                  </button>
-                  <button
-                    onClick={() => setCapturedImage(null)}
-                    className="bg-red-500 hover:bg-red-600 text-white rounded-full w-9 h-9 flex items-center justify-center shadow-lg transition-colors"
-                    title="Delete photo"
-                  >
-                    <i className="ri-delete-bin-line text-lg"></i>
-                  </button>
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                  <p className="text-white text-xs font-medium flex items-center gap-1">
-                    <i className="ri-check-circle-fill text-red-400"></i>
-                    Photo captured
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Damage Reason Section */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-2">
-              Damage Reason <span className="text-red-500">*</span>
-            </label>
-            <InputTextarea
-              value={damageReason}
-              onChange={(e) => setDamageReason(e.target.value)}
-              rows={3}
-              placeholder="e.g., Package torn, Product broken, Water damage..."
-              className="w-full text-sm"
-              style={{ resize: 'none', padding: '0.75rem' }}
-            />
-            <p className="text-xs text-gray-500 mt-1">Describe the damage in detail</p>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-2 border-t">
-            <button
-              onClick={() => {
-                setShowDamagedDialog(false);
-                setSelectedOrderStatus(null);
-              }}
-              className="flex-1 py-2.5 px-4 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleMarkDamaged}
-              disabled={submitting || !capturedImage || !damageReason}
-              className="flex-1 py-2.5 px-4 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2"
-            >
-              {submitting ? (
-                <>
-                  <i className="ri-loader-4-line animate-spin"></i>
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <i className="ri-error-warning-line"></i>
-                  Mark as Damaged
-                </>
-              )}
-            </button>
-          </div>
         </div>
       </Dialog>
 

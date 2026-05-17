@@ -710,6 +710,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import SignInLayout from '@userpage-pages/SignInLayout';
 import InputTextComponent from "@common/InputTextComponent";
 import { loadThemeColors } from '@utils/themeUtils';
+import { allApi } from "@api/api";
 
 // Redux actions
 import { 
@@ -766,6 +767,13 @@ const SignInRegister = () => {
   const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
   const [welcomeUserName, setWelcomeUserName] = useState("");
   const [googleError, setGoogleError] = useState("");
+  const [isOtpLoginMode, setIsOtpLoginMode] = useState(false);
+  const [otpLoginPhone, setOtpLoginPhone] = useState("");
+  const [isDeliveryMode, setIsDeliveryMode] = useState(false);
+  const [deliveryUsername, setDeliveryUsername] = useState("");
+  const [deliveryPassword, setDeliveryPassword] = useState("");
+  const [deliveryLoader, setDeliveryLoader] = useState(false);
+  const [showDeliveryPassword, setShowDeliveryPassword] = useState(false);
 
   // Clear Redux status on component unmount
   useEffect(() => {
@@ -860,6 +868,8 @@ const SignInRegister = () => {
             console.error('Failed to load theme colors:', error);
           }
           setTimeout(() => navigate("/dashboard"), 1500);
+        } else if (userData.role_id === 3) {
+          setTimeout(() => navigate("/delivery-dashboard"), 1500);
         } else {
           setTimeout(() => navigate("/"), 1500);
         }
@@ -1031,7 +1041,7 @@ const SignInRegister = () => {
       ? yup.string().required(t("password_is_required"))
       : yup.string(),
     otp: showOTPVerification || showResetPassword
-      ? yup.string().length(4, t("otp_must_be_4_digits")).required(t("otp_is_required"))
+      ? yup.string().length(6, "OTP must be 6 digits").required(t("otp_is_required"))
       : yup.string(),
     newPassword: showResetPassword
       ? yup.string().min(6, t("password_must_be_at_least_6_characters")).required(t("password_is_required"))
@@ -1041,50 +1051,90 @@ const SignInRegister = () => {
       : yup.string(),
   });
 
-  const sendLoginOTP = async (phoneNumber, isResend = false) => {
+  const sendLoginOTP = async (phone, isResend = false) => {
     if (isResend) {
       setResendOtpLoader(true);
     } else {
       setOtpLoader(true);
     }
-    
-    // This would be replaced with Redux action
-    setTimeout(() => {
+    try {
+      await allApi.post("user_dashboard/send_login_otp", { phone });
       setShowOTPVerification(true);
       setTimeLeft(300);
       setIsOTPExpired(false);
       setLoginError("");
-      if (isResend) {
-        showInfoToast(t('otp_resent_successfully'));
-      }
+      if (isResend) showInfoToast(t('otp_resent_successfully'));
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Failed to send OTP. Please try again.";
+      setLoginError(msg);
+      showErrorToast(msg);
+    } finally {
       setOtpLoader(false);
       setResendOtpLoader(false);
-    }, 1000);
-  };
-
-  const handleResendOTP = () => {
-    if (userPhoneNumber) {
-      sendLoginOTP(userPhoneNumber, true);
     }
   };
 
+  const handleDeliveryAgentLogin = async () => {
+    if (!deliveryUsername || !deliveryPassword) {
+      setLoginError("Username and password are required");
+      showErrorToast("Username and password are required");
+      return;
+    }
+    setDeliveryLoader(true);
+    setLoginError("");
+    try {
+      const response = await allApi.post("delivery_agent/login", {
+        username: deliveryUsername,
+        password: deliveryPassword
+      });
+      const data = response.data;
+      const userDetails = {
+        id: data.id,
+        name: data.name,
+        username: data.username,
+        role_id: data.role_id
+      };
+      if (data.token) localStorage.setItem("token", JSON.stringify(data.token));
+      localStorage.setItem("userDetails", JSON.stringify(userDetails));
+      showSuccessToast("Welcome, " + data.name + "!");
+      setTimeout(() => navigate("/delivery-dashboard"), 1500);
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Login failed. Please check your credentials.";
+      setLoginError(msg);
+      showErrorToast(msg);
+    } finally {
+      setDeliveryLoader(false);
+    }
+  };
+
+  const handleResendOTP = () => {
+    const phone = otpLoginPhone || userPhoneNumber;
+    if (phone) sendLoginOTP(phone, true);
+  };
+
   const handleOTPSubmit = async (otpValue) => {
-    if (!otpValue || otpValue.length !== 4) {
+    if (!otpValue || otpValue.length !== 6) {
       setLoginError(t("please_enter_valid_otp"));
       showErrorToast(t("please_enter_valid_otp"));
       return;
     }
-    
     setOtpLoader(true);
-    // OTP verification logic here
-    setTimeout(() => {
+    try {
+      const response = await allApi.post("user_dashboard/verify_login_otp", {
+        phone: otpLoginPhone || userPhoneNumber,
+        otp: otpValue
+      });
+      const userData = response.data?.data;
+      if (userData) localStorage.setItem("userDetails", JSON.stringify(userData));
       showSuccessToast(t('login_successful'));
-      setTimeout(() => {
-        navigate("/");
-        resetForm();
-      }, 1500);
+      setTimeout(() => { navigate("/"); resetForm(); }, 1500);
+    } catch (err) {
+      const msg = err?.response?.data?.message || "OTP verification failed. Please try again.";
+      setLoginError(msg);
+      showErrorToast(msg);
+    } finally {
       setOtpLoader(false);
-    }, 1000);
+    }
   };
 
   const formatTime = (seconds) => {
@@ -1140,10 +1190,10 @@ const SignInRegister = () => {
           }
 
           if (userData.is_active === false) {
-            setUserPhoneNumber(userData.phone_number);
+            setOtpLoginPhone(userData.phone_number || "");
             setWelcomeUserName(userData.name || value.email);
-            setShowOTPVerification(true);
             setLoginLoader(false);
+            if (userData.phone_number) sendLoginOTP(userData.phone_number);
           }
         }
       } catch (err) {
@@ -1172,6 +1222,8 @@ const SignInRegister = () => {
 
   const resetOTPFlow = () => {
     setShowOTPVerification(false);
+    setIsOtpLoginMode(false);
+    setOtpLoginPhone("");
     setTimeLeft(300);
     setIsOTPExpired(false);
     setShowWelcomeMessage(false);
@@ -1233,7 +1285,7 @@ const SignInRegister = () => {
         <div className="flex flex-col items-center justify-center bg-white px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center mb-8">
             <h1 className="text-3xl text-[#1D2E43] font-[playfair] font-bold">
-              {showResetPassword ? t("reset_password") : showOTPVerification ? t("verify_otp") : isLoginScreen ? t("forgot_password") : t("login")}
+              {showResetPassword ? t("reset_password") : showOTPVerification ? t("verify_otp") : isDeliveryMode ? "Delivery Agent Login" : isOtpLoginMode ? "Login with OTP" : isLoginScreen ? t("forgot_password") : t("login")}
             </h1>
             <div className="text-sm text-gray-600 mt-2">
               <span className="hover:cursor-pointer" onClick={() => { navigate("/") }}>{t("home")}</span> 
@@ -1375,12 +1427,12 @@ const SignInRegister = () => {
                         value={values?.otp || ''}
                         onChange={handleChange}
                         type="text"
-                        placeholder={t("enter_4_digit_otp")}
+                        placeholder="Enter 6-digit OTP"
                         name="otp"
                         error={errors?.otp}
                         touched={touched?.otp}
                         className="text-[0.8rem] rounded-none w-full border border-gray-300 px-4 py-2 focus:outline-none focus:ring-1 focus:ring-gray-700 text-center tracking-widest text-2xl"
-                        maxLength={4}
+                        maxLength={6}
                       />
 
                       {loginError && (
@@ -1393,11 +1445,11 @@ const SignInRegister = () => {
                         <button
                           type="button"
                           onClick={() => handleOTPSubmit(values?.otp)}
-                          disabled={isOTPExpired || !values?.otp || values?.otp.length !== 4 || otpLoader}
+                          disabled={isOTPExpired || !values?.otp || values?.otp.length !== 6 || otpLoader}
                           className="w-full sm:w-auto text-black text-[1.1rem] font-[playfair] hover:bg-white border px-6 py-2 rounded-md hover:text-[#cca438] hover:border hover:border-[#caa446] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                           style={{ background: 'linear-gradient(rgb(255, 193, 7) 0%, rgb(255, 213, 79) 100%)' }}
-                          onMouseEnter={(e) => !(isOTPExpired || !values?.otp || values?.otp.length !== 4 || otpLoader) && (e.currentTarget.style.background = 'white')}
-                          onMouseLeave={(e) => !(isOTPExpired || !values?.otp || values?.otp.length !== 4 || otpLoader) && (e.currentTarget.style.background = 'linear-gradient(rgb(255, 193, 7) 0%, rgb(255, 213, 79) 100%)')}
+                          onMouseEnter={(e) => !(isOTPExpired || !values?.otp || values?.otp.length !== 6 || otpLoader) && (e.currentTarget.style.background = 'white')}
+                          onMouseLeave={(e) => !(isOTPExpired || !values?.otp || values?.otp.length !== 6 || otpLoader) && (e.currentTarget.style.background = 'linear-gradient(rgb(255, 193, 7) 0%, rgb(255, 213, 79) 100%)')}
                         >
                           {otpLoader ? (
                             <div className="flex items-center">
@@ -1436,6 +1488,94 @@ const SignInRegister = () => {
                     </div>
                   )}
                 </>
+              ) : isOtpLoginMode ? (
+                // OTP Login — phone entry
+                <div className="space-y-4">
+                  <p className="text-[#1D2E43] text-[0.9rem] mb-2">Enter your registered phone number to receive a login OTP</p>
+                  <input
+                    type="tel"
+                    value={otpLoginPhone}
+                    onChange={(e) => setOtpLoginPhone(e.target.value)}
+                    placeholder="Phone Number"
+                    maxLength={10}
+                    className="text-[0.8rem] rounded-none w-full border border-gray-300 px-4 py-2 focus:outline-none focus:ring-1 focus:ring-gray-700"
+                  />
+                  {loginError && <div className="text-red-600 text-[0.8rem] font-medium">{loginError}</div>}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { if (otpLoginPhone) sendLoginOTP(otpLoginPhone); }}
+                      disabled={!otpLoginPhone || otpLoader}
+                      className="w-full sm:w-auto text-black text-[1.1rem] font-[playfair] hover:bg-white border px-6 py-2 rounded-md hover:text-[#cca438] hover:border hover:border-[#caa446] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      style={{ background: 'linear-gradient(rgb(255, 193, 7) 0%, rgb(255, 213, 79) 100%)' }}
+                    >
+                      {otpLoader ? (
+                        <div className="flex items-center"><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>Sending...</div>
+                      ) : "Send OTP"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setIsOtpLoginMode(false); setOtpLoginPhone(""); setLoginError(""); }}
+                      className="w-full sm:w-auto hover:border border border-white text-[1.1rem] font-[playfair] bg-white px-6 py-2 rounded-md text-[#cca438] hover:border-[#cca438]"
+                    >
+                      {t("cancel")}
+                    </button>
+                  </div>
+                </div>
+              ) : isDeliveryMode ? (
+                // Delivery Agent Login
+                <div className="space-y-4">
+                  <p className="text-[#1D2E43] text-[0.9rem] mb-2">Enter your DukanSarthi ERP username and password</p>
+                  <input
+                    type="text"
+                    value={deliveryUsername}
+                    onChange={(e) => { setDeliveryUsername(e.target.value); setLoginError(""); }}
+                    placeholder="Username"
+                    className="text-[0.8rem] rounded-none w-full border border-gray-300 px-4 py-2 focus:outline-none focus:ring-1 focus:ring-gray-700"
+                    autoComplete="username"
+                  />
+                  <div className="relative">
+                    <input
+                      type={showDeliveryPassword ? "text" : "password"}
+                      value={deliveryPassword}
+                      onChange={(e) => { setDeliveryPassword(e.target.value); setLoginError(""); }}
+                      placeholder="Password"
+                      className="text-[0.8rem] rounded-none w-full border border-gray-300 px-4 py-2 pr-10 focus:outline-none focus:ring-1 focus:ring-gray-700"
+                      autoComplete="current-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowDeliveryPassword(!showDeliveryPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    >
+                      <i className={showDeliveryPassword ? "ri-eye-off-line" : "ri-eye-line"}></i>
+                    </button>
+                  </div>
+                  {loginError && <div className="text-red-600 text-[0.8rem] font-medium">{loginError}</div>}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button
+                      type="button"
+                      onClick={handleDeliveryAgentLogin}
+                      disabled={deliveryLoader}
+                      className="w-full sm:w-auto text-black text-[1.1rem] font-[playfair] hover:bg-white border px-6 py-2 rounded-md hover:text-[#cca438] hover:border hover:border-[#caa446] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      style={{ background: 'linear-gradient(rgb(255, 193, 7) 0%, rgb(255, 213, 79) 100%)' }}
+                    >
+                      {deliveryLoader ? (
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Signing in...
+                        </div>
+                      ) : "Sign In"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setIsDeliveryMode(false); setDeliveryUsername(""); setDeliveryPassword(""); setLoginError(""); }}
+                      className="w-full sm:w-auto hover:border border border-white text-[1.1rem] font-[playfair] bg-white px-6 py-2 rounded-md text-[#cca438] hover:border-[#cca438]"
+                    >
+                      {t("cancel")}
+                    </button>
+                  </div>
+                </div>
               ) : isLoginScreen ? (
                 // Forgot Password UI
                 <>
@@ -1571,6 +1711,26 @@ const SignInRegister = () => {
                         t("sign_in")
                       )}
                     </button>
+
+                    {/* Login with OTP link */}
+                    <div className="text-sm text-center">
+                      <a
+                        onClick={() => { setIsOtpLoginMode(true); setLoginError(""); resetForm(); }}
+                        className="text-[#cca438] hover:cursor-pointer hover:text-[#caa446] underline font-[playfair] text-[1rem]"
+                      >
+                        Login with OTP
+                      </a>
+                    </div>
+
+                    {/* Delivery Agent login link */}
+                    <div className="text-sm text-center">
+                      <a
+                        onClick={() => { setIsDeliveryMode(true); setLoginError(""); resetForm(); }}
+                        className="text-gray-500 hover:cursor-pointer hover:text-gray-700 font-[playfair] text-[0.9rem]"
+                      >
+                        Delivery Agent? Login here
+                      </a>
+                    </div>
 
                     {/* Google Sign-In Button */}
                     <div className="mt-4">

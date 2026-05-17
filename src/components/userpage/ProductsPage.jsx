@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import Header from '@common/Header';
 import Footer from '@common/Footer';
 import UserLoader from '@userpage-pages/UserLoader';
 import { allApi, allApiWithHeaderToken } from "@api/api";
 import { API_CONSTANTS } from "@constants/apiurl";
+import { getCart } from '../../redux/slices/cartSlice';
 
 const ProductsPage = () => {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState([]);
   const [cartItems, setCartItems] = useState({});
+  const [cartItemIds, setCartItemIds] = useState({});
   const [addingToCart, setAddingToCart] = useState(false);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   useEffect(() => {
     fetchProducts();
@@ -32,7 +36,7 @@ const ProductsPage = () => {
     try {
       const userDetails = JSON.parse(localStorage.getItem('userDetails'));
       const body = { user_id: userDetails?.id };
-      const response = await allApi(API_CONSTANTS.ALL_PRODUCTS_URL, body, "post");
+      const response = await allApi.get(API_CONSTANTS.ALL_PRODUCTS_URL);
       
       if (response?.status === 200) {
         setProducts(response?.data?.products || response?.data || []);
@@ -49,19 +53,19 @@ const ProductsPage = () => {
       const userDetails = JSON.parse(localStorage.getItem('userDetails'));
       if (!userDetails?.id) return;
 
-      const response = await allApiWithHeaderToken(API_CONSTANTS.CART_URL, "", "get");
-      
-      if (response?.status === 200 && response?.data?.success) {
-        const items = response.data?.data?.items || [];
-        const cartMap = {};
-        items.forEach(item => {
-          const productId = item.id;
-          const weight = item.weight;
-          const cartKey = weight ? `${productId}_${weight}` : productId;
-          cartMap[cartKey] = item.quantity;
-        });
-        setCartItems(cartMap);
-      }
+      const result = await dispatch(getCart()).unwrap();
+      const items = result?.data?.items || result?.items || [];
+      const cartMap = {};
+      const idMap = {};
+      items.forEach(item => {
+        const productId = item.product_id;
+        const weight = item.weight;
+        const cartKey = weight ? `${productId}_${weight}` : productId;
+        cartMap[cartKey] = item.quantity;
+        idMap[cartKey] = item.cart_item_id;
+      });
+      setCartItems(cartMap);
+      setCartItemIds(idMap);
     } catch (error) {
       console.error("Error fetching cart items:", error);
     }
@@ -70,14 +74,26 @@ const ProductsPage = () => {
   const updateCartQuantity = async (productId, newQuantity) => {
     try {
       const userDetails = JSON.parse(localStorage.getItem('userDetails'));
-      const body = {
+      const cartItemId = cartItemIds[productId];
+
+      if (newQuantity === 0 && cartItemId) {
+        await allApiWithHeaderToken(API_CONSTANTS.CART_REMOVE_URL, {
+          user_id: userDetails?.id,
+          cart_item_id: cartItemId
+        }, "post");
+        fetchCartItems();
+        window.dispatchEvent(new Event('cartUpdated'));
+        return;
+      }
+
+      if (!cartItemId) return;
+
+      const response = await allApiWithHeaderToken(API_CONSTANTS.CART_UPDATE_QUANTITY_URL, {
+        cart_item_id: cartItemId,
         user_id: userDetails?.id,
-        product_id: productId,
         quantity: newQuantity
-      };
-      
-      const response = await allApi(API_CONSTANTS.CART_UPDATE_QUANTITY_URL, body, "patch");
-      
+      }, "put");
+
       if (response?.status === 200) {
         fetchCartItems();
         window.dispatchEvent(new Event('cartUpdated'));
@@ -104,24 +120,14 @@ const ProductsPage = () => {
 
       const body = {
         user_id: userDetails?.id,
-        product_id: variant.product_id,
+        product_variant_id: variant.productVariantId,
         quantity: 1,
-        weight: variant.weight,
-        price: sellingPrice,
-        original_price: mrp
       };
+
+      const response = await allApiWithHeaderToken(API_CONSTANTS.CART_ADD_URL, body, "post");
       
-      const response = await allApiWithHeaderToken(API_CONSTANTS.CART_URL, body, "post");
-      
-      if (response?.status === 201 && response?.data?.success) {
-        const cartResponse = await allApiWithHeaderToken(API_CONSTANTS.CART_URL, "", "get");
-        
-        if (cartResponse?.status === 200 && cartResponse?.data?.success) {
-          fetchCartItems();
-          window.dispatchEvent(new CustomEvent('cartUpdated', { 
-            detail: cartResponse.data.data.items || [] 
-          }));
-        }
+      if (response?.status === 200 || response?.status === 201) {
+        await fetchCartItems();
       }
     } catch (error) {
       console.error("Error adding to cart:", error);
@@ -240,51 +246,64 @@ const ProductsPage = () => {
                       </div>
 
                       {/* Add Button or Quantity Controls */}
-                      {variants.length > 1 ? (
-                        <button
-                          onClick={() => handleProductClick(product, firstVariant)}
-                          className="w-full bg-white text-yellow-500 rounded-lg font-bold hover:bg-yellow-50 transition-colors border-2 border-yellow-400 py-1 md:py-2 text-[11px] md:text-sm"
-                        >
-                          Options
-                        </button>
-                      ) : cartItems[firstVariant?.product_id] ? (
-                        <div className="w-full flex items-center justify-between bg-white rounded-lg border-2 border-yellow-400 py-0.5 md:py-1 px-1 md:px-2">
+                      {(() => {
+                        const inStock = firstVariant?.in_stock !== false;
+                        const allOutOfStock = variants.length > 1 && variants.every(v => v.in_stock === false);
+                        if (!inStock || allOutOfStock) {
+                          return (
+                            <button disabled className="w-full bg-gray-100 text-gray-400 rounded-lg font-bold border-2 border-gray-200 py-1 md:py-2 text-[11px] md:text-sm cursor-not-allowed">
+                              Out of Stock
+                            </button>
+                          );
+                        }
+                        if (variants.length > 1) {
+                          return (
+                            <button
+                              onClick={() => handleProductClick(product, firstVariant)}
+                              className="w-full bg-white text-yellow-500 rounded-lg font-bold hover:bg-yellow-50 transition-colors border-2 border-yellow-400 py-1 md:py-2 text-[11px] md:text-sm"
+                            >
+                              Options
+                            </button>
+                          );
+                        }
+                        if (cartItems[firstVariant?.product_id]) {
+                          return (
+                            <div className="w-full flex items-center justify-between bg-white rounded-lg border-2 border-yellow-400 py-0.5 md:py-1 px-1 md:px-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newQty = cartItems[firstVariant.product_id] - 1;
+                                  updateCartQuantity(firstVariant.product_id, newQty > 0 ? newQty : 0);
+                                }}
+                                className="text-yellow-500 hover:text-yellow-600 font-bold text-base md:text-lg"
+                              >
+                                −
+                              </button>
+                              <span className="text-gray-900 font-bold text-[11px] md:text-sm px-1 md:px-3">
+                                {cartItems[firstVariant.product_id]}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  updateCartQuantity(firstVariant.product_id, cartItems[firstVariant.product_id] + 1);
+                                }}
+                                className="text-yellow-500 hover:text-yellow-600 font-bold text-base md:text-lg"
+                              >
+                                +
+                              </button>
+                            </div>
+                          );
+                        }
+                        return (
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const newQty = cartItems[firstVariant.product_id] - 1;
-                              if (newQty > 0) {
-                                updateCartQuantity(firstVariant.product_id, newQty);
-                              } else {
-                                updateCartQuantity(firstVariant.product_id, 0);
-                              }
-                            }}
-                            className="text-yellow-500 hover:text-yellow-600 font-bold text-base md:text-lg"
+                            onClick={() => handleProductClick(product, firstVariant)}
+                            className="w-full bg-white text-yellow-500 rounded-lg font-bold hover:bg-yellow-50 transition-colors border-2 border-yellow-400 py-1 md:py-2 text-[11px] md:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={!sellingPrice}
                           >
-                            −
+                            Add
                           </button>
-                          <span className="text-gray-900 font-bold text-[11px] md:text-sm px-1 md:px-3">
-                            {cartItems[firstVariant.product_id]}
-                          </span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateCartQuantity(firstVariant.product_id, cartItems[firstVariant.product_id] + 1);
-                            }}
-                            className="text-yellow-500 hover:text-yellow-600 font-bold text-base md:text-lg"
-                          >
-                            +
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => handleProductClick(product, firstVariant)}
-                          className="w-full bg-white text-yellow-500 rounded-lg font-bold hover:bg-yellow-50 transition-colors border-2 border-yellow-400 py-1 md:py-2 text-[11px] md:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={!sellingPrice}
-                        >
-                          Add
-                        </button>
-                      )}
+                        );
+                      })()}
                     </div>
                   </div>
                 );

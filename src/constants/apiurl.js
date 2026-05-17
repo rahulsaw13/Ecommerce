@@ -63,6 +63,8 @@ export const API_CONSTANTS = {
 
     // Cart API endpoints
     CART_URL: "api/v1/cart",
+    CART_ADD_URL: "api/v1/cart/add",
+    CART_REMOVE_URL: "api/v1/cart/remove",
     CART_UPDATE_QUANTITY_URL: "api/v1/cart/update_quantity",
     CART_CLEAR_URL: "api/v1/cart/clear",
     CART_SUMMARY_URL: "api/v1/cart/summary",

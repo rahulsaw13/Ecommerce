@@ -221,7 +221,6 @@ import { useTranslation } from "react-i18next";
 import ButtonComponent from "@common/ButtonComponent";
 import InputTextComponent from "@common/InputTextComponent";
 import allApi from "@api/api";
-import { ROUTES_CONSTANTS } from "@constants/routesurl";
 import Loading from '@common/Loading';
 
 const data = {
@@ -249,41 +248,25 @@ const Login = () => {
 
 const onHandleSubmit = async (value) => {
   setLoader(true);
-
   try {
-    console.log("POST CALL FIRE 🔥");
-
-    const response = await allApi.post("/users/sign_in", {
-      email: value.email,
+    const response = await allApi.post("/users/admin_login", {
+      username: value.email,
       password: value.password,
     });
 
-    console.log("RESPONSE:", response);
-
     if (response?.status === 200) {
-      // ✅ SAVE TOKEN (IMPORTANT FIX)
-      localStorage.setItem("user", JSON.stringify({
-        ...response.data.data,
-        token: response.headers.authorization
-      }));
+      const { token, ...userData } = response.data;
+      if (token) localStorage.setItem("token", JSON.stringify(token));
+      localStorage.setItem("userDetails", JSON.stringify(userData));
 
-      toast.current.show({
-        severity: "success",
-        summary: "Success",
-        detail: "Login successful",
-        life: 2000,
-      });
-
-      navigate("/dashboard");
+      toast.current.show({ severity: "success", summary: "Success", detail: "Login successful", life: 1500 });
+      setTimeout(() => navigate("/dashboard"), 1500);
     }
-
   } catch (err) {
-    console.log("ERROR:", err);
-
     toast.current.show({
       severity: "error",
       summary: "Error",
-      detail: err?.response?.data?.message || "Login failed",
+      detail: err?.response?.data?.message || "Invalid credentials",
       life: 3000,
     });
   } finally {
@@ -336,7 +319,7 @@ const onHandleSubmit = async (value) => {
             value={values?.email}
             onChange={handleChange}
             type="text"
-            placeholder={t("email")}
+            placeholder="Username"
             name="email"
             error={errors?.email}
             touched={touched?.email}
@@ -365,20 +348,9 @@ const onHandleSubmit = async (value) => {
           </div>
         </div>
 
-        <div className="mt-2 flex justify-between">
+        <div className="mt-2">
           <Link to="/" className="text-[0.8rem] underline">
             {t("back_to_home")}
-          </Link>
-
-          <Link to="/forgot-password" className="text-[0.8rem] underline">
-            {t("forgot_password")}
-          </Link>
-        </div>
-
-        {/* Signup link */}
-        <div className="text-center mt-2 text-[0.8rem]">
-          <Link to="/signup" className="underline text-blue-500">
-            Create Account
           </Link>
         </div>
 
