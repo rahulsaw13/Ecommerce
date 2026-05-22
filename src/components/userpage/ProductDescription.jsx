@@ -19,8 +19,6 @@ const ProductDescription = () => {
   const { t } = useTranslation("msg");
   
   const dispatch = useDispatch();
-  const { isAuthenticated } = useSelector(state => state.auth);
-  
   // State from navigation (if available)
   const stateData = location?.state || {};
   
@@ -61,12 +59,15 @@ const ProductDescription = () => {
       if (productData.variants && Array.isArray(productData.variants)) {
         console.log('Normalizing variants array:', productData.variants);
         return productData.variants.map((variant, index) => ({
-          id: variant.product_id || `variant-${productData.id}-${index}`,
+          id: variant.productVariantId || `variant-${productData.id}-${index}`,
+          productVariantId: variant.productVariantId,
           product_id: variant.product_id || productData.id,
           weight: variant.weight || '',
           selling_price: variant.discountedPrice || 0,
           price: variant.discountedPrice || 0,
           mrp: variant.actualPrice || variant.discountedPrice || 0,
+          stock: variant.available_qty ?? null,
+          in_stock: variant.in_stock,
           shelf_life: productData.shelf_life || null,
           is_active: true
         }));
@@ -300,27 +301,27 @@ const ProductDescription = () => {
       return;
     }
 
-    if (!isAuthenticated) {
+    let userDetails = null;
+    try { userDetails = JSON.parse(localStorage.getItem('userDetails')); } catch (_) {}
+    if (!userDetails?.id) {
       navigate('/sign-in');
       return;
     }
-    
+
     if (isAdded) return;
 
     setAddingToCart(true);
     try {
-      // Add to cart via Redux
-      await dispatch(reduxAddToCart({ 
-        product, 
-        variant: selectedVariant, 
-        quantity: 1 
+      const userId = userDetails?.id || userDetails?.user?.id;
+      const productVariantId = selectedVariant?.productVariantId || selectedVariant?.id;
+      await dispatch(reduxAddToCart({
+        user_id: userId,
+        product_variant_id: productVariantId,
+        quantity: 1
       })).unwrap();
-      
-      // Refresh cart
+
       const cartResponse = await dispatch(getCart()).unwrap();
       window.dispatchEvent(new CustomEvent('cartUpdated', { detail: cartResponse.data?.items || cartResponse.items || cartResponse || [] }));
-      
-      console.log("Product added to cart successfully");
     } catch (error) {
       console.error("Error adding to cart:", error);
       alert(typeof error === 'string' ? error : error?.message || "Failed to add product to cart");
@@ -454,25 +455,31 @@ const ProductDescription = () => {
                 <div className='flex gap-3 flex-wrap'>
                   {product.product_variants?.map((variant) => {
                     const isSelected = selectedVariant?.id === variant?.id;
+                    const isOutOfStock = variant?.stock === 0 || variant?.in_stock === false;
+                    const isDimmed = selectedVariant && !isSelected;
                     const mrp = parseFloat(variant?.mrp || 0);
                     const sellingPrice = parseFloat(variant?.selling_price || variant?.price || 0);
                     const discount = mrp > sellingPrice
                       ? Math.round(((mrp - sellingPrice) / mrp) * 100)
                       : 0;
-                    
+
                     return (
-                      <div 
-                        key={variant?.id} 
-                        onClick={() => { changeHandler(variant) }}  
-                        className={`relative hover:cursor-pointer rounded-xl overflow-hidden w-[120px] transition-all duration-300
-                          ${isSelected ? 'bg-[#FFC107]' : 'bg-white border-2 border-[#FFC107]'}`}
+                      <div
+                        key={variant?.id}
+                        onClick={() => !isOutOfStock && changeHandler(variant)}
+                        className={`relative rounded-xl overflow-hidden w-[120px] transition-all duration-300
+                          ${isOutOfStock ? 'bg-gray-100 border-2 border-gray-200 opacity-50 cursor-not-allowed' :
+                            isSelected ? 'bg-[#FFC107] cursor-pointer' :
+                            isDimmed ? 'bg-gray-100 border-2 border-gray-300 opacity-50 cursor-pointer hover:opacity-80' :
+                            'bg-white border-2 border-[#FFC107] cursor-pointer hover:bg-yellow-50'}`}
                       >
                         {discount > 0 && (
-                          <div 
+                          <div
                             className={`text-xs font-bold py-1.5 px-2 ${isSelected ? 'text-gray-900' : 'text-gray-900'}`}
                             style={{
-                              background: isSelected 
+                              background: isSelected
                                 ? 'rgba(255, 193, 7, 0.6)'
+                                : isDimmed || isOutOfStock ? '#d1d5db'
                                 : '#FFC107'
                             }}
                           >
@@ -481,15 +488,16 @@ const ProductDescription = () => {
                         )}
                         
                         <div className={`p-3 ${discount > 0 ? '' : 'pt-3'}`}>
-                          <p className={`text-sm font-semibold mb-1.5 ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>
+                          <p className={`text-sm font-semibold mb-1.5 ${isSelected ? 'text-gray-900' : 'text-gray-400'}`}>
                             {variant?.weight}
+                            {isOutOfStock && <span className="block text-[10px] font-normal">Out of stock</span>}
                           </p>
                           <div className="flex items-center gap-1.5">
-                            <span className={`text-base font-bold ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>
+                            <span className={`text-base font-bold ${isSelected ? 'text-gray-900' : 'text-gray-400'}`}>
                               ₹{sellingPrice.toFixed(sellingPrice % 1 === 0 ? 0 : 1)}
                             </span>
                             {mrp > sellingPrice && (
-                              <span className={`text-xs line-through ${isSelected ? 'text-gray-700' : 'text-gray-400'}`}>
+                              <span className={`text-xs line-through ${isSelected ? 'text-gray-700' : 'text-gray-300'}`}>
                                 MRP₹{mrp.toFixed(0)}
                               </span>
                             )}
@@ -747,47 +755,54 @@ const ProductDescription = () => {
           <div className='flex gap-2 mb-4 overflow-x-auto pb-2'>
             {product.product_variants?.map((variant) => {
               const isSelected = selectedVariant?.id === variant?.id;
+              const isOutOfStock = variant?.stock === 0 || variant?.in_stock === false;
+              const isDimmed = selectedVariant && !isSelected;
               const mrp = parseFloat(variant?.mrp || 0);
               const sellingPrice = parseFloat(variant?.selling_price || variant?.price || 0);
               const discount = mrp > sellingPrice
                 ? Math.round(((mrp - sellingPrice) / mrp) * 100)
                 : 0;
-              
+
               return (
-                <div 
-                  key={variant?.id} 
-                  onClick={() => { changeHandler(variant) }}  
-                  className={`relative flex-shrink-0 hover:cursor-pointer rounded-xl overflow-hidden w-[105px] transition-all duration-300
-                    ${isSelected ? 'bg-[#FFC107]' : 'bg-white border-2 border-[#FFC107]'}`}
+                <div
+                  key={variant?.id}
+                  onClick={() => !isOutOfStock && changeHandler(variant)}
+                  className={`relative flex-shrink-0 rounded-xl overflow-hidden w-[105px] transition-all duration-300
+                    ${isOutOfStock ? 'bg-gray-100 border-2 border-gray-200 opacity-50 cursor-not-allowed' :
+                      isSelected ? 'bg-[#FFC107] cursor-pointer' :
+                      isDimmed ? 'bg-gray-100 border-2 border-gray-300 opacity-50 cursor-pointer hover:opacity-80' :
+                      'bg-white border-2 border-[#FFC107] cursor-pointer hover:bg-yellow-50'}`}
                 >
                   {/* Discount Badge */}
                   {discount > 0 && (
-                    <div 
+                    <div
                       className={`text-[10px] font-bold py-1 px-2 ${isSelected ? 'text-gray-900' : 'text-gray-900'}`}
                       style={{
-                        background: isSelected 
+                        background: isSelected
                           ? 'rgba(255, 193, 7, 0.6)'
+                          : isDimmed || isOutOfStock ? '#d1d5db'
                           : '#FFC107'
                       }}
                     >
                       {discount} % OFF
                     </div>
                   )}
-                  
+
                   {/* Content */}
                   <div className={`p-2 ${discount > 0 ? '' : 'pt-2.5'}`}>
                     {/* Weight */}
-                    <p className={`text-xs font-semibold mb-1 ${isSelected ? 'text-gray-900' : 'text-gray-500'}`}>
+                    <p className={`text-xs font-semibold mb-1 ${isSelected ? 'text-gray-900' : 'text-gray-400'}`}>
                       {variant?.weight}
+                      {isOutOfStock && <span className="block text-[9px] font-normal">Out of stock</span>}
                     </p>
-                    
+
                     {/* Price Row - Selling Price and MRP side by side */}
                     <div className="flex items-center gap-1">
-                      <span className={`text-sm font-bold ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>
+                      <span className={`text-sm font-bold ${isSelected ? 'text-gray-900' : 'text-gray-400'}`}>
                         ₹{sellingPrice.toFixed(sellingPrice % 1 === 0 ? 0 : 1)}
                       </span>
                       {mrp > sellingPrice && (
-                        <span className={`text-[10px] line-through ${isSelected ? 'text-gray-700' : 'text-gray-400'}`}>
+                        <span className={`text-[10px] line-through ${isSelected ? 'text-gray-700' : 'text-gray-300'}`}>
                           MRP₹{mrp.toFixed(0)}
                         </span>
                       )}
