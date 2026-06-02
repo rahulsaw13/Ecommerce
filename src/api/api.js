@@ -130,14 +130,15 @@
 
 import axios from "axios";
 
-const BASE_URL = "http://localhost:8070/api/v1/ecommerce";
+const BASE_URL = (process.env.REACT_APP_BASE_URL || "http://localhost:8070") + "/api/v1/ecommerce";
+const TENANT_DOMAIN = typeof window !== "undefined" ? window.location.hostname : "localhost";
 
 // ✅ normal api
 const allApi = axios.create({
   baseURL: BASE_URL,
   headers: {
     "Content-Type": "application/json",
-    "X-Tenant-Domain": "localhost"
+    "X-Tenant-Domain": TENANT_DOMAIN
   }
 });
 
@@ -152,7 +153,7 @@ const _authAxios = axios.create({
   baseURL: BASE_URL,
   headers: {
     "Content-Type": "application/json",
-    "X-Tenant-Domain": "localhost"
+    "X-Tenant-Domain": TENANT_DOMAIN
   }
 });
 
@@ -183,7 +184,7 @@ const allApiWithHeaderToken = (url, data, method, contentType) => {
 
   const cleanUrl = url ? url.replace(/^api\/v1\//, "") : url;
 
-  const headers = { "X-Tenant-Domain": "localhost" };
+  const headers = { "X-Tenant-Domain": TENANT_DOMAIN };
   if (authHeader) headers["Authorization"] = authHeader;
 
   if (contentType === "multipart/form-data") {

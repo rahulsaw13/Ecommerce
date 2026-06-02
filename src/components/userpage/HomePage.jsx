@@ -1500,6 +1500,9 @@ const HomePage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const productsPerPage = 8; // Show 8 products per page (4 per row in desktop, 2 per row in mobile)
 
+  // Selected variant index per product for the All Products grid
+  const [selectedVariants, setSelectedVariants] = useState({});
+
   // Check if user is logged in from localStorage (most reliable)
  const checkUserLoginStatus = () => {
   try {
@@ -2066,56 +2069,79 @@ const handleAddToCart = async (product) => {
               </div>
               
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
-                {currentProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    onClick={() => handleProductClick(product)}
-                    className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
-                  >
-                    <div className="aspect-square bg-gray-100 flex items-center justify-center p-4">
-                      {product.image_url ? (
-                        <img 
-                          src={product.image_url} 
-                          alt={product.name} 
-                          className="w-full h-full object-contain"
-                        />
-                      ) : (
-                        <i className="ri-image-line text-4xl text-gray-400"></i>
-                      )}
+                {currentProducts.map((product) => {
+                  const hasMultipleVariants = product.variants?.length > 1;
+                  const inStockVariants = product.variants?.filter(v => v.in_stock !== false) || [];
+                  const allOutOfStock = inStockVariants.length === 0;
+                  const selectedIdx = selectedVariants[product.id] ?? 0;
+                  const activeVariant = product.variants?.[selectedIdx] || product.variants?.[0];
+                  const displayPrice = activeVariant?.discountedPrice || activeVariant?.actualPrice || activeVariant?.price || 0;
+
+                  return (
+                    <div
+                      key={product.id}
+                      onClick={() => handleProductClick(product)}
+                      className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
+                    >
+                      <div className="aspect-square bg-gray-100 flex items-center justify-center p-4">
+                        {product.image_url ? (
+                          <img src={product.image_url} alt={product.name} className="w-full h-full object-contain" />
+                        ) : (
+                          <i className="ri-image-line text-4xl text-gray-400"></i>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <h3 className="font-semibold text-gray-800 text-sm line-clamp-2">{product.name}</h3>
+                        <p className="text-lg font-bold text-green-600 mt-1">₹{displayPrice}</p>
+
+                        {hasMultipleVariants && (
+                          <select
+                            className="mt-2 w-full border border-gray-300 rounded-md text-xs py-1 px-2 bg-white text-gray-700 focus:outline-none focus:border-yellow-400"
+                            value={selectedIdx}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              setSelectedVariants(prev => ({ ...prev, [product.id]: Number(e.target.value) }));
+                            }}
+                          >
+                            {product.variants.map((v, i) => (
+                              <option key={v.productVariantId} value={i} disabled={v.in_stock === false}>
+                                {v.weight || `Variant ${i + 1}`}{v.in_stock === false ? ' (Out of Stock)' : ''}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+
+                        {allOutOfStock ? (
+                          <button disabled className="mt-2 w-full bg-gray-100 text-gray-400 py-1.5 rounded-md text-sm font-semibold border border-gray-200 cursor-not-allowed">
+                            Out of Stock
+                          </button>
+                        ) : activeVariant?.in_stock === false ? (
+                          <button disabled className="mt-2 w-full bg-gray-100 text-gray-400 py-1.5 rounded-md text-sm font-semibold border border-gray-200 cursor-not-allowed">
+                            Out of Stock
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const productWithVariant = { ...product, variants: [activeVariant, ...(product.variants || [])] };
+                              handleAddToCart(productWithVariant);
+                            }}
+                            disabled={addingToCart}
+                            className="mt-2 w-full bg-yellow-400 text-gray-900 py-1.5 rounded-md text-sm font-semibold hover:bg-yellow-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {addingToCart ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+                                Adding...
+                              </div>
+                            ) : 'Add to Cart'}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="p-3">
-                      <h3 className="font-semibold text-gray-800 text-sm line-clamp-2">{product.name}</h3>
-                      {product.variants && product.variants[0] && (
-                        <p className="text-lg font-bold text-green-600 mt-1">
-                          ₹{product.variants[0].discountedPrice || product.variants[0].actualPrice || product.variants[0].price || 0}
-                        </p>
-                      )}
-                      {product.variants?.[0]?.in_stock === false ? (
-                        <button disabled className="mt-2 w-full bg-gray-100 text-gray-400 py-1.5 rounded-md text-sm font-semibold border border-gray-200 cursor-not-allowed">
-                          Out of Stock
-                        </button>
-                      ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleAddToCart(product);
-                          }}
-                          disabled={addingToCart}
-                          className="mt-2 w-full bg-yellow-400 text-gray-900 py-1.5 rounded-md text-sm font-semibold hover:bg-yellow-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {addingToCart ? (
-                            <div className="flex items-center justify-center gap-1">
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-                              Adding...
-                            </div>
-                          ) : (
-                            'Add to Cart'
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Pagination Controls */}

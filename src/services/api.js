@@ -18,7 +18,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "http://localhost:8070/api/v1/ecommerce",
+  baseURL: (process.env.REACT_APP_BASE_URL || "http://localhost:8070") + "/api/v1/ecommerce",
 });
 
 // Interceptor to fix duplicate /api/v1/ in URLs
@@ -27,7 +27,7 @@ API.interceptors.request.use((config) => {
   if (config.url && config.url.includes('api/v1/')) {
     config.url = config.url.replace('api/v1/', '');
   }
-  config.headers["X-Tenant-Domain"] = "localhost";
+  config.headers["X-Tenant-Domain"] = typeof window !== "undefined" ? window.location.hostname : "localhost";
   return config;
 });
 
