@@ -66,12 +66,14 @@ const productSlice = createSlice({
     categoryProducts: [],
      menuList: [],
     loading: false,
+    productsLoaded: false,
     error: null,
     totalProducts: 0,
   },
   reducers: {
     clearProducts: (state) => {
       state.products = [];
+      state.productsLoaded = false;
       state.error = null;
     },
     clearSelectedProduct: (state) => {
@@ -96,6 +98,7 @@ const productSlice = createSlice({
       })
       .addCase(fetchAllActiveProducts.fulfilled, (state, action) => {
   state.loading = false;
+  state.productsLoaded = true;
   // Your API returns { products: [...] }
   if (action.payload?.products) {
     state.products = action.payload.products;

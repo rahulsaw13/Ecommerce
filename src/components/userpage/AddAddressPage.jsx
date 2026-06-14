@@ -387,6 +387,11 @@ const AddAddressPage = () => {
     phone: ''
   });
   const [saving, setSaving] = useState(false);
+  const [coords, setCoords] = useState({
+    latitude: lat ? parseFloat(lat) : null,
+    longitude: lng ? parseFloat(lng) : null
+  });
+  const [detectingLocation, setDetectingLocation] = useState(false);
 
   // Fetch addresses on mount
   useEffect(() => {
@@ -466,6 +471,27 @@ const AddAddressPage = () => {
     }));
   };
 
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser');
+      return;
+    }
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoords({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+        setDetectingLocation(false);
+      },
+      () => {
+        alert('Could not detect location. Please allow location access.');
+        setDetectingLocation(false);
+      }
+    );
+  };
+
   const handleSaveAddress = async () => {
     // Validate required fields
     if (!formData.building) {
@@ -519,7 +545,9 @@ const AddAddressPage = () => {
         zip_code: parseInt(formData.pinCode),
         address_type: addressType,
         address_label: addressType.charAt(0).toUpperCase() + addressType.slice(1),
-        ordering_for: orderingFor
+        ordering_for: orderingFor,
+        latitude: coords.latitude,
+        longitude: coords.longitude
       };
 
       console.log("Saving address:", addressData);
@@ -635,6 +663,32 @@ const AddAddressPage = () => {
                 <span className="text-sm font-medium">Hotel</span>
               </button>
             </div>
+          </div>
+
+          {/* Location pin */}
+          <div className="mb-4 p-3 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-gray-600 min-w-0">
+              <i className="ri-map-pin-line text-[#FFC107] text-lg flex-shrink-0"></i>
+              {coords.latitude && coords.longitude ? (
+                <span className="truncate">
+                  {coords.latitude.toFixed(5)}, {coords.longitude.toFixed(5)}
+                </span>
+              ) : (
+                <span className="text-gray-400">No location pinned</span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleDetectLocation}
+              disabled={detectingLocation}
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FFC107] text-gray-900 text-xs font-semibold hover:bg-yellow-400 disabled:opacity-60 transition-all"
+            >
+              {detectingLocation ? (
+                <><i className="ri-loader-4-line animate-spin"></i> Detecting…</>
+              ) : (
+                <><i className="ri-crosshair-line"></i> {coords.latitude ? 'Re-detect' : 'Detect location'}</>
+              )}
+            </button>
           </div>
 
           {/* Form fields */}

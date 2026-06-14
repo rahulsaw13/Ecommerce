@@ -357,11 +357,10 @@ const TrackOrderPage = () => {
                             <div>
                               <div className="text-sm font-bold text-gray-900">Order #{order.id}</div>
                               <div className="text-xs text-gray-600">
-                                {order.created_at ? new Date(order.created_at).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric'
-                                }) : 'Date not available'}
+                                {order.created_at ? (() => {
+                                  const d = new Date(String(order.created_at).replace(/\[.*?\]$/, ''));
+                                  return isNaN(d) ? 'Date not available' : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+                                })() : 'Date not available'}
                               </div>
                             </div>
                           </div>

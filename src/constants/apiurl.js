@@ -49,7 +49,7 @@ export const API_CONSTANTS = {
     SEND_LOGIN_OTP_URL: "api/v1/user_dashboard/send_login_otp",
     VERIFY_LOGIN_OTP_URL: "api/v1/user_dashboard/verify_login_otp",
     CHANGE_PASSWORD_URL: "api/v1/users/change_password",
-    GOOGLE_AUTH: "api/v1/auth/google",
+    GOOGLE_AUTH: "api/v1/users/google_signin",
     PAYMENT_INTENT_CREATE: "api/v1/payment_transactions/create_payment_intent",
     PAYMENT_VERIFY: "api/v1/payment_transactions/verify_payment",
     ADD_CONTACT_DETAILS: "api/v1/user_dashboard/add_contact_details",
@@ -60,6 +60,11 @@ export const API_CONSTANTS = {
     HOME_SECTIONS_URL: "api/v1/user_dashboard/home_sections",
     HOMEPAGE_DATA_URL: "api/v1/user_dashboard/homepage_data",
     CATEGORY_PAGE_DATA_URL: "api/v1/user_dashboard/category_page_data",
+
+    // Returns & Refunds API endpoints
+    RETURN_REQUEST_URL: "api/v1/orders",       // POST /orders/{orderId}/return
+    GET_RETURN_URL: "api/v1/returns",           // GET /returns/{returnId}
+    GET_USER_RETURNS_URL: "api/v1/users",       // GET /users/{userId}/returns
 
     // Cart API endpoints
     CART_URL: "api/v1/cart",

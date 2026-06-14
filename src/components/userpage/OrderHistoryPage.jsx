@@ -8,6 +8,20 @@ import Header from '@common/Header';
 import Footer from '@common/Footer';
 import UserLoader from '@userpage-pages/UserLoader';
 
+const RETURN_REASONS = [
+  { value: 'DAMAGED', label: 'Item arrived damaged' },
+  { value: 'WRONG_ITEM', label: 'Wrong item received' },
+  { value: 'MISSING_ITEM', label: 'Item missing from order' },
+  { value: 'QUALITY_ISSUE', label: 'Quality not as expected' },
+  { value: 'CHANGED_MIND', label: 'Changed my mind' },
+];
+
+const RESOLUTION_OPTIONS = [
+  { value: 'REFUND_WALLET', label: 'Refund to wallet' },
+  { value: 'REPLACEMENT', label: 'Replace the item' },
+  { value: 'REFUND_ORIGINAL', label: 'Refund to original payment' },
+];
+
 const OrderHistoryPage = () => {
   const { t } = useTranslation('msg');
   const navigate = useNavigate();
@@ -17,6 +31,15 @@ const OrderHistoryPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [menuList, setMenuList] = useState([]);
   const [showReceipt, setShowReceipt] = useState(false);
+
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnOrder, setReturnOrder] = useState(null);
+  const [returnReason, setReturnReason] = useState('');
+  const [returnComment, setReturnComment] = useState('');
+  const [returnResolution, setReturnResolution] = useState('REFUND_WALLET');
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const [returnSuccess, setReturnSuccess] = useState(null);
+  const [returnError, setReturnError] = useState('');
 
   let userDetails = null;
   try {
@@ -278,6 +301,46 @@ const OrderHistoryPage = () => {
   const handleViewReceipt = (order) => {
     setSelectedOrder(order);
     setShowReceipt(true);
+  };
+
+  const canRaiseReturn = (order) => {
+    if (order.orderStatus?.toLowerCase() !== 'delivered') return false;
+    const deliveredAt = normalizeDateValue(order.orderFulfilledDate || order.createdAt);
+    if (!deliveredAt) return true;
+    const hoursSince = (Date.now() - deliveredAt.getTime()) / (1000 * 60 * 60);
+    return hoursSince <= 48;
+  };
+
+  const handleOpenReturn = (order) => {
+    setReturnOrder(order);
+    setReturnReason('');
+    setReturnComment('');
+    setReturnResolution('REFUND_WALLET');
+    setReturnSuccess(null);
+    setReturnError('');
+    setShowReturnModal(true);
+  };
+
+  const handleSubmitReturn = async () => {
+    if (!returnReason) { setReturnError('Please select a reason.'); return; }
+    setReturnSubmitting(true);
+    setReturnError('');
+    try {
+      const response = await allApiWithHeaderToken(
+        `${API_CONSTANTS.RETURN_REQUEST_URL}/${returnOrder.orderId}/return`,
+        { reason: returnReason, comment: returnComment, preferred_resolution: returnResolution },
+        'post'
+      );
+      if (response.status === 200) {
+        setReturnSuccess(response.data?.data);
+      } else {
+        setReturnError(response.data?.message || 'Failed to raise return request.');
+      }
+    } catch (err) {
+      setReturnError(err?.response?.data?.message || 'Something went wrong. Please try again.');
+    } finally {
+      setReturnSubmitting(false);
+    }
   };
 
   const ReceiptContent = ({ order }) => {
@@ -583,6 +646,15 @@ const OrderHistoryPage = () => {
                         >
                           <i className="ri-map-pin-line text-lg"></i>
                         </button>
+                        {canRaiseReturn(order) && (
+                          <button
+                            onClick={() => handleOpenReturn(order)}
+                            className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Return / Refund"
+                          >
+                            <i className="ri-arrow-go-back-line text-lg"></i>
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -608,6 +680,15 @@ const OrderHistoryPage = () => {
                           >
                             <i className="ri-map-pin-line text-lg"></i>
                           </button>
+                          {canRaiseReturn(order) && (
+                            <button
+                              onClick={() => handleOpenReturn(order)}
+                              className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Return / Refund"
+                            >
+                              <i className="ri-arrow-go-back-line text-lg"></i>
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -646,6 +727,115 @@ const OrderHistoryPage = () => {
         draggable={false}
       >
         <ReceiptContent order={selectedOrder} />
+      </Dialog>
+
+      <Dialog
+        visible={showReturnModal}
+        onHide={() => { if (!returnSubmitting) { setShowReturnModal(false); setReturnSuccess(null); } }}
+        header={`Return / Refund — #${returnOrder?.orderId}`}
+        style={{ width: '90vw', maxWidth: '520px' }}
+        modal
+        dismissableMask={!returnSubmitting}
+        draggable={false}
+      >
+        {returnSuccess ? (
+          <div className="text-center py-6 px-4">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i className="ri-checkbox-circle-line text-4xl text-green-500"></i>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Return Request Raised!</h3>
+            <p className="text-gray-600 text-sm mb-4">
+              Your return request <span className="font-semibold text-gray-800">{returnSuccess.return_id}</span> has been submitted.
+              We will review it within 24–48 hours.
+            </p>
+            <div className="bg-gray-50 rounded-lg p-4 text-left text-sm mb-6 space-y-1">
+              <p><span className="text-gray-500">Reason:</span> <span className="font-medium text-gray-800">{RETURN_REASONS.find(r => r.value === returnSuccess.reason)?.label || returnSuccess.reason}</span></p>
+              <p><span className="text-gray-500">Resolution requested:</span> <span className="font-medium text-gray-800">{RESOLUTION_OPTIONS.find(r => r.value === returnSuccess.preferred_resolution)?.label || returnSuccess.preferred_resolution}</span></p>
+              <p><span className="text-gray-500">Status:</span> <span className="inline-flex px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs font-semibold">Initiated</span></p>
+            </div>
+            <button
+              onClick={() => { setShowReturnModal(false); setReturnSuccess(null); fetchOrders(); }}
+              className="bg-yellow-400 text-gray-900 px-6 py-2 rounded-lg font-bold hover:bg-yellow-500 transition-colors w-full"
+            >
+              Done
+            </button>
+          </div>
+        ) : (
+          <div className="p-2 space-y-5">
+            <p className="text-sm text-gray-600">
+              Raise a return request for order <span className="font-semibold text-gray-800">#{returnOrder?.orderId}</span>.
+              Returns must be raised within <span className="font-semibold">48 hours</span> of delivery.
+            </p>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Reason for return <span className="text-red-500">*</span></label>
+              <select
+                value={returnReason}
+                onChange={e => setReturnReason(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+              >
+                <option value="">-- Select a reason --</option>
+                {RETURN_REASONS.map(r => (
+                  <option key={r.value} value={r.value}>{r.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Preferred resolution</label>
+              <div className="space-y-2">
+                {RESOLUTION_OPTIONS.map(r => (
+                  <label key={r.value} className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="resolution"
+                      value={r.value}
+                      checked={returnResolution === r.value}
+                      onChange={() => setReturnResolution(r.value)}
+                      className="w-4 h-4 text-yellow-500 accent-yellow-400"
+                    />
+                    <span className="text-sm text-gray-700">{r.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Additional comments <span className="text-gray-400 font-normal">(optional)</span></label>
+              <textarea
+                value={returnComment}
+                onChange={e => setReturnComment(e.target.value)}
+                placeholder="Describe the issue in more detail..."
+                rows={3}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
+              />
+            </div>
+
+            {returnError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+                <i className="ri-error-warning-line mr-2"></i>{returnError}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setShowReturnModal(false)}
+                disabled={returnSubmitting}
+                className="flex-1 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-semibold text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitReturn}
+                disabled={returnSubmitting || !returnReason}
+                className="flex-1 bg-yellow-400 text-gray-900 px-4 py-2 rounded-lg font-bold text-sm hover:bg-yellow-500 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {returnSubmitting && <i className="ri-loader-4-line animate-spin"></i>}
+                Submit Return
+              </button>
+            </div>
+          </div>
+        )}
       </Dialog>
 
       <Footer data={menuList} />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import Header from '@common/Header';
@@ -7,6 +7,7 @@ import { allApi, allApiWithHeaderToken } from "@api/api";
 import { API_CONSTANTS } from "@constants/apiurl";
 import { getCart } from '../../redux/slices/cartSlice';
 import UserLoader from '@userpage-pages/UserLoader';
+import { Toast } from 'primereact/toast';
 
 const CategoryProductsPage = () => {
   const [searchParams] = useSearchParams();
@@ -14,6 +15,7 @@ const CategoryProductsPage = () => {
   const searchQuery = searchParams.get('search');
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const toast = useRef(null);
 
   const [categoryData, setCategoryData] = useState(null);
   const [subCategories, setSubCategories] = useState([]);
@@ -30,7 +32,7 @@ const CategoryProductsPage = () => {
   const [selectedVariant, setSelectedVariant] = useState(null);
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartItems, setCartItems] = useState({});
-  const [cartItemIds, setCartItemIds] = useState({}); // productId → cart_item_id
+  const [cartItemIds, setCartItemIds] = useState({}); // productId â†’ cart_item_id
   const [updatingQuantity, setUpdatingQuantity] = useState({});
   
   // Temporary filter states (only applied when user clicks "Apply")
@@ -42,6 +44,15 @@ const CategoryProductsPage = () => {
       fetchCategoryPageData();
       fetchCartItems();
     }
+  }, [categoryName, searchQuery]);
+
+  // Re-fetch when user changes delivery location (new branch → new stock)
+  useEffect(() => {
+    const handleLocationChange = () => {
+      if (categoryName || searchQuery) fetchCategoryPageData();
+    };
+    window.addEventListener('userLocationChanged', handleLocationChange);
+    return () => window.removeEventListener('userLocationChanged', handleLocationChange);
   }, [categoryName, searchQuery]);
 
   useEffect(() => {
@@ -174,7 +185,7 @@ const CategoryProductsPage = () => {
     try {
       const userDetails = JSON.parse(localStorage.getItem('userDetails'));
       if (!userDetails?.id) return;
-      // Dispatch Redux getCart — updates Redux state (Header count) and returns items
+      // Dispatch Redux getCart â€” updates Redux state (Header count) and returns items
       const result = await dispatch(getCart()).unwrap();
       const items = result?.data?.items || result?.items || [];
       const cartMap = {};
@@ -307,11 +318,11 @@ const CategoryProductsPage = () => {
       const response = await allApiWithHeaderToken(API_CONSTANTS.CART_ADD_URL, body, "post");
 
       if (response?.status === 200 || response?.status === 201) {
-        // Refresh cart via Redux — updates Header count automatically
         await fetchCartItems();
+        toast.current?.show({ severity: 'success', summary: 'Added to Cart', detail: 'Item added to your cart', life: 2000 });
       }
     } catch (error) {
-      console.error("Error adding to cart:", error);
+      toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to add item to cart', life: 3000 });
     } finally {
       setAddingToCart(false);
     }
@@ -332,6 +343,7 @@ const CategoryProductsPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toast ref={toast} position="top-right" />
       {/* Desktop Header */}
       <div className="hidden md:block">
         <Header onSearch={handleSearch} />
@@ -349,11 +361,11 @@ const CategoryProductsPage = () => {
           
           <div className="flex items-center gap-2 flex-1 mx-3">
             {searchQuery ? (
-              <div className="w-10 h-10 bg-[#FFC107] rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 bg-[#0c831f] rounded-lg flex items-center justify-center flex-shrink-0">
                 <i className="ri-search-line text-xl text-gray-900"></i>
               </div>
             ) : categoryData?.image_url ? (
-              <div className="w-10 h-10 bg-[#FFC107] rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 bg-[#0c831f] rounded-lg flex items-center justify-center flex-shrink-0">
                 <img 
                   src={categoryData.image_url} 
                   alt={categoryData.name}
@@ -361,7 +373,7 @@ const CategoryProductsPage = () => {
                 />
               </div>
             ) : (
-              <div className="w-10 h-10 bg-[#FFC107] rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 bg-[#0c831f] rounded-lg flex items-center justify-center flex-shrink-0">
                 <i className="ri-shopping-basket-line text-xl text-gray-900"></i>
               </div>
             )}
@@ -387,7 +399,7 @@ const CategoryProductsPage = () => {
               onClick={() => navigate('/')}
               className="text-gray-400 hover:text-gray-600 flex items-center gap-1"
             >
-              <i className="ri-home-4-line"></i> Fresh Grocery
+              <i className="ri-home-4-line"></i> Home
             </button>
             <i className="ri-arrow-right-s-line text-gray-400 text-xs"></i>
             {searchQuery ? (
@@ -420,7 +432,7 @@ const CategoryProductsPage = () => {
                   onClick={handleAllClick}
                   className={`w-full text-left md:py-4 py-3 md:px-4 px-2 transition-all duration-200 border-b border-gray-200 ${
                     !selectedSubCategory
-                        ? 'bg-[#FFC107] font-bold shadow-sm'
+                        ? 'bg-[#0c831f] font-bold shadow-sm'
                         : 'bg-white hover:bg-gray-50'
                     }`}
                   >
@@ -462,7 +474,7 @@ const CategoryProductsPage = () => {
                             onClick={() => handleSubCategoryClick(subCategory)}
                             className={`w-full text-left md:py-4 py-3 md:px-4 px-2 transition-all duration-200 border-b border-gray-200 ${
                               isActive
-                                ? 'bg-[#FFC107] font-bold shadow-sm'
+                                ? 'bg-[#0c831f] font-bold shadow-sm'
                                 : 'bg-white hover:bg-gray-50'
                             }`}
                           >
@@ -509,14 +521,14 @@ const CategoryProductsPage = () => {
                 <div className="flex gap-2 min-w-max justify-end">
                   <button
                     onClick={() => openFilterModal('brands')}
-                    className="px-3 py-1.5 rounded-full bg-[#FFC107] text-gray-900 text-xs font-semibold whitespace-nowrap flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-full bg-[#0c831f] text-white text-xs font-semibold whitespace-nowrap flex items-center gap-1"
                   >
                     Brands <i className="ri-arrow-down-s-line text-sm"></i>
                   </button>
                   
                   <button
                     onClick={() => openFilterModal('sortby')}
-                    className="px-3 py-1.5 rounded-full bg-[#FFC107] text-gray-900 text-xs font-semibold whitespace-nowrap flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-full bg-[#0c831f] text-white text-xs font-semibold whitespace-nowrap flex items-center gap-1"
                   >
                     Sort By <i className="ri-arrow-down-s-line text-sm"></i>
                   </button>
@@ -531,7 +543,7 @@ const CategoryProductsPage = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => openFilterModal('brands')}
-                    className="bg-[#FFC107] hover:bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm flex items-center gap-2"
+                    className="bg-[#0c831f] hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm flex items-center gap-2"
                   >
                     <span>Brands</span>
                     <i className="ri-arrow-down-s-fill text-gray-900"></i>
@@ -539,7 +551,7 @@ const CategoryProductsPage = () => {
 
                   <button
                     onClick={() => openFilterModal('sortby')}
-                    className="bg-[#FFC107] hover:bg-yellow-500 text-gray-900 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm flex items-center gap-2"
+                    className="bg-[#0c831f] hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm flex items-center gap-2"
                   >
                     <span>Sort By</span>
                     <i className="ri-arrow-down-s-fill text-gray-900"></i>
@@ -600,7 +612,7 @@ const CategoryProductsPage = () => {
                         <div className="relative pt-2 md:pt-4 px-2 md:px-3 pb-2 md:pb-3">
                           {discount > 0 && (
                             <div 
-                              className="absolute top-2 md:top-3 left-2 md:left-3 bg-yellow-400 text-gray-900 rounded-full font-bold z-10"
+                              className="absolute top-2 md:top-3 left-2 md:left-3 bg-[#0c831f] text-white rounded-full font-bold z-10"
                               style={{ 
                                 padding: '2px 6px',
                                 fontSize: '8px',
@@ -675,34 +687,35 @@ const CategoryProductsPage = () => {
                               return (
                                 <button
                                   onClick={() => handleProductClick(product)}
-                                  className="w-full bg-white text-yellow-500 rounded-lg font-bold hover:bg-yellow-50 transition-colors border-2 border-yellow-400 py-1 md:py-2 text-[11px] md:text-sm"
+                                  className="w-full bg-white text-green-600 rounded-lg font-bold hover:bg-green-50 transition-colors border-2 border-green-500 py-1 md:py-2 text-[11px] md:text-sm"
                                 >
                                   Options
                                 </button>
                               );
                             }
-                            if (cartItems[firstVariant?.product_id]) {
+                            const cartKey = firstVariant?.weight ? `${firstVariant?.product_id}_${firstVariant?.weight}` : String(firstVariant?.product_id);
+                            if (cartItems[cartKey]) {
                               return (
-                                <div className="w-full flex items-center justify-between bg-white rounded-lg border-2 border-yellow-400 py-0.5 md:py-1 px-1 md:px-2">
+                                <div className="w-full flex items-center justify-between bg-white rounded-lg border-2 border-green-500 py-0.5 md:py-1 px-1 md:px-2">
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      const newQty = cartItems[firstVariant.product_id] - 1;
-                                      updateCartQuantity(firstVariant.product_id, newQty > 0 ? newQty : 0);
+                                      const newQty = cartItems[cartKey] - 1;
+                                      updateCartQuantity(cartKey, newQty > 0 ? newQty : 0);
                                     }}
-                                    className="text-yellow-500 hover:text-yellow-600 font-bold text-base md:text-lg"
+                                    className="text-green-600 hover:text-green-700 font-bold text-base md:text-lg"
                                   >
                                     −
                                   </button>
                                   <span className="text-gray-900 font-bold text-[11px] md:text-sm px-1 md:px-3">
-                                    {cartItems[firstVariant.product_id]}
+                                    {cartItems[cartKey]}
                                   </span>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      updateCartQuantity(firstVariant.product_id, cartItems[firstVariant.product_id] + 1);
+                                      updateCartQuantity(cartKey, cartItems[cartKey] + 1);
                                     }}
-                                    className="text-yellow-500 hover:text-yellow-600 font-bold text-base md:text-lg"
+                                    className="text-green-600 hover:text-green-700 font-bold text-base md:text-lg"
                                   >
                                     +
                                   </button>
@@ -712,7 +725,7 @@ const CategoryProductsPage = () => {
                             return (
                               <button
                                 onClick={() => handleProductClick(product)}
-                                className="w-full bg-white text-yellow-500 rounded-lg font-bold hover:bg-yellow-50 transition-colors border-2 border-yellow-400 py-1 md:py-2 text-[11px] md:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full bg-white text-green-600 rounded-lg font-bold hover:bg-green-50 transition-colors border-2 border-green-500 py-1 md:py-2 text-[11px] md:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                                 disabled={!sellingPrice}
                               >
                                 Add
@@ -774,14 +787,14 @@ const CategoryProductsPage = () => {
                 return (
                   <div
                     key={variant.product_id}
-                    className="border border-gray-200 rounded-lg p-4 hover:border-yellow-400 hover:bg-yellow-50 transition-all"
+                    className="border border-gray-200 rounded-lg p-4 hover:border-green-500 hover:bg-green-50 transition-all"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-sm font-semibold text-gray-900">{variant.weight}</span>
                           {discount > 0 && (
-                            <span className="bg-yellow-400 text-gray-900 text-xs font-bold px-2 py-0.5 rounded">
+                            <span className="bg-[#0c831f] text-white text-xs font-bold px-2 py-0.5 rounded">
                               {discount}% OFF
                             </span>
                           )}
@@ -803,13 +816,13 @@ const CategoryProductsPage = () => {
                           Out of Stock
                         </button>
                       ) : cartItem ? (
-                        <div className="flex items-center gap-2 bg-white rounded-lg border-2 border-yellow-400 px-3 py-1">
+                        <div className="flex items-center gap-2 bg-white rounded-lg border-2 border-green-500 px-3 py-1">
                           <button
                             onClick={() => updateCartQuantity(variant.product_id, cartItem - 1)}
                             disabled={isUpdating}
-                            className="text-yellow-500 hover:text-yellow-600 font-bold text-lg disabled:opacity-50"
+                            className="text-green-600 hover:text-green-700 font-bold text-lg disabled:opacity-50"
                           >
-                            −
+                            âˆ’
                           </button>
                           <span className="text-gray-900 font-bold text-sm px-2">
                             {cartItem}
@@ -817,7 +830,7 @@ const CategoryProductsPage = () => {
                           <button
                             onClick={() => updateCartQuantity(variant.product_id, cartItem + 1)}
                             disabled={isUpdating}
-                            className="text-yellow-500 hover:text-yellow-600 font-bold text-lg disabled:opacity-50"
+                            className="text-green-600 hover:text-green-700 font-bold text-lg disabled:opacity-50"
                           >
                             +
                           </button>
@@ -831,7 +844,7 @@ const CategoryProductsPage = () => {
                             setSelectedVariant(null);
                           }}
                           disabled={addingToCart}
-                          className="bg-yellow-400 text-gray-900 px-4 py-2 rounded-lg font-bold hover:bg-yellow-500 transition-colors text-sm disabled:opacity-50"
+                          className="bg-[#0c831f] text-white px-4 py-2 rounded-lg font-bold hover:bg-green-800 transition-colors text-sm disabled:opacity-50"
                         >
                           Add
                         </button>
@@ -864,7 +877,7 @@ const CategoryProductsPage = () => {
                 onClick={() => setActiveFilterTab('brands')}
                 className={`flex-1 py-3 text-sm font-medium transition-colors ${
                   activeFilterTab === 'brands'
-                    ? 'text-yellow-600 border-b-2 border-yellow-600'
+                    ? 'text-green-700 border-b-2 border-yellow-600'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -874,7 +887,7 @@ const CategoryProductsPage = () => {
                 onClick={() => setActiveFilterTab('sortby')}
                 className={`flex-1 py-3 text-sm font-medium transition-colors ${
                   activeFilterTab === 'sortby'
-                    ? 'text-yellow-600 border-b-2 border-yellow-600'
+                    ? 'text-green-700 border-b-2 border-yellow-600'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -891,7 +904,7 @@ const CategoryProductsPage = () => {
                       <input
                         type="text"
                         placeholder="Search Brands"
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                       />
                     </div>
                   </div>
@@ -905,7 +918,7 @@ const CategoryProductsPage = () => {
                         type="checkbox"
                         checked={tempSelectedBrand === brand}
                         onChange={() => handleBrandSelect(brand)}
-                        className="w-4 h-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500"
+                        className="w-4 h-4 text-green-700 border-gray-300 rounded focus:ring-green-500"
                       />
                       <span className="text-sm text-gray-700">{brand}</span>
                     </label>
@@ -919,7 +932,7 @@ const CategoryProductsPage = () => {
                       name="sort"
                       checked={tempSortBy === 'default'}
                       onChange={() => handleSortSelect('default')}
-                      className="w-4 h-4 text-yellow-600 border-gray-300 focus:ring-yellow-500"
+                      className="w-4 h-4 text-green-700 border-gray-300 focus:ring-green-500"
                     />
                     <span className="text-sm text-gray-700">Relevance (default)</span>
                   </label>
@@ -930,7 +943,7 @@ const CategoryProductsPage = () => {
                       name="sort"
                       checked={tempSortBy === 'price-low'}
                       onChange={() => handleSortSelect('price-low')}
-                      className="w-4 h-4 text-yellow-600 border-gray-300 focus:ring-yellow-500"
+                      className="w-4 h-4 text-green-700 border-gray-300 focus:ring-green-500"
                     />
                     <span className="text-sm text-gray-700">Price: Low to High</span>
                   </label>
@@ -941,7 +954,7 @@ const CategoryProductsPage = () => {
                       name="sort"
                       checked={tempSortBy === 'price-high'}
                       onChange={() => handleSortSelect('price-high')}
-                      className="w-4 h-4 text-yellow-600 border-gray-300 focus:ring-yellow-500"
+                      className="w-4 h-4 text-green-700 border-gray-300 focus:ring-green-500"
                     />
                     <span className="text-sm text-gray-700">Price: High to Low</span>
                   </label>
@@ -952,7 +965,7 @@ const CategoryProductsPage = () => {
                       name="sort"
                       checked={tempSortBy === 'name-az'}
                       onChange={() => handleSortSelect('name-az')}
-                      className="w-4 h-4 text-yellow-600 border-gray-300 focus:ring-yellow-500"
+                      className="w-4 h-4 text-green-700 border-gray-300 focus:ring-green-500"
                     />
                     <span className="text-sm text-gray-700">Name: A to Z</span>
                   </label>
@@ -963,7 +976,7 @@ const CategoryProductsPage = () => {
                       name="sort"
                       checked={tempSortBy === 'name-za'}
                       onChange={() => handleSortSelect('name-za')}
-                      className="w-4 h-4 text-yellow-600 border-gray-300 focus:ring-yellow-500"
+                      className="w-4 h-4 text-green-700 border-gray-300 focus:ring-green-500"
                     />
                     <span className="text-sm text-gray-700">Name: Z to A</span>
                   </label>
@@ -980,7 +993,7 @@ const CategoryProductsPage = () => {
               </button>
               <button
                 onClick={applyFilters}
-                className="flex-1 py-2 px-4 bg-[#FFC107] hover:bg-yellow-500 text-gray-900 rounded-lg text-sm font-semibold transition-colors"
+                className="flex-1 py-2 px-4 bg-[#0c831f] hover:bg-green-800 text-white rounded-lg text-sm font-semibold transition-colors"
               >
                 Apply
               </button>
@@ -993,3 +1006,5 @@ const CategoryProductsPage = () => {
 };
 
 export default CategoryProductsPage;
+
+

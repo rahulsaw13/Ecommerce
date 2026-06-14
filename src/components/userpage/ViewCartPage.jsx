@@ -1,5 +1,5 @@
 // utils
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
@@ -7,10 +7,12 @@ import { useTranslation } from "react-i18next";
 import Header from '@common/Header';
 import Footer from '@common/Footer';
 import UserLoader from '@userpage-pages/UserLoader';
+import LocationPickerPopup from '@common/LocationPickerPopup';
 import { ROUTES_CONSTANTS } from "@constants/routesurl";
 import { useDispatch, useSelector } from "react-redux";
 import { updateCartQuantity, removeFromCart, getCart, clearCart } from "../../redux/slices/cartSlice";
 import { fetchAllActiveProducts } from "../../redux/slices/productSlice";
+import { getLocationFromCookie, saveLocationToCookie } from '@services/locationService';
 
 const ViewCart = () => {
   const [visible, setVisible] = useState(false);
@@ -35,6 +37,10 @@ const ViewCart = () => {
   const [cartItemsWithDetails, setCartItemsWithDetails] = useState([]);
   const [removingItem, setRemovingItem] = useState(null);
   const [toastMessage, setToastMessage] = useState({ show: false, message: '', type: '' });
+  const [deliveryAvailable, setDeliveryAvailable] = useState(null); // null=unchecked, true/false
+  const [deliveryLocationName, setDeliveryLocationName] = useState('');
+  const [showLocationPickerCart, setShowLocationPickerCart] = useState(false);
+  const cartLocationBtnRef = useRef(null);
   const { t } = useTranslation("msg");
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -82,6 +88,12 @@ const ViewCart = () => {
 
   // Block body scroll when checkout modal is open
   useEffect(() => {
+    const loc = getLocationFromCookie();
+    setDeliveryAvailable(true);
+    setDeliveryLocationName(loc?.shortName || loc?.address?.split(',')[0] || '');
+  }, []);
+
+  useEffect(() => {
     if (visible) {
       const scrollY = window.scrollY;
       document.body.style.position = 'fixed';
@@ -124,7 +136,9 @@ const ViewCart = () => {
           image_url: product?.image_url || '',
           selling_price: resolvedSellingPrice,
           mrp: resolvedMrp,
-          weight: cartItem.weight || variant?.weight || ''
+          weight: cartItem.weight || variant?.weight || '',
+          available_qty: variant?.available_qty ?? null,
+          in_stock: variant?.in_stock !== false,
         };
       });
       
@@ -161,12 +175,17 @@ const ViewCart = () => {
     if (!item) return;
     
     const newQuantity = item.quantity + amount;
-    
+
     if (newQuantity < 1) {
       await removeItem(cartItemId);
       return;
     }
-    
+
+    if (amount > 0 && item.available_qty !== null && item.available_qty !== undefined && newQuantity > item.available_qty) {
+      showToast(`Only ${item.available_qty} unit${item.available_qty === 1 ? '' : 's'} available in stock`, 'error');
+      return;
+    }
+
     setUpdatingItems(prev => ({ ...prev, [cartItemId]: true }));
     try {
       await dispatch(updateCartQuantity({ cartItemId, productId, weight, quantity: newQuantity })).unwrap();
@@ -185,6 +204,12 @@ const ViewCart = () => {
 
     const quantity = parseInt(newQuantity);
     if (isNaN(quantity) || quantity < 1) return;
+
+    const item = cartItemsWithDetails.find(i => i.cart_item_id === cartItemId);
+    if (item?.available_qty !== null && item?.available_qty !== undefined && quantity > item.available_qty) {
+      showToast(`Only ${item.available_qty} unit${item.available_qty === 1 ? '' : 's'} available in stock`, 'error');
+      return;
+    }
 
     setUpdatingItems(prev => ({ ...prev, [cartItemId]: true }));
     try {
@@ -247,9 +272,9 @@ const ViewCart = () => {
       const userDetails = JSON.parse(localStorage.getItem('userDetails'));
       if (!userDetails?.id) return;
 
-      const response = await fetch(`http://localhost:8070/api/v1/ecommerce/addresses?user_id=${userDetails.id}`, {
+      const response = await fetch(`${process.env.REACT_APP_BASE_URL || 'http://localhost:8070'}/api/v1/ecommerce/addresses?user_id=${userDetails.id}`, {
         headers: {
-          'X-Tenant-Domain': 'localhost',
+          'X-Tenant-Domain': typeof window !== 'undefined' ? window.location.hostname : 'localhost',
           'Content-Type': 'application/json'
         }
       });
@@ -279,10 +304,10 @@ const ViewCart = () => {
   const handleDeleteAddress = async (addressId) => {
     setShowAddressMenu(null);
     try {
-      const response = await fetch(`http://localhost:8070/api/v1/ecommerce/addresses/${addressId}`, {
+      const response = await fetch(`${process.env.REACT_APP_BASE_URL || 'http://localhost:8070'}/api/v1/ecommerce/addresses/${addressId}`, {
         method: 'DELETE',
         headers: {
-          'X-Tenant-Domain': 'localhost',
+          'X-Tenant-Domain': typeof window !== 'undefined' ? window.location.hostname : 'localhost',
           'Content-Type': 'application/json'
         }
       });
@@ -488,117 +513,80 @@ const ViewCart = () => {
                     const productName = item.name || item.product_name || `Product ${item.product_id}`;
                     const isUpdating = updatingItems[item.cart_item_id];
                     const isRemoving = removingItem === item.cart_item_id;
-                    
+
                     return (
-                      <div key={item?.cart_item_id || item?.id} className="p-4 md:p-6">
-                        <div className="flex gap-4">
-                          {/* Product Image */}
+                      <div key={item?.cart_item_id || item?.id} className="p-4 md:p-0">
+                        {/* Mobile layout */}
+                        <div className="flex gap-4 md:hidden">
                           <div className="flex-shrink-0">
-                            <div className="w-24 h-24 md:w-28 md:h-28 bg-gray-50 rounded-xl border border-gray-100 p-2 flex items-center justify-center">
+                            <div className="w-20 h-20 bg-gray-50 rounded-xl border border-gray-100 p-2 flex items-center justify-center">
                               {imageUrl ? (
-                                <img
-                                  src={imageUrl}
-                                  alt={productName}
-                                  className="w-full h-full object-contain"
-                                  onError={(e) => {
-                                    e.target.src = 'https://via.placeholder.com/100?text=No+Image';
-                                  }}
-                                />
+                                <img src={imageUrl} alt={productName} className="w-full h-full object-contain" onError={(e) => { e.target.src = 'https://via.placeholder.com/80?text=No+Image'; }} />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <i className="ri-image-line text-3xl text-gray-300"></i>
-                                </div>
+                                <i className="ri-image-line text-3xl text-gray-300"></i>
                               )}
                             </div>
                           </div>
-
-                          {/* Product Details */}
                           <div className="flex-1">
-                            <div className="flex flex-col h-full">
-                              <div>
-                                <h3 className="text-gray-800 font-semibold text-base mb-1 line-clamp-2">
-                                  {productName}
-                                </h3>
-                                {item.weight && item.weight !== 'N/A' && (
-                                  <p className="text-gray-500 text-sm">
-                                    Weight: {item.weight}
-                                  </p>
-                                )}
+                            <h3 className="text-gray-800 font-semibold text-sm mb-0.5 line-clamp-2">{productName}</h3>
+                            {item.weight && item.weight !== 'N/A' && <p className="text-gray-500 text-xs">Weight: {item.weight}</p>}
+                            {item.available_qty !== null && item.available_qty !== undefined && item.available_qty <= 10 && item.available_qty > 0 && (
+                              <p className="text-orange-500 text-xs">Only {item.available_qty} left</p>
+                            )}
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {mrp > sellingPrice && <span className="text-gray-400 line-through text-xs">₹{Number(mrp).toFixed(0)}</span>}
+                              <span className="text-green-600 font-bold text-sm">₹{Number(sellingPrice).toFixed(0)}</span>
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                              <div className="flex items-center bg-gray-100 rounded-lg">
+                                <button onClick={() => updateQuantity(item.cart_item_id, item.product_id, item.weight, -1)} disabled={isUpdating || isRemoving} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded-l-lg disabled:opacity-50"><span className="font-bold text-gray-700">−</span></button>
+                                <input type="text" value={item.quantity} onChange={(e) => setDirectQuantity(item.cart_item_id, item.product_id, item.weight, e.target.value)} onBlur={(e) => handleQuantityBlur(item.cart_item_id, item.product_id, item.weight, e.target.value)} className="w-10 h-7 text-center border-none outline-none bg-transparent font-semibold text-gray-800 text-sm" disabled={isUpdating || isRemoving} />
+                                <button onClick={() => updateQuantity(item.cart_item_id, item.product_id, item.weight, 1)} disabled={isUpdating || isRemoving || (item.available_qty !== null && item.available_qty !== undefined && item.quantity >= item.available_qty)} className="w-7 h-7 flex items-center justify-center hover:bg-gray-200 rounded-r-lg disabled:opacity-50"><span className="font-bold text-gray-700">+</span></button>
                               </div>
-                              
-                              <div className="flex items-center justify-between mt-3">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-gray-400 line-through text-sm">
-                                    ₹{Number(mrp).toFixed(0)}
-                                  </span>
-                                  <span className="text-green-600 font-bold text-base">
-                                    ₹{Number(sellingPrice).toFixed(0)}
-                                  </span>
-                                  {mrp > sellingPrice && (
-                                    <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">
-                                      Save ₹{Number(mrp - sellingPrice).toFixed(0)}
-                                    </span>
-                                  )}
-                                </div>
-                                
-                                {/* Mobile: Show total price */}
-                                <div className="md:hidden">
-                                  <p className="text-gray-800 font-bold">
-                                    ₹{Number(sellingPrice * item.quantity).toFixed(0)}
-                                  </p>
-                                </div>
-                              </div>
-                              
-                              {/* Quantity Controls and Remove Button */}
-                              <div className="flex items-center justify-between mt-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex items-center bg-gray-100 rounded-lg">
-                                    <button
-                                      onClick={() => updateQuantity(item.cart_item_id, item.product_id, item.weight, -1)}
-                                      disabled={isUpdating || isRemoving}
-                                      className="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded-l-lg transition-colors disabled:opacity-50"
-                                    >
-                                      <span className="text-gray-700 font-bold text-lg">−</span>
-                                    </button>
-                                    <input
-                                      type="text"
-                                      value={item.quantity}
-                                      onChange={(e) => setDirectQuantity(item.cart_item_id, item.product_id, item.weight, e.target.value)}
-                                      onBlur={(e) => handleQuantityBlur(item.cart_item_id, item.product_id, item.weight, e.target.value)}
-                                      className="w-12 h-8 text-center border-none outline-none bg-transparent font-semibold text-gray-800 text-sm"
-                                      disabled={isUpdating || isRemoving}
-                                    />
-                                    <button
-                                      onClick={() => updateQuantity(item.cart_item_id, item.product_id, item.weight, 1)}
-                                      disabled={isUpdating || isRemoving}
-                                      className="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded-r-lg transition-colors disabled:opacity-50"
-                                    >
-                                      <span className="text-gray-700 font-bold text-lg">+</span>
-                                    </button>
-                                  </div>
-                                  
-                                  <button
-                                    onClick={() => removeItem(item.cart_item_id)}
-                                    disabled={isRemoving}
-                                    className="text-red-500 hover:text-red-700 transition-colors text-sm flex items-center gap-1 disabled:opacity-50"
-                                  >
-                                    {isRemoving ? (
-                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
-                                    ) : (
-                                      <i className="ri-delete-bin-line text-lg"></i>
-                                    )}
-                                    <span className="hidden md:inline">Remove</span>
-                                  </button>
-                                </div>
-                                
-                                {/* Desktop: Show total price */}
-                                <div className="hidden md:block">
-                                  <p className="text-gray-800 font-bold text-lg">
-                                    ₹{Number(sellingPrice * item.quantity).toFixed(0)}
-                                  </p>
-                                </div>
+                              <div className="flex items-center gap-2">
+                                <p className="text-gray-800 font-bold text-sm">₹{Number(sellingPrice * item.quantity).toFixed(0)}</p>
+                                <button onClick={() => removeItem(item.cart_item_id)} disabled={isRemoving} className="text-red-500 hover:text-red-700 disabled:opacity-50">{isRemoving ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div> : <i className="ri-delete-bin-line text-lg"></i>}</button>
                               </div>
                             </div>
+                          </div>
+                        </div>
+
+                        {/* Desktop layout: grid-cols-12 matching header */}
+                        <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-4 items-center">
+                          {/* Product col-span-6 */}
+                          <div className="col-span-6 flex gap-3 items-center">
+                            <div className="w-16 h-16 bg-gray-50 rounded-lg border border-gray-100 p-1 flex items-center justify-center flex-shrink-0">
+                              {imageUrl ? (
+                                <img src={imageUrl} alt={productName} className="w-full h-full object-contain" onError={(e) => { e.target.src = 'https://via.placeholder.com/64?text=No+Image'; }} />
+                              ) : (
+                                <i className="ri-image-line text-2xl text-gray-300"></i>
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="text-gray-800 font-semibold text-sm line-clamp-2">{productName}</h3>
+                              {item.weight && item.weight !== 'N/A' && <p className="text-gray-500 text-xs mt-0.5">Weight: {item.weight}</p>}
+                              {item.available_qty !== null && item.available_qty !== undefined && item.available_qty <= 10 && item.available_qty > 0 && (
+                                <p className="text-orange-500 text-xs">Only {item.available_qty} left</p>
+                              )}
+                            </div>
+                          </div>
+                          {/* Price col-span-2 */}
+                          <div className="col-span-2 text-center">
+                            {mrp > sellingPrice && <p className="text-gray-400 line-through text-xs">₹{Number(mrp).toFixed(0)}</p>}
+                            <p className="text-green-600 font-bold text-sm">₹{Number(sellingPrice).toFixed(0)}</p>
+                          </div>
+                          {/* Quantity col-span-2 */}
+                          <div className="col-span-2 flex items-center justify-center">
+                            <div className="flex items-center bg-gray-100 rounded-lg">
+                              <button onClick={() => updateQuantity(item.cart_item_id, item.product_id, item.weight, -1)} disabled={isUpdating || isRemoving} className="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded-l-lg transition-colors disabled:opacity-50"><span className="text-gray-700 font-bold text-lg">−</span></button>
+                              <input type="text" value={item.quantity} onChange={(e) => setDirectQuantity(item.cart_item_id, item.product_id, item.weight, e.target.value)} onBlur={(e) => handleQuantityBlur(item.cart_item_id, item.product_id, item.weight, e.target.value)} className="w-12 h-8 text-center border-none outline-none bg-transparent font-semibold text-gray-800 text-sm" disabled={isUpdating || isRemoving} />
+                              <button onClick={() => updateQuantity(item.cart_item_id, item.product_id, item.weight, 1)} disabled={isUpdating || isRemoving || (item.available_qty !== null && item.available_qty !== undefined && item.quantity >= item.available_qty)} className="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded-r-lg transition-colors disabled:opacity-50"><span className="text-gray-700 font-bold text-lg">+</span></button>
+                            </div>
+                          </div>
+                          {/* Total col-span-2 */}
+                          <div className="col-span-2 text-right">
+                            <p className="text-gray-800 font-bold text-base">₹{Number(sellingPrice * item.quantity).toFixed(0)}</p>
+                            <button onClick={() => removeItem(item.cart_item_id)} disabled={isRemoving} className="text-red-500 hover:text-red-700 transition-colors text-xs flex items-center gap-1 disabled:opacity-50 ml-auto mt-1">{isRemoving ? <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-500"></div> : <><i className="ri-delete-bin-line text-sm"></i><span>Remove</span></>}</button>
                           </div>
                         </div>
                       </div>
@@ -636,8 +624,38 @@ const ViewCart = () => {
                   </div>
                 </div>
                 
+                {/* Delivery not available banner */}
+                {deliveryAvailable === false && (
+                  <div className="mt-4 rounded-xl overflow-hidden border border-red-200">
+                    <div className="bg-red-50 px-4 py-3 flex items-start gap-3">
+                      <i className="ri-map-pin-2-line text-red-500 text-lg flex-shrink-0 mt-0.5"></i>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-red-700 text-sm">
+                          {deliveryLocationName
+                            ? `We don't deliver to ${deliveryLocationName}`
+                            : 'No delivery location set'}
+                        </p>
+                        <p className="text-red-500 text-xs mt-0.5">
+                          {deliveryLocationName
+                            ? 'Our delivery is not available in this area yet.'
+                            : 'Please select a location to continue.'}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      ref={cartLocationBtnRef}
+                      onClick={() => setShowLocationPickerCart(true)}
+                      className="w-full py-2 text-xs font-bold text-white flex items-center justify-center gap-1.5"
+                      style={{ backgroundColor: '#0c831f' }}
+                    >
+                      <i className="ri-map-pin-line"></i>
+                      {deliveryLocationName ? 'Change Location' : 'Select Location'}
+                    </button>
+                  </div>
+                )}
+
                 <button
-                  className="w-full mt-6 bg-[#FFC107] hover:bg-[#FFB300] text-gray-900 font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full mt-4 bg-[#FFC107] hover:bg-[#FFB300] text-gray-900 font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => {
                     const isLoggedIn = checkUserLoginStatus();
                     if (!isLoggedIn) {
@@ -646,10 +664,24 @@ const ViewCart = () => {
                     }
                     handleOpenAddressModal();
                   }}
-                  disabled={displayItems.length === 0}
+                  disabled={displayItems.length === 0 || deliveryAvailable === false}
                 >
-                  Proceed to Checkout
+                  {deliveryAvailable === false ? 'Delivery Not Available' : 'Proceed to Checkout'}
                 </button>
+
+                {showLocationPickerCart && (
+                  <LocationPickerPopup
+                    isOpen={showLocationPickerCart}
+                    onClose={() => setShowLocationPickerCart(false)}
+                    onLocationSelected={(loc) => {
+                      saveLocationToCookie(loc);
+                      setDeliveryAvailable(true);
+                      setDeliveryLocationName(loc.shortName || loc.address?.split(',')[0] || '');
+                      setShowLocationPickerCart(false);
+                    }}
+                    anchorRef={cartLocationBtnRef}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -670,9 +702,9 @@ const ViewCart = () => {
               }}
             />
             
-            <div 
+            <div
               className={`
-                fixed z-[9999] bg-white
+                fixed z-[9999] bg-white flex flex-col overflow-hidden
                 md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2
                 md:rounded-2xl md:w-[90vw] md:max-w-[500px] md:max-h-[85vh]
                 bottom-0 left-0 right-0 rounded-t-3xl max-h-[85vh]
@@ -698,7 +730,7 @@ const ViewCart = () => {
                 </div>
               </div>
 
-              <div className="overflow-y-auto px-4 py-3" style={{ maxHeight: 'calc(85vh - 120px)' }}>
+              <div className="flex-1 overflow-y-auto px-4 py-3">
                 <button 
                   onClick={() => {
                     setVisible(false);
@@ -793,7 +825,7 @@ const ViewCart = () => {
                 </div>
               </div>
 
-              <div className="sticky bottom-0 bg-white border-t border-gray-200 px-4 py-3">
+              <div className="bg-white border-t border-gray-200 px-4 py-3 flex-shrink-0">
                 <button 
                   onClick={handleProceed}
                   disabled={!selectedAddress}

@@ -1,5 +1,29 @@
 import { setCookie, getCookie } from '@utils/cookies';
-import { isDeliveryAvailable } from '@config/srirammart.config';
+import { isDeliveryAvailable, SHOP_INFO, DELIVERY_CONFIG } from '@config/srirammart.config';
+
+// Haversine formula — returns distance in km between two lat/lng points
+export const haversineDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371;
+  const toRad = (v) => (v * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+// Check delivery availability purely on the frontend using store coordinates.
+// SHOP_INFO has longitude/latitude labels swapped (see config comment):
+//   SHOP_INFO.longitude = actual latitude value (23.x)
+//   SHOP_INFO.latitude  = actual longitude value (72.x)
+export const checkDeliveryAvailabilityLocal = (userLat, userLng) => {
+  const storeLat = parseFloat(SHOP_INFO.longitude); // actually lat
+  const storeLng = parseFloat(SHOP_INFO.latitude);  // actually lng
+  if (!storeLat || !storeLng) return { available: true, distance: 0 };
+  const distance = haversineDistance(userLat, userLng, storeLat, storeLng);
+  return { available: distance <= DELIVERY_CONFIG.maxDeliveryRadius, distance };
+};
 
 // Get user's current location using browser geolocation API
 export const getCurrentLocation = () => {

@@ -377,7 +377,7 @@
 //               </p>
 //               <button
 //                 onClick={() => window.location.reload()}
-//                 className="bg-yellow-400 text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-yellow-500 transition-colors flex items-center gap-2"
+//                 className="bg-[#0c831f] text-gray-900 px-6 py-3 rounded-lg font-semibold hover:bg-green-800 transition-colors flex items-center gap-2"
 //               >
 //                 <i className="ri-refresh-line"></i>
 //                 Refresh Page
@@ -416,7 +416,7 @@
 //                       }}
 //                       className="flex flex-col items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
 //                     >
-//                       <div className="w-14 h-14 bg-yellow-400 rounded-xl flex items-center justify-center shadow-sm border-2 border-yellow-500">
+//                       <div className="w-14 h-14 bg-[#0c831f] rounded-xl flex items-center justify-center shadow-sm border-2 border-yellow-500">
 //                         {category.icon ? (
 //                           <i className={`${category.icon} text-2xl text-gray-800`}></i>
 //                         ) : category.image_url ? (
@@ -452,7 +452,7 @@
 //                       }}
 //                       className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
 //                     >
-//                       <div className="w-10 h-10 bg-yellow-400 rounded-md flex items-center justify-center shadow-sm flex-shrink-0">
+//                       <div className="w-10 h-10 bg-[#0c831f] rounded-md flex items-center justify-center shadow-sm flex-shrink-0">
 //                         {category.icon ? (
 //                           <i className={`${category.icon} text-xl text-gray-800`}></i>
 //                         ) : category.image_url ? (
@@ -649,7 +649,7 @@
 //         <div className="md:hidden fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 w-[40%] max-w-xs">
 //           <button
 //             onClick={() => navigate('/view-cart')}
-//             className="w-full bg-[#FFC107] text-gray-900 rounded-full font-bold shadow-lg flex items-center justify-between hover:bg-yellow-500 transition-all px-4 py-2.5"
+//             className="w-full bg-[#0c831f] text-white rounded-full font-bold shadow-lg flex items-center justify-between hover:bg-green-800 transition-all px-4 py-2.5"
 //           >
 //             <div className="flex flex-col items-start">
 //               <span className="text-sm font-bold">View cart</span>
@@ -657,7 +657,7 @@
 //                 {cartItemCount} ITEM{cartItemCount > 1 ? 'S' : ''}
 //               </span>
 //             </div>
-//             <div className="w-9 h-9 bg-yellow-500 rounded-full flex items-center justify-center flex-shrink-0">
+//             <div className="w-9 h-9 bg-green-700 rounded-full flex items-center justify-center flex-shrink-0">
 //               <i className="ri-arrow-right-line text-lg text-gray-900"></i>
 //             </div>
 //           </button>
@@ -684,7 +684,7 @@
 
 //             <button
 //               onClick={() => setShowNotDelivering(false)}
-//               className="w-full bg-yellow-400 text-gray-900 py-3 rounded-lg font-bold hover:bg-yellow-500 transition-colors"
+//               className="w-full bg-[#0c831f] text-gray-900 py-3 rounded-lg font-bold hover:bg-green-800 transition-colors"
 //             >
 //               {SRIRAMMART_CONFIG.messages.notDelivering.buttonText}
 //             </button>
@@ -1165,7 +1165,7 @@
 //           <p className="text-gray-600">{typeof productsError === 'string' ? productsError : 'Please try again later'}</p>
 //           <button 
 //             onClick={() => window.location.reload()} 
-//             className="mt-4 bg-yellow-400 text-gray-900 px-6 py-2 rounded"
+//             className="mt-4 bg-[#0c831f] text-white px-6 py-2 rounded-xl font-semibold"
 //           >
 //             Retry
 //           </button>
@@ -1193,7 +1193,7 @@
 //           </div>
 //           <h2 className="text-2xl font-bold text-gray-800 mb-3">No Products Available</h2>
 //           <p className="text-gray-600 mb-6">We're currently updating our site. Please check back later.</p>
-//           <button onClick={() => window.location.reload()} className="bg-yellow-400 text-gray-900 px-6 py-3 rounded-lg">
+//           <button onClick={() => window.location.reload()} className="bg-[#0c831f] text-white px-6 py-3 rounded-xl font-semibold">
 //             Refresh Page
 //           </button>
 //         </div>
@@ -1269,7 +1269,7 @@
 //                         onClick={() => navigate(`/category?id=${categoryId}`)}
 //                         className="flex flex-col items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
 //                       >
-//                         <div className="w-14 h-14 bg-yellow-400 rounded-xl flex items-center justify-center shadow-sm border-2 border-yellow-500">
+//                         <div className="w-14 h-14 bg-[#0c831f] rounded-xl flex items-center justify-center shadow-sm border-2 border-yellow-500">
 //                           <i className="ri-restaurant-line text-2xl text-gray-800"></i>
 //                         </div>
 //                         <span className="text-[10px] font-semibold text-gray-800 text-center leading-tight max-w-[60px]">
@@ -1290,7 +1290,7 @@
 //                         onClick={() => navigate(`/category?id=${categoryId}`)}
 //                         className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
 //                       >
-//                         <div className="w-10 h-10 bg-yellow-400 rounded-md flex items-center justify-center shadow-sm flex-shrink-0">
+//                         <div className="w-10 h-10 bg-[#0c831f] rounded-md flex items-center justify-center shadow-sm flex-shrink-0">
 //                           <i className="ri-restaurant-line text-xl text-gray-800"></i>
 //                         </div>
 //                         <span className="text-[10px] font-medium text-gray-800 whitespace-nowrap">
@@ -1341,7 +1341,7 @@
 //                           handleAddToCart(product);
 //                         }}
 //                         disabled={addingToCart}
-//                         className="mt-2 w-full bg-yellow-400 text-gray-900 py-1.5 rounded-md text-sm font-semibold hover:bg-yellow-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
+//                         className="mt-2 w-full bg-[#0c831f] text-gray-900 py-1.5 rounded-md text-sm font-semibold hover:bg-green-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
 //                       >
 //                         {addingToCart ? (
 //                           <div className="flex items-center justify-center gap-1">
@@ -1392,7 +1392,7 @@
 //         <div className="md:hidden fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 w-[40%] max-w-xs">
 //           <button
 //             onClick={() => navigate('/view-cart')}
-//             className="w-full bg-[#FFC107] text-gray-900 rounded-full font-bold shadow-lg flex items-center justify-between hover:bg-yellow-500 transition-all px-4 py-2.5"
+//             className="w-full bg-[#0c831f] text-white rounded-full font-bold shadow-lg flex items-center justify-between hover:bg-green-800 transition-all px-4 py-2.5"
 //           >
 //             <div className="flex flex-col items-start">
 //               <span className="text-sm font-bold">View cart</span>
@@ -1400,7 +1400,7 @@
 //                 {cartItemCount} ITEM{cartItemCount > 1 ? 'S' : ''}
 //               </span>
 //             </div>
-//             <div className="w-9 h-9 bg-yellow-500 rounded-full flex items-center justify-center flex-shrink-0">
+//             <div className="w-9 h-9 bg-green-700 rounded-full flex items-center justify-center flex-shrink-0">
 //               <i className="ri-arrow-right-line text-lg text-gray-900"></i>
 //             </div>
 //           </button>
@@ -1459,10 +1459,12 @@ import {
 } from '../../redux/slices/productSlice';
 
 // Redux actions - Cart
-import { 
+import {
   getCart,
   addToCart,
-  clearCart
+  clearCart,
+  removeFromCart,
+  updateCartQuantity
 } from '../../redux/slices/cartSlice';
 
 const HomePage = () => {
@@ -1470,11 +1472,12 @@ const HomePage = () => {
   const navigate = useNavigate();
   
   // Products Redux state
-  const { 
-    products, 
-    categories, 
+  const {
+    products,
+    categories,
     homeSections,
     loading: productsLoading,
+    productsLoaded,
     error: productsError
   } = useSelector((state) => state.products);
   
@@ -1644,12 +1647,13 @@ const handleAddToCart = async (product) => {
       return;
     }
 
+    const selectedWeight = product?.variants?.[0]?.weight || null;
     await dispatch(addToCart({
       user_id: userId,
       product_variant_id: productVariantId,
-      quantity: 1
+      quantity: 1,
+      selected_weight: selectedWeight
     })).unwrap();
-    
 
     showSuccessToast("Item added to cart");
     await dispatch(getCart()).unwrap();
@@ -1664,13 +1668,22 @@ const handleAddToCart = async (product) => {
     dispatch(fetchAllActiveProducts());
     dispatch(fetchAllCategories());
     dispatch(fetchHomeSections());
-    
+
     return () => {
       dispatch(clearProducts());
       dispatch(clearCategories());
       dispatch(clearHomeSections());
       dispatch(clearCart());
     };
+  }, [dispatch]);
+
+  // Re-fetch products when user changes delivery location (new branch → new stock)
+  useEffect(() => {
+    const handleLocationChange = () => {
+      dispatch(fetchAllActiveProducts());
+    };
+    window.addEventListener('userLocationChanged', handleLocationChange);
+    return () => window.removeEventListener('userLocationChanged', handleLocationChange);
   }, [dispatch]);
 
   // Reset to page 1 when products change
@@ -1893,7 +1906,7 @@ const handleAddToCart = async (product) => {
           <p className="text-gray-600">{typeof productsError === 'string' ? productsError : 'Please try again later'}</p>
           <button 
             onClick={() => window.location.reload()} 
-            className="mt-4 bg-yellow-400 text-gray-900 px-6 py-2 rounded"
+            className="mt-4 bg-[#0c831f] text-white px-6 py-2 rounded-xl font-semibold"
           >
             Retry
           </button>
@@ -1922,8 +1935,8 @@ const handleAddToCart = async (product) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Empty state
-  if (!hasProducts && !hasSections) {
+  // Empty state — only after products have actually been fetched
+  if (productsLoaded && !hasProducts && !hasSections) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header onSearch={handleSearch} />
@@ -1933,7 +1946,7 @@ const handleAddToCart = async (product) => {
           </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-3">No Products Available</h2>
           <p className="text-gray-600 mb-6">We're currently updating our site. Please check back later.</p>
-          <button onClick={() => window.location.reload()} className="bg-yellow-400 text-gray-900 px-6 py-3 rounded-lg">
+          <button onClick={() => window.location.reload()} className="bg-[#0c831f] text-white px-6 py-3 rounded-xl font-semibold">
             Refresh Page
           </button>
         </div>
@@ -1999,59 +2012,60 @@ const handleAddToCart = async (product) => {
           {hasCategories && (
             <section className="mb-2 mt-2">
               <div className="py-3 px-0">
-                <div className="md:hidden flex gap-4 overflow-x-auto pb-2 scrollbar-hide px-2">
-                  {categories.slice(0, 10).map((category) => {
-                    const categoryName = category.name || category.category?.name;
-                    const categoryId = category.id || category.category?.id;
-                    return (
-                      <div
-                        key={categoryId || categoryName}
-                        onClick={() => navigate(`/category?id=${categoryId}`)}
-                        className="flex flex-col items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
-                      >
-                        <div className="w-14 h-14 bg-yellow-400 rounded-xl flex items-center justify-center shadow-sm border-2 border-yellow-500">
-                          {category.icon ? (
-                            <i className={`${category.icon} text-2xl text-gray-800`}></i>
-                          ) : category.image_url ? (
-                            <img src={category.image_url} alt={categoryName} className="w-8 h-8 object-contain" />
-                          ) : (
-                            <i className="ri-restaurant-line text-2xl text-gray-800"></i>
-                          )}
-                        </div>
-                        <span className="text-[10px] font-semibold text-gray-800 text-center leading-tight max-w-[60px]">
-                          {categoryName}
-                        </span>
+                {(() => {
+                  const tileColors = ['#fef9c3','#dcfce7','#dbeafe','#fce7f3','#ede9fe','#ffedd5','#d1fae5','#fef3c7','#e0f2fe','#f3e8ff'];
+                  return (
+                    <>
+                      {/* Mobile: horizontal scroll */}
+                      <div className="md:hidden flex gap-3 overflow-x-auto pb-2 scrollbar-hide px-1">
+                        {categories.slice(0, 12).map((category, idx) => {
+                          const categoryName = category.name || category.category?.name;
+                          const categoryId = category.id || category.category?.id;
+                          return (
+                            <div
+                              key={categoryId || categoryName}
+                              onClick={() => navigate(`/category?id=${categoryId}`)}
+                              className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
+                            >
+                              <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden" style={{ backgroundColor: tileColors[idx % tileColors.length] }}>
+                                {category.image_url ? (
+                                  <img src={category.image_url} alt={categoryName} className="w-12 h-12 object-contain" loading="lazy" />
+                                ) : (
+                                  <i className={`${category.icon || 'ri-restaurant-line'} text-2xl text-gray-600`}></i>
+                                )}
+                              </div>
+                              <span className="text-[10px] font-semibold text-gray-700 text-center leading-tight max-w-[64px]">{categoryName}</span>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
 
-                <div className="hidden md:flex gap-8 overflow-x-auto pb-2 scrollbar-hide justify-center items-center">
-                  {categories.slice(0, 10).map((category) => {
-                    const categoryName = category.name || category.category?.name;
-                    const categoryId = category.id || category.category?.id;
-                    return (
-                      <div
-                        key={categoryId || categoryName}
-                        onClick={() => navigate(`/category?id=${categoryId}`)}
-                        className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
-                      >
-                        <div className="w-10 h-10 bg-yellow-400 rounded-md flex items-center justify-center shadow-sm flex-shrink-0">
-                          {category.icon ? (
-                            <i className={`${category.icon} text-xl text-gray-800`}></i>
-                          ) : category.image_url ? (
-                            <img src={category.image_url} alt={categoryName} className="w-6 h-6 object-contain" />
-                          ) : (
-                            <i className="ri-restaurant-line text-xl text-gray-800"></i>
-                          )}
-                        </div>
-                        <span className="text-[10px] font-medium text-gray-800 whitespace-nowrap">
-                          {categoryName}
-                        </span>
+                      {/* Desktop: grid */}
+                      <div className="hidden md:grid grid-cols-6 lg:grid-cols-10 gap-3">
+                        {categories.slice(0, 10).map((category, idx) => {
+                          const categoryName = category.name || category.category?.name;
+                          const categoryId = category.id || category.category?.id;
+                          return (
+                            <div
+                              key={categoryId || categoryName}
+                              onClick={() => navigate(`/category?id=${categoryId}`)}
+                              className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                            >
+                              <div className="w-full aspect-square rounded-2xl flex items-center justify-center overflow-hidden" style={{ backgroundColor: tileColors[idx % tileColors.length] }}>
+                                {category.image_url ? (
+                                  <img src={category.image_url} alt={categoryName} className="w-3/4 h-3/4 object-contain" loading="lazy" />
+                                ) : (
+                                  <i className={`${category.icon || 'ri-restaurant-line'} text-3xl text-gray-600`}></i>
+                                )}
+                              </div>
+                              <span className="text-xs font-semibold text-gray-700 text-center leading-tight">{categoryName}</span>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
+                    </>
+                  );
+                })()}
               </div>
             </section>
           )}
@@ -2096,7 +2110,7 @@ const handleAddToCart = async (product) => {
 
                         {hasMultipleVariants && (
                           <select
-                            className="mt-2 w-full border border-gray-300 rounded-md text-xs py-1 px-2 bg-white text-gray-700 focus:outline-none focus:border-yellow-400"
+                            className="mt-2 w-full border border-gray-300 rounded-md text-xs py-1 px-2 bg-white text-gray-700 focus:outline-none focus:border-green-500"
                             value={selectedIdx}
                             onClick={(e) => e.stopPropagation()}
                             onChange={(e) => {
@@ -2112,32 +2126,59 @@ const handleAddToCart = async (product) => {
                           </select>
                         )}
 
-                        {allOutOfStock ? (
-                          <button disabled className="mt-2 w-full bg-gray-100 text-gray-400 py-1.5 rounded-md text-sm font-semibold border border-gray-200 cursor-not-allowed">
-                            Out of Stock
-                          </button>
-                        ) : activeVariant?.in_stock === false ? (
-                          <button disabled className="mt-2 w-full bg-gray-100 text-gray-400 py-1.5 rounded-md text-sm font-semibold border border-gray-200 cursor-not-allowed">
-                            Out of Stock
-                          </button>
-                        ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const productWithVariant = { ...product, variants: [activeVariant, ...(product.variants || [])] };
-                              handleAddToCart(productWithVariant);
-                            }}
-                            disabled={addingToCart}
-                            className="mt-2 w-full bg-yellow-400 text-gray-900 py-1.5 rounded-md text-sm font-semibold hover:bg-yellow-500 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {addingToCart ? (
-                              <div className="flex items-center justify-center gap-1">
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
-                                Adding...
+                        {(() => {
+                          if (allOutOfStock || activeVariant?.in_stock === false) {
+                            return (
+                              <button disabled className="mt-2 w-full bg-gray-100 text-gray-400 py-1.5 rounded-md text-sm font-semibold border border-gray-200 cursor-not-allowed">
+                                Out of Stock
+                              </button>
+                            );
+                          }
+                          const cartItem = cartItems?.find(ci => ci.product_variant_id === activeVariant?.productVariantId);
+                          if (cartItem) {
+                            return (
+                              <div className="mt-2 w-full flex items-center justify-between bg-white rounded-xl border-2 border-[#0c831f] py-1 px-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (cartItem.quantity <= 1) {
+                                      dispatch(removeFromCart({ cartItemId: cartItem.cart_item_id })).then(() => dispatch(getCart()));
+                                    } else {
+                                      dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity - 1 })).then(() => dispatch(getCart()));
+                                    }
+                                  }}
+                                  className="font-bold text-lg leading-none" style={{ color: '#0c831f' }}
+                                >−</button>
+                                <span className="font-bold text-sm" style={{ color: '#0c831f' }}>{cartItem.quantity}</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity + 1 })).then(() => dispatch(getCart()));
+                                  }}
+                                  className="font-bold text-lg leading-none" style={{ color: '#0c831f' }}
+                                >+</button>
                               </div>
-                            ) : 'Add to Cart'}
-                          </button>
-                        )}
+                            );
+                          }
+                          return (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const productWithVariant = { ...product, variants: [activeVariant, ...(product.variants || [])] };
+                                handleAddToCart(productWithVariant);
+                              }}
+                              disabled={addingToCart}
+                              className="mt-2 w-full bg-[#0c831f] text-white py-1.5 rounded-xl text-sm font-semibold hover:bg-green-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {addingToCart ? (
+                                <div className="flex items-center justify-center gap-1">
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                  Adding...
+                                </div>
+                              ) : 'Add to Cart'}
+                            </button>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
@@ -2192,7 +2233,7 @@ const handleAddToCart = async (product) => {
                             onClick={() => handlePageChange(i)}
                             className={`w-10 h-10 rounded-md text-sm font-medium transition-colors ${
                               currentPage === i
-                                ? 'bg-yellow-400 text-gray-900 font-bold'
+                                ? 'bg-[#0c831f] text-white font-bold'
                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                             }`}
                           >
@@ -2269,7 +2310,7 @@ const handleAddToCart = async (product) => {
         <div className="md:hidden fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 w-[40%] max-w-xs">
           <button
             onClick={() => navigate('/view-cart')}
-            className="w-full bg-[#FFC107] text-gray-900 rounded-full font-bold shadow-lg flex items-center justify-between hover:bg-yellow-500 transition-all px-4 py-2.5"
+            className="w-full bg-[#0c831f] text-white rounded-full font-bold shadow-lg flex items-center justify-between hover:bg-green-800 transition-all px-4 py-2.5"
           >
             <div className="flex flex-col items-start">
               <span className="text-sm font-bold">View cart</span>
@@ -2277,7 +2318,7 @@ const handleAddToCart = async (product) => {
                 {cartItemCount} ITEM{cartItemCount > 1 ? 'S' : ''}
               </span>
             </div>
-            <div className="w-9 h-9 bg-yellow-500 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 bg-green-700 rounded-full flex items-center justify-center flex-shrink-0">
               <i className="ri-arrow-right-line text-lg text-gray-900"></i>
             </div>
           </button>

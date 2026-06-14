@@ -133,6 +133,15 @@ import axios from "axios";
 const BASE_URL = (process.env.REACT_APP_BASE_URL || "http://localhost:8070") + "/api/v1/ecommerce";
 const TENANT_DOMAIN = typeof window !== "undefined" ? window.location.hostname : "localhost";
 
+const _getBranchIdFromCookie = () => {
+  try {
+    const match = document.cookie.match(/(?:^|;)\s*userLocation=([^;]*)/);
+    if (!match) return null;
+    const loc = JSON.parse(decodeURIComponent(match[1]));
+    return loc?.branch_id ? String(loc.branch_id) : null;
+  } catch (e) { return null; }
+};
+
 // ✅ normal api
 const allApi = axios.create({
   baseURL: BASE_URL,
@@ -142,9 +151,11 @@ const allApi = axios.create({
   }
 });
 
-// Strip "api/v1/" prefix from URLs (already in baseURL)
+// Strip "api/v1/" prefix from URLs (already in baseURL); attach nearest branch id
 allApi.interceptors.request.use((config) => {
   if (config.url) config.url = config.url.replace(/^api\/v1\//, "");
+  const branchId = _getBranchIdFromCookie();
+  if (branchId) config.headers['X-Branch-Id'] = branchId;
   return config;
 });
 
@@ -159,6 +170,8 @@ const _authAxios = axios.create({
 
 _authAxios.interceptors.request.use((config) => {
   if (config.url) config.url = config.url.replace(/^api\/v1\//, "");
+  const branchId = _getBranchIdFromCookie();
+  if (branchId) config.headers['X-Branch-Id'] = branchId;
   return config;
 });
 

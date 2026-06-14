@@ -156,7 +156,7 @@ export const getCart = createAsyncThunk(
 // ✅ ADD TO CART - Requires userId
 export const addToCart = createAsyncThunk(
   "cart/addToCart",
-  async ({ user_id, product_variant_id, quantity }, thunkAPI) => {
+  async ({ user_id, product_variant_id, quantity, selected_weight }, thunkAPI) => {
     try {
       if (!user_id) {
         return thunkAPI.rejectWithValue("User not found");
@@ -170,6 +170,7 @@ export const addToCart = createAsyncThunk(
         user_id,
         product_variant_id,
         quantity: quantity || 1,
+        ...(selected_weight ? { selected_weight } : {}),
       };
 
       console.log("✅ FINAL PAYLOAD:", payload);

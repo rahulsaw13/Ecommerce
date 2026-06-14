@@ -4,9 +4,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Dialog } from 'primereact/dialog';
 import Header from '@common/Header';
 import Footer from '@common/Footer';
+import LocationPickerPopup from '@common/LocationPickerPopup';
 import { getCart, clearCart } from '../../redux/slices/cartSlice';
 import { placeOrderFromCart, clearOrderStatus } from '../../redux/slices/orderSlice';
 import { fetchUserAddresses } from '../../redux/slices/addressSlice';
+import { getLocationFromCookie, saveLocationToCookie } from '@services/locationService';
+import { allApi } from '@api/api';
 
 const PlaceOrderPage = () => {
   const dispatch = useDispatch();
@@ -54,6 +57,27 @@ const PlaceOrderPage = () => {
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [availableCoupons, setAvailableCoupons] = useState([]);
   const [applyingCoupon, setApplyingCoupon] = useState(false);
+
+  // Delivery availability — backend is the authoritative check; frontend only tracks location name
+  const [deliveryCheck, setDeliveryCheck] = useState({ checked: true, available: true, locationName: '' });
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const changeLocationBtnRef = useRef(null);
+
+  // Branch stock check for selected address
+  const [stockCheck, setStockCheck] = useState({ loading: false, unavailable: [] });
+
+  useEffect(() => {
+    const loc = getLocationFromCookie();
+    const name = loc?.shortName || loc?.address?.split(',')[0] || '';
+    setDeliveryCheck({ checked: true, available: true, locationName: name });
+  }, []);
+
+  const handleLocationSelected = (loc) => {
+    saveLocationToCookie(loc);
+    const name = loc.shortName || loc.address?.split(',')[0] || '';
+    setDeliveryCheck({ checked: true, available: true, locationName: name });
+    setShowLocationPicker(false);
+  };
 
   const timeSlots = [
     '8 AM - 11 AM',
@@ -125,7 +149,7 @@ const PlaceOrderPage = () => {
     fetchData();
   }, [dispatch]);
 
-  // ✅ FIXED: Address set from Redux addresses - no infinite loop
+  // Resolve address and derive branch from its coordinates (Blinkit-style)
   useEffect(() => {
     if (addressId && addresses && addresses.length > 0) {
       const selectedAddr = addresses.find(addr => addr.id === parseInt(addressId));
@@ -142,11 +166,62 @@ const PlaceOrderPage = () => {
           selectedAddr.zip_code,
           selectedAddr.phone_number
         ].filter(Boolean);
-        
+
         setAddress({
           type: selectedAddr.address_type || 'Address',
-          fullAddress: addressParts.join(', ')
+          fullAddress: addressParts.join(', '),
+          latitude: selectedAddr.latitude,
+          longitude: selectedAddr.longitude
         });
+
+        // If address has coordinates, resolve nearest branch → update cookie → check stock
+        if (selectedAddr.latitude && selectedAddr.longitude) {
+          setStockCheck({ loading: true, unavailable: [] });
+          allApi.get(`/user_dashboard/nearest_branch?latitude=${selectedAddr.latitude}&longitude=${selectedAddr.longitude}`)
+            .then(async res => {
+              if (res.data?.available && res.data?.branch_id) {
+                const existing = getLocationFromCookie() || {};
+                saveLocationToCookie({ ...existing, branch_id: res.data.branch_id });
+
+                // Re-fetch products for this branch and cross-check cart
+                try {
+                  const productsRes = await allApi.get('/user_dashboard/all_active_products', {
+                    headers: { 'X-Branch-Id': String(res.data.branch_id) }
+                  });
+                  const variants = {};
+                  (productsRes.data?.products || []).forEach(p =>
+                    (p.variants || []).forEach(v => { variants[v.productVariantId] = v; })
+                  );
+
+                  const cartSnapshot = cartItems || [];
+                  const unavailable = cartSnapshot
+                    .filter(item => {
+                      const v = variants[item.product_variant_id];
+                      if (!v) return false;
+                      if (v.in_stock === false) return true;
+                      if (v.available_qty !== undefined && v.available_qty < item.quantity) return true;
+                      return false;
+                    })
+                    .map(item => {
+                      const v = variants[item.product_variant_id];
+                      return {
+                        cart_item_id: item.cart_item_id,
+                        name: item.name,
+                        requested: item.quantity,
+                        available: v?.available_qty ?? 0
+                      };
+                    });
+
+                  setStockCheck({ loading: false, unavailable });
+                } catch {
+                  setStockCheck({ loading: false, unavailable: [] });
+                }
+              } else {
+                setStockCheck({ loading: false, unavailable: [] });
+              }
+            })
+            .catch(() => setStockCheck({ loading: false, unavailable: [] }));
+        }
       }
     }
   }, [addressId, addresses]);
@@ -272,12 +347,26 @@ const PlaceOrderPage = () => {
         return;
       }
       
+      // Use address coordinates if available (Blinkit-style); fall back to location cookie
+      let locationCoords = {};
+      if (address?.latitude && address?.longitude) {
+        locationCoords = { latitude: address.latitude, longitude: address.longitude };
+      } else {
+        try {
+          const loc = getLocationFromCookie();
+          if (loc?.latitude && loc?.longitude) {
+            locationCoords = { latitude: loc.latitude, longitude: loc.longitude };
+          }
+        } catch (_) {}
+      }
+
       await dispatch(placeOrderFromCart({
         userId: userDetails.id,
         totalPrice: cartTotals.grand_total.toFixed(2),
         addressId: addressId,
         paymentMethod: paymentMethod,
-        orderType: 'home_delivery'
+        orderType: 'home_delivery',
+        ...locationCoords
       })).unwrap();
       
     } catch (error) {
@@ -329,7 +418,53 @@ const PlaceOrderPage = () => {
   return (
     <div className="min-h-screen bg-white">
       <Header />
-      
+
+      {/* Delivery not available — blocking screen */}
+      {deliveryCheck.checked && !deliveryCheck.available && (
+        <div className="flex flex-col items-center justify-center min-h-[80vh] px-6 text-center mt-16">
+          <div className="w-28 h-28 bg-red-50 rounded-full flex items-center justify-center mb-6">
+            <i className="ri-map-pin-2-line text-5xl text-red-400"></i>
+          </div>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
+            {deliveryCheck.locationName
+              ? `We don't deliver to ${deliveryCheck.locationName}`
+              : "Set your delivery location"}
+          </h2>
+          <p className="text-gray-500 text-sm mb-2 max-w-xs">
+            {deliveryCheck.locationName
+              ? "Sorry, our delivery isn't available in this area yet."
+              : "Please select a location to check if we deliver to you."}
+          </p>
+          <p className="text-gray-400 text-xs mb-8 max-w-xs">
+            Try a different nearby location or check back later.
+          </p>
+          <button
+            ref={changeLocationBtnRef}
+            onClick={() => setShowLocationPicker(true)}
+            className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white text-sm transition-opacity hover:opacity-90"
+            style={{ backgroundColor: '#0c831f' }}
+          >
+            <i className="ri-map-pin-line"></i>
+            {deliveryCheck.locationName ? 'Change Location' : 'Select Location'}
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="mt-4 text-sm text-gray-500 hover:text-gray-700 underline"
+          >
+            Back to Home
+          </button>
+          <LocationPickerPopup
+            isOpen={showLocationPicker}
+            onClose={() => setShowLocationPicker(false)}
+            onLocationSelected={handleLocationSelected}
+            anchorRef={changeLocationBtnRef}
+          />
+        </div>
+      )}
+
+      {/* Normal order form — only shown when delivery is available */}
+      {(!deliveryCheck.checked || deliveryCheck.available) && (
+      <>
       <div className="p-4 md:p-6 mt-16 w-full max-w-screen-xl mx-auto">
         <h1 className="text-[20px] sm:text-[24px] md:text-[36px] font-bold text-center mb-4 text-[#1D2E43] font-[playfair]">
           Place Order
@@ -675,9 +810,38 @@ const PlaceOrderPage = () => {
             <span className="font-bold text-base">₹{cartTotals.savings.toFixed(2)}</span>
           </div>
 
+          {/* Branch stock check result */}
+          {stockCheck.loading && (
+            <div className="flex items-center gap-2 text-sm text-gray-500 px-1">
+              <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+              Checking item availability at your delivery location…
+            </div>
+          )}
+          {!stockCheck.loading && stockCheck.unavailable.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <i className="ri-error-warning-line text-red-500 text-lg"></i>
+                <p className="text-sm font-semibold text-red-700">
+                  {stockCheck.unavailable.length} item{stockCheck.unavailable.length > 1 ? 's' : ''} not available at your delivery location
+                </p>
+              </div>
+              <div className="space-y-2">
+                {stockCheck.unavailable.map(item => (
+                  <div key={item.cart_item_id} className="flex items-center justify-between text-xs text-red-600">
+                    <span className="truncate flex-1 mr-2">{item.name}</span>
+                    <span className="flex-shrink-0 bg-red-100 px-2 py-0.5 rounded font-medium">
+                      {item.available === 0 ? 'Out of stock' : `Only ${item.available} left`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-red-500 mt-3">Please remove these items or choose a different address to continue.</p>
+            </div>
+          )}
+
           <button
             onClick={handleCheckout}
-            disabled={placingOrder}
+            disabled={placingOrder || stockCheck.loading || stockCheck.unavailable.length > 0}
             className="w-full bg-[#FFC107] hover:bg-[#FFB300] text-gray-900 font-bold py-4 rounded-lg text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {placingOrder ? 'Processing...' : `Checkout ₹${cartTotals.grand_total.toFixed(2)}`}
@@ -786,6 +950,9 @@ const PlaceOrderPage = () => {
             </button>
           </div>
         </div>
+      )}
+
+      </>
       )}
 
       <div className="mt-16">

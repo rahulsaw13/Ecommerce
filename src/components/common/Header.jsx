@@ -717,6 +717,7 @@ import { useTranslation } from "react-i18next";
 import toast, { Toaster } from 'react-hot-toast';
 import { SRIRAMMART_CONFIG } from '@config/srirammart.config';
 import { getLocationFromCookie } from '@services/locationService';
+import LocationPickerPopup from './LocationPickerPopup';
 
 // Redux actions
 import { logoutUser, clearUserProfile, fetchUserProfile } from '../../redux/slices/authSlice';
@@ -737,11 +738,14 @@ const Header = ({ onSearch }) => {
   const [isListening, setIsListening] = useState(false);
   const [cartCount, setCartCount] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
-  
+  const [userLocation, setUserLocation] = useState(() => getLocationFromCookie());
+  const [showLocationPicker, setShowLocationPicker] = useState(() => !getLocationFromCookie());
+
   const menu = useRef(null);
   const searchTimeoutRef = useRef(null);
-  
-  const userLocation = getLocationFromCookie();
+  const locationBtnRef = useRef(null);
+
+  const locationLabel = userLocation?.shortName || userLocation?.address?.split(',')[0] || null;
   
   // Get user details from Redux or localStorage (fallback for backward compatibility)
   const userDetails = userProfile || (() => {
@@ -940,28 +944,14 @@ const Header = ({ onSearch }) => {
     };
   }, [isListening]);
 
-  // Debounced search
+  // Search only on Enter / submit — no auto-navigate on typing
   useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    if (searchQuery.trim().length >= 2) {
-      searchTimeoutRef.current = setTimeout(() => {
-        try {
-          navigate(`/category?search=${encodeURIComponent(searchQuery.trim())}`);
-        } catch (error) {
-          console.error('Navigation error:', error);
-        }
-      }, 500);
-    }
-
     return () => {
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery, navigate]);
+  }, []);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -1025,8 +1015,12 @@ const Header = ({ onSearch }) => {
       template: () => (
         <div className="px-4 py-3 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FFC107] to-[#FFD54F] text-gray-900 flex items-center justify-center font-semibold text-base shadow-sm">
-              {userDetails?.name?.[0]?.toUpperCase() || userDetails?.user?.name?.[0]?.toUpperCase() || 'U'}
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#FFC107] to-[#FFD54F] text-gray-900 flex items-center justify-center font-semibold text-base shadow-sm overflow-hidden">
+              {userDetails?.image_url ? (
+                <img src={userDetails.image_url} alt={userDetails.name} className="w-full h-full object-cover" />
+              ) : (
+                userDetails?.name?.[0]?.toUpperCase() || userDetails?.user?.name?.[0]?.toUpperCase() || 'U'
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900 truncate">{userDetails?.name || userDetails?.user?.name}</p>
@@ -1255,15 +1249,22 @@ const Header = ({ onSearch }) => {
                   opacity: isScrolled ? 0 : 1
                 }}
               >
-                <div className="flex items-start gap-1 text-xs flex-1">
-                  <i className="ri-map-pin-line text-gray-800 mt-0.5 flex-shrink-0"></i>
-                  <div>
-                    <p className="text-gray-800 font-medium leading-tight">Deliver to Selected Location</p>
-                    <p className="text-gray-700 text-[11px] leading-tight">
-                      {userLocation ? userLocation.address : 'Ahmedabad, Gujarat, 380060'}
-                    </p>
+                <button
+                  ref={locationBtnRef}
+                  className="flex items-center gap-1 text-left"
+                  onClick={() => setShowLocationPicker(true)}
+                >
+                  <i className="ri-map-pin-2-fill text-green-600 text-base flex-shrink-0"></i>
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-gray-500 leading-tight font-medium uppercase tracking-wide">Deliver to</p>
+                    <div className="flex items-center gap-0.5">
+                      <p className="text-sm font-bold text-gray-900 leading-tight truncate max-w-[160px]">
+                        {locationLabel || 'Set location'}
+                      </p>
+                      <i className="ri-arrow-down-s-line text-gray-700 text-base flex-shrink-0"></i>
+                    </div>
                   </div>
-                </div>
+                </button>
 
                 <div className="bg-white px-3 py-1 rounded-md shadow-sm ml-2 flex-shrink-0">
                   <p className="text-[10px] text-gray-600 font-medium leading-tight">Delivers in</p>
@@ -1311,20 +1312,21 @@ const Header = ({ onSearch }) => {
                   </div>
                 </div>
 
-                <div 
-                  className="cursor-pointer hover:opacity-80 transition-opacity pt-0.5"
-                  onClick={() => navigate('/')}
+                <button
+                  ref={locationBtnRef}
+                  className="text-left hover:opacity-80 transition-opacity"
+                  onClick={() => setShowLocationPicker(true)}
                 >
-                  <div className="text-xs font-bold text-gray-900 leading-tight">
-                    {SRIRAMMART_CONFIG.company.name} in
+                  <div className="font-bold text-gray-900 text-base leading-tight">
+                    Delivery in 30 minutes
                   </div>
-                  <div className="text-lg font-bold text-gray-900 leading-tight">
-                    30 minutes
+                  <div className="flex items-center gap-0.5 mt-0.5">
+                    <span className="text-sm text-gray-700 leading-tight">
+                      {locationLabel ? locationLabel : 'Select Location'}
+                    </span>
+                    <i className="ri-arrow-down-s-line text-gray-700 text-base flex-shrink-0"></i>
                   </div>
-                  <div className="text-[10px] text-gray-800 leading-tight">
-                    {userLocation ? userLocation.address : 'Ahmedabad, Gujarat, 380060'}
-                  </div>
-                </div>
+                </button>
               </div>
 
               <form onSubmit={handleSearchSubmit} className="flex-1 max-w-xl">
@@ -1393,7 +1395,7 @@ const Header = ({ onSearch }) => {
                         </span>
                       )}
                     </div>
-                    <span className="text-sm font-medium">My Order</span>
+                    <span className="text-sm font-medium">My Cart</span>
                   </button>
                 )}
               </div>
@@ -1468,6 +1470,13 @@ const Header = ({ onSearch }) => {
           `}</style>
         </>
       )}
+
+      <LocationPickerPopup
+        isOpen={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+        onLocationSelected={(loc) => setUserLocation(loc)}
+        anchorRef={locationBtnRef}
+      />
     </>
   );
 };

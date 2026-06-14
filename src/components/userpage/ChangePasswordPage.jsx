@@ -49,7 +49,9 @@ const ChangePasswordPage = () => {
 
   const onHandleSubmit = async (value) => {
     setLoader(true);
+    const userDetails = JSON.parse(localStorage.getItem('userDetails') || '{}');
     let body = {
+      user_id: String(userDetails?.id || ''),
       current_password: value?.currentPassword,
       password: value?.newPassword,
       password_confirmation: value?.confirmPassword

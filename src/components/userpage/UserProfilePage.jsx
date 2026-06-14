@@ -49,26 +49,22 @@ const UserProfilePage = () => {
     allApiWithHeaderToken(`${API_CONSTANTS.COMMON_CUSTOMERS_URL}/${userDetails?.id}`, body, "put", 'multipart/form-data' )
       .then((response) => {
         if (response.status === 200) {
-          // Update localStorage with new user details
           const updatedUserDetails = {
             ...userDetails,
             name: value?.name,
-            phone_number: value?.phoneNumber
+            phone_number: value?.phoneNumber,
+            ...(response.data?.image_url ? { image_url: response.data.image_url } : {})
           };
           localStorage.setItem("userDetails", JSON.stringify(updatedUserDetails));
-          
+
           setLoader(false);
-          
-          // Redirect based on user role
+
           const userRole = userDetails?.role_id;
           if (userRole === 1) {
-            // Admin - redirect to dashboard
             navigate(ROUTES_CONSTANTS.DASHBOARD);
           } else if (userRole === 3) {
-            // Warehouse Supervisor - redirect to warehouse dashboard
             navigate("/warehouse-dashboard");
           } else {
-            // Regular user - redirect to home page
             navigate("/");
           }
         }
