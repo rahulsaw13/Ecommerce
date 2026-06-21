@@ -36,6 +36,7 @@ const ProductDescription = () => {
   const [showProductDetails, setShowProductDetails] = useState(false);
   const [recommendedProducts, setRecommendedProducts] = useState([]);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   
   const cart = useSelector(state => state.cart?.items || []);
   
@@ -168,6 +169,7 @@ const ProductDescription = () => {
   };
 
   useEffect(() => {
+    setActiveImageIndex(0);
     console.log("useEffect triggered, stateData:", stateData);
     console.log("State has sub_category_id:", stateData.sub_category_id);
     
@@ -183,6 +185,7 @@ const ProductDescription = () => {
         id: stateData.id,
         name: stateData.name,
         image_url: stateData.image_url,
+        images: stateData.images,
         sub_category_id: stateData.sub_category_id,
         category_name: stateData.category_name,
         description: stateData.description,
@@ -376,6 +379,12 @@ const ProductDescription = () => {
     ? Math.round(((selectedMrp - selectedSellingPrice) / selectedMrp) * 100)
     : 0;
 
+  const productImages = (product.images?.length > 0 ? product.images : null)
+    || (product.image_url ? [product.image_url] : []);
+
+  const prevImage = () => setActiveImageIndex(i => (i - 1 + productImages.length) % productImages.length);
+  const nextImage = () => setActiveImageIndex(i => (i + 1) % productImages.length);
+
   return (
     <>
       {/* Simple Navigation Bar - Mobile Only */}
@@ -401,13 +410,40 @@ const ProductDescription = () => {
         {/* Desktop Layout */}
         <div className="hidden md:block max-w-7xl mx-auto px-4 py-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Left Column - Image */}
+            {/* Left Column - Image Carousel */}
             <div>
-              <img
-                src={product.image_url}
-                alt={product.name}
-                className="w-full rounded-lg object-cover"
-              />
+              <div className="relative rounded-lg overflow-hidden bg-gray-100">
+                <img
+                  src={productImages[activeImageIndex]}
+                  alt={product.name}
+                  className="w-full object-cover"
+                  style={{ minHeight: '300px', maxHeight: '500px', objectFit: 'contain' }}
+                  onError={e => { e.target.src = ''; }}
+                />
+                {productImages.length > 1 && (
+                  <>
+                    <button onClick={prevImage} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 rounded-full w-9 h-9 flex items-center justify-center shadow hover:bg-opacity-100 transition-all">
+                      <i className="ri-arrow-left-s-line text-xl text-gray-700"></i>
+                    </button>
+                    <button onClick={nextImage} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 rounded-full w-9 h-9 flex items-center justify-center shadow hover:bg-opacity-100 transition-all">
+                      <i className="ri-arrow-right-s-line text-xl text-gray-700"></i>
+                    </button>
+                  </>
+                )}
+              </div>
+              {productImages.length > 1 && (
+                <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+                  {productImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveImageIndex(idx)}
+                      className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${activeImageIndex === idx ? 'border-[#FFC107]' : 'border-gray-200 opacity-60 hover:opacity-100'}`}
+                    >
+                      <img src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Right Column - Product Details */}
@@ -545,10 +581,10 @@ const ProductDescription = () => {
                 
                 {showProductDetails && (
                   <div className="px-4 pb-4 border-t border-gray-200 pt-4">
-                    {product.description && (
+                    {product.description && product.description.replace(/<[^>]*>/g, '').trim() && (
                       <div className="mb-4">
                         <h3 className="text-base font-semibold text-gray-900 mb-2">Description</h3>
-                        <p className="text-sm text-gray-600 leading-relaxed">{product.description}</p>
+                        <div className="text-sm text-gray-600 leading-relaxed prose max-w-none" dangerouslySetInnerHTML={{ __html: product.description }} />
                       </div>
                     )}
                     
@@ -557,7 +593,7 @@ const ProductDescription = () => {
                         <h3 className="text-base font-semibold text-gray-900 mb-2">Pricing Details</h3>
                         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                           <div className="flex justify-between items-center">
-                            <span className="text-sm text-gray-600">Weight</span>
+                            <span className="text-sm text-gray-600">Variant</span>
                             <span className="text-sm font-semibold text-gray-900">{selectedVariant.weight}</span>
                           </div>
                           <div className="flex justify-between items-center">
@@ -722,13 +758,49 @@ const ProductDescription = () => {
         <div className="md:hidden">
           {/* Product Container */}
           <div className="max-w-7xl mx-auto px-4">
-          {/* Product Image */}
+          {/* Product Image Carousel */}
           <div className="w-full mb-3">
-            <img
-              src={product.image_url}
-              alt={product.name}
-              className="w-full rounded-lg object-cover"
-            />
+            <div className="relative rounded-lg overflow-hidden bg-gray-100">
+              <img
+                src={productImages[activeImageIndex]}
+                alt={product.name}
+                className="w-full object-contain"
+                style={{ minHeight: '240px', maxHeight: '360px' }}
+                onError={e => { e.target.src = ''; }}
+              />
+              {productImages.length > 1 && (
+                <>
+                  <button onClick={prevImage} className="absolute left-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 rounded-full w-8 h-8 flex items-center justify-center shadow">
+                    <i className="ri-arrow-left-s-line text-lg text-gray-700"></i>
+                  </button>
+                  <button onClick={nextImage} className="absolute right-2 top-1/2 -translate-y-1/2 bg-white bg-opacity-80 rounded-full w-8 h-8 flex items-center justify-center shadow">
+                    <i className="ri-arrow-right-s-line text-lg text-gray-700"></i>
+                  </button>
+                  <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5">
+                    {productImages.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setActiveImageIndex(idx)}
+                        className={`w-2 h-2 rounded-full transition-all ${activeImageIndex === idx ? 'bg-[#FFC107] w-4' : 'bg-white bg-opacity-70'}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            {productImages.length > 1 && (
+              <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                {productImages.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveImageIndex(idx)}
+                    className={`flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden border-2 transition-all ${activeImageIndex === idx ? 'border-[#FFC107]' : 'border-gray-200 opacity-60'}`}
+                  >
+                    <img src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
             {/* Rating Badge */}
             {productReviews.overallReviews > 0 && (
               <div className="flex items-center gap-2 mt-2">
@@ -827,10 +899,10 @@ const ProductDescription = () => {
             {showProductDetails && (
               <div className="px-3 pb-3 border-t border-gray-200 pt-3">
                 {/* Product Description */}
-                {product.description && (
+                {product.description && product.description.replace(/<[^>]*>/g, '').trim() && (
                   <div className="mb-3">
                     <h3 className="text-sm font-semibold text-gray-900 mb-1">Description</h3>
-                    <p className="text-xs text-gray-600 leading-relaxed">{product.description}</p>
+                    <div className="text-xs text-gray-600 leading-relaxed prose max-w-none" dangerouslySetInnerHTML={{ __html: product.description }} />
                   </div>
                 )}
                 
@@ -840,7 +912,7 @@ const ProductDescription = () => {
                     <h3 className="text-sm font-semibold text-gray-900 mb-2">Pricing Details</h3>
                     <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-600">Weight</span>
+                        <span className="text-xs text-gray-600">Variant</span>
                         <span className="text-xs font-semibold text-gray-900">{selectedVariant.weight}</span>
                       </div>
                       <div className="flex justify-between items-center">

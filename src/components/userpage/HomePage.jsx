@@ -1868,7 +1868,7 @@ const handleAddToCart = async (product) => {
         weight: firstVariant?.weight || 'N/A',
         price: firstVariant?.selling_price || firstVariant?.price || 0,
         originalPrice: firstVariant?.mrp || (firstVariant?.price * 1.2) || 0,
-        discount: firstVariant?.mrp && firstVariant?.price 
+        discount: firstVariant?.mrp && firstVariant?.price
           ? Math.round(((firstVariant.mrp - firstVariant.price) / firstVariant.mrp) * 100)
           : 0,
         image: product.image_url || product.thumbnail_url || '',
@@ -2028,8 +2028,8 @@ const handleAddToCart = async (product) => {
                               className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
                             >
                               <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden" style={{ backgroundColor: tileColors[idx % tileColors.length] }}>
-                                {category.image_url ? (
-                                  <img src={category.image_url} alt={categoryName} className="w-12 h-12 object-contain" loading="lazy" />
+                                {(category.image_url || category.category?.image_url) ? (
+                                  <img src={category.image_url || category.category?.image_url} alt={categoryName} className="w-12 h-12 object-contain" loading="lazy" />
                                 ) : (
                                   <i className={`${category.icon || 'ri-restaurant-line'} text-2xl text-gray-600`}></i>
                                 )}
@@ -2052,8 +2052,8 @@ const handleAddToCart = async (product) => {
                               className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
                             >
                               <div className="w-full aspect-square rounded-2xl flex items-center justify-center overflow-hidden" style={{ backgroundColor: tileColors[idx % tileColors.length] }}>
-                                {category.image_url ? (
-                                  <img src={category.image_url} alt={categoryName} className="w-3/4 h-3/4 object-contain" loading="lazy" />
+                                {(category.image_url || category.category?.image_url) ? (
+                                  <img src={category.image_url || category.category?.image_url} alt={categoryName} className="w-3/4 h-3/4 object-contain" loading="lazy" />
                                 ) : (
                                   <i className={`${category.icon || 'ri-restaurant-line'} text-3xl text-gray-600`}></i>
                                 )}

@@ -35,7 +35,7 @@ const PlaceOrderPage = () => {
     promo_discount: 0, 
     savings: 0, 
     total: 0,
-    handling_fee: 10,
+    handling_fee: 0,
     delivery_charge: 0,
     igst_rate: 0,
     cgst_rate: 0,
@@ -107,7 +107,7 @@ const PlaceOrderPage = () => {
       const subtotal_mrp = cartItems.reduce((sum, item) => sum + ((item.mrp || item.original_price || 0) * (item.quantity || 1)), 0);
       const subtotal_selling_price = cartItems.reduce((sum, item) => sum + ((item.selling_price || item.price || 0) * (item.quantity || 1)), 0);
       const product_discount = subtotal_mrp - subtotal_selling_price;
-      const handling_fee = 10;
+      const handling_fee = 0;
       const grand_total = subtotal_selling_price + handling_fee;
       
       setCartTotals({

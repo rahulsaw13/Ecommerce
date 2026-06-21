@@ -123,12 +123,22 @@ const ViewCart = () => {
     if (cart.length > 0 && products.length > 0) {
       const enriched = cart.map((cartItem) => {
         const product = products.find(p => p.id === cartItem.product_id);
-        const variant = product?.variants?.find(v => v.productVariantId === cartItem.product_variant_id)
+        const variant = product?.variants?.find(v =>
+                       v.productVariantId === cartItem.product_variant_id &&
+                       (!cartItem.weight || v.weight === cartItem.weight)
+                     ) || product?.variants?.find(v => v.productVariantId === cartItem.product_variant_id)
                      || product?.variants?.[0] || {};
 
-        const fallbackCartPrice = Number(cartItem?.price || 0);
-        const resolvedSellingPrice = Number(variant?.discountedPrice || variant?.actualPrice || fallbackCartPrice || 0);
-        const resolvedMrp = Number(variant?.actualPrice || variant?.discountedPrice || fallbackCartPrice || 0);
+        // Cart API price is authoritative (from product_price table).
+        // Product store price (from stock_master batch price) can differ and should only be a fallback.
+        const cartSellingPrice = Number(cartItem?.selling_price || cartItem?.price || 0);
+        const cartMrp = Number(cartItem?.mrp || 0);
+        const resolvedSellingPrice = cartSellingPrice > 0
+          ? cartSellingPrice
+          : Number(variant?.discountedPrice || variant?.actualPrice || 0);
+        const resolvedMrp = cartMrp > 0
+          ? cartMrp
+          : Number(variant?.actualPrice || variant?.discountedPrice || resolvedSellingPrice || 0);
 
         return {
           ...cartItem,

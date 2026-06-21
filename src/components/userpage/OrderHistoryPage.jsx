@@ -304,11 +304,7 @@ const OrderHistoryPage = () => {
   };
 
   const canRaiseReturn = (order) => {
-    if (order.orderStatus?.toLowerCase() !== 'delivered') return false;
-    const deliveredAt = normalizeDateValue(order.orderFulfilledDate || order.createdAt);
-    if (!deliveredAt) return true;
-    const hoursSince = (Date.now() - deliveredAt.getTime()) / (1000 * 60 * 60);
-    return hoursSince <= 48;
+    return order.orderStatus?.toLowerCase() === 'delivered';
   };
 
   const handleOpenReturn = (order) => {
@@ -764,7 +760,7 @@ const OrderHistoryPage = () => {
           <div className="p-2 space-y-5">
             <p className="text-sm text-gray-600">
               Raise a return request for order <span className="font-semibold text-gray-800">#{returnOrder?.orderId}</span>.
-              Returns must be raised within <span className="font-semibold">48 hours</span> of delivery.
+              Our team will review your request within 24–48 hours.
             </p>
 
             <div>

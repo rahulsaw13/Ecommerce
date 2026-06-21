@@ -185,7 +185,6 @@ const CategoryProductsPage = () => {
     try {
       const userDetails = JSON.parse(localStorage.getItem('userDetails'));
       if (!userDetails?.id) return;
-      // Dispatch Redux getCart â€” updates Redux state (Header count) and returns items
       const result = await dispatch(getCart()).unwrap();
       const items = result?.data?.items || result?.items || [];
       const cartMap = {};
@@ -193,9 +192,14 @@ const CategoryProductsPage = () => {
       items.forEach(item => {
         const productId = item.product_id;
         const weight = item.weight;
-        const cartKey = weight ? `${productId}_${weight}` : productId;
+        const variantId = item.product_variant_id;
+        const cartKey = weight ? `${productId}_${weight}` : String(productId);
         cartMap[cartKey] = item.quantity;
         idMap[cartKey] = item.cart_item_id;
+        if (variantId != null) {
+          cartMap[`variant_${variantId}`] = item.quantity;
+          idMap[`variant_${variantId}`] = item.cart_item_id;
+        }
       });
       setCartItems(cartMap);
       setCartItemIds(idMap);
@@ -313,6 +317,7 @@ const CategoryProductsPage = () => {
         user_id: userDetails?.id,
         product_variant_id: variant.productVariantId,
         quantity: 1,
+        selected_weight: variant.weight || null,
       };
 
       const response = await allApiWithHeaderToken(API_CONSTANTS.CART_ADD_URL, body, "post");
@@ -705,7 +710,7 @@ const CategoryProductsPage = () => {
                                     }}
                                     className="text-green-600 hover:text-green-700 font-bold text-base md:text-lg"
                                   >
-                                    −
+                                    -
                                   </button>
                                   <span className="text-gray-900 font-bold text-[11px] md:text-sm px-1 md:px-3">
                                     {cartItems[cartKey]}
@@ -780,13 +785,18 @@ const CategoryProductsPage = () => {
                   ? Math.round(((mrp - sellingPrice) / mrp) * 100)
                   : 0;
                 
-                const cartItem = cartItems[variant.product_id];
-                const key = `${variant.product_id}_${variant.weight}`;
+                const vKey = variant.weight
+                  ? `${variant.product_id || selectedProduct?.id}_${variant.weight}`
+                  : variant.productVariantId != null
+                    ? `variant_${variant.productVariantId}`
+                    : null;
+                const cartItem = vKey ? cartItems[vKey] : null;
+                const key = vKey || `${variant.product_id}_${variant.weight}`;
                 const isUpdating = updatingQuantity[key];
 
                 return (
                   <div
-                    key={variant.product_id}
+                    key={variant.weight ? `${variant.productVariantId}_${variant.weight}` : (variant.productVariantId ?? variant.product_id)}
                     className="border border-gray-200 rounded-lg p-4 hover:border-green-500 hover:bg-green-50 transition-all"
                   >
                     <div className="flex items-center justify-between">
@@ -818,17 +828,17 @@ const CategoryProductsPage = () => {
                       ) : cartItem ? (
                         <div className="flex items-center gap-2 bg-white rounded-lg border-2 border-green-500 px-3 py-1">
                           <button
-                            onClick={() => updateCartQuantity(variant.product_id, cartItem - 1)}
+                            onClick={() => updateCartQuantity(key, cartItem - 1)}
                             disabled={isUpdating}
                             className="text-green-600 hover:text-green-700 font-bold text-lg disabled:opacity-50"
                           >
-                            âˆ’
+                            -
                           </button>
                           <span className="text-gray-900 font-bold text-sm px-2">
                             {cartItem}
                           </span>
                           <button
-                            onClick={() => updateCartQuantity(variant.product_id, cartItem + 1)}
+                            onClick={() => updateCartQuantity(key, cartItem + 1)}
                             disabled={isUpdating}
                             className="text-green-600 hover:text-green-700 font-bold text-lg disabled:opacity-50"
                           >

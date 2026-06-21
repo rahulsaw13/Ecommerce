@@ -36,6 +36,8 @@ const DeliveryOrderDetails = () => {
   // QR code state
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [qrRevealed, setQrRevealed] = useState(false);
+  const [branchUpiId, setBranchUpiId] = useState(process.env.REACT_APP_UPI_ID || 'merchant@upi');
+  const [branchUpiName, setBranchUpiName] = useState(process.env.REACT_APP_UPI_MERCHANT_NAME || 'Srirammart');
   
   // Camera state
   const [showCameraDialog, setShowCameraDialog] = useState(false);
@@ -66,7 +68,16 @@ const DeliveryOrderDetails = () => {
 
   useEffect(() => {
     fetchOrderDetails();
+    fetchBranchSettings();
   }, [orderId]);
+
+  const fetchBranchSettings = async () => {
+    try {
+      const res = await allApiWithHeaderToken('api/v1/user_dashboard/branch_settings', '', 'get');
+      if (res?.data?.upi_id) setBranchUpiId(res.data.upi_id);
+      if (res?.data?.branch_name) setBranchUpiName(res.data.branch_name);
+    } catch (_) {}
+  };
 
   const fetchOrderDetails = async () => {
     try {
@@ -228,11 +239,9 @@ const DeliveryOrderDetails = () => {
 
   // Generate UPI payment string
   const generateUpiString = () => {
-    const upiId = process.env.REACT_APP_UPI_ID || 'merchant@upi';
-    const merchantName = process.env.REACT_APP_UPI_MERCHANT_NAME || 'Srirammart';
     const amount = parseFloat(order.total_price).toFixed(2);
     const transactionNote = `Order #${order.id}`;
-    return `upi://pay?pa=${upiId}&pn=${encodeURIComponent(merchantName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+    return `upi://pay?pa=${branchUpiId}&pn=${encodeURIComponent(branchUpiName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
   };
 
   // Open camera for specific action
@@ -995,7 +1004,7 @@ const DeliveryOrderDetails = () => {
           <div className="w-full text-center bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg py-2.5 px-4 border border-gray-200">
             <p className="text-[10px] text-gray-500 mb-0.5 uppercase tracking-wider">Merchant UPI ID</p>
             <p className="text-sm font-mono font-bold text-gray-800 break-all">
-              {process.env.REACT_APP_UPI_ID || 'merchant@upi'}
+              {branchUpiId}
             </p>
           </div>
 

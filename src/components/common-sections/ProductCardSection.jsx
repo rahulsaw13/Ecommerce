@@ -20,15 +20,21 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
   const [updatingQuantity, setUpdatingQuantity] = useState({});
 
   // Build local cartItems lookup from a cart array
-  // Key: `${product_id}_${weight}` — must match getCartItem() key
   const updateCartItemsFromArray = (cartArray) => {
     const items = {};
     cartArray.forEach(item => {
       const key = item.weight ? `${item.product_id}_${item.weight}` : String(item.product_id);
       items[key] = { quantity: item.quantity, cart_item_id: item.cart_item_id };
+      // Also index by product_variant_id for reliable per-variant lookup
+      if (item.product_variant_id != null) {
+        items[`variant_${item.product_variant_id}`] = { quantity: item.quantity, cart_item_id: item.cart_item_id };
+      }
     });
     setCartItems(items);
   };
+
+  const getCartItemByVariantId = (variantId) =>
+    variantId != null ? cartItems[`variant_${variantId}`] : null;
 
   // Sync from Redux cart whenever it changes (covers initial load + updates)
   useEffect(() => {
@@ -64,13 +70,18 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
     setSelectedProduct(null);
   };
 
-  // Get cart item for a product
+  // Get cart item for a product (product card — allows weight fallback for single-variant)
   const getCartItem = (productId, weight) => {
     if (weight) {
       return cartItems[`${productId}_${weight}`] || cartItems[String(productId)];
     }
     return cartItems[String(productId)];
   };
+
+  // Exact lookup for variant modal — no product-level fallback to avoid cross-variant contamination
+  const getCartItemForVariant = (productId, variantId, weight) =>
+    cartItems[`variant_${variantId}`] ||
+    (weight ? cartItems[`${productId}_${weight}`] : null);
 
   // Update quantity in cart
   const updateQuantity = async (productId, weight, newQuantity, cartItemId) => {
@@ -296,9 +307,19 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
                   const discount = mrp && sellingPrice && mrp > sellingPrice
                     ? Math.round(((mrp - sellingPrice) / mrp) * 100)
                     : 0;
-                  
-                  const cartItem = getCartItem(selectedProduct.originalProduct?.id || selectedProduct.id, variant.weight);
-                  const key = `${selectedProduct.originalProduct?.id || selectedProduct.id}_${variant.weight}`;
+
+                  const productId = selectedProduct.originalProduct?.id || selectedProduct.id;
+                  // Match by product_variant_id first (most reliable), then by product+weight
+                  const reduxCartItem = reduxCart.find(ci =>
+                    (variant.productVariantId != null && ci.product_variant_id != null &&
+                      Number(ci.product_variant_id) === Number(variant.productVariantId)) ||
+                    (ci.product_id != null && String(ci.product_id) === String(productId) &&
+                      ci.weight != null && ci.weight === variant.weight)
+                  );
+                  const cartItem = reduxCartItem
+                    ? { quantity: reduxCartItem.quantity, cart_item_id: reduxCartItem.cart_item_id }
+                    : null;
+                  const key = `${productId}_${variant.weight}`;
                   const isUpdating = updatingQuantity[key];
 
                   const variantInStock = variant.in_stock !== false;
@@ -346,13 +367,13 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
                         ) : cartItem ? (
                           <div className="flex items-center gap-1 md:gap-2 bg-white rounded-lg border-2 border-yellow-400 px-2 md:px-3 py-1">
                             <button
-                              onClick={() => updateQuantity(selectedProduct.originalProduct?.id || selectedProduct.id, variant.weight, cartItem.quantity - 1, cartItem.cart_item_id)}
+                              onClick={() => updateQuantity(productId, variant.weight, cartItem.quantity - 1, cartItem.cart_item_id)}
                               disabled={isUpdating}
                               className="text-yellow-500 hover:text-yellow-600 font-bold text-base md:text-lg disabled:opacity-50"
-                            >−</button>
+                            >-</button>
                             <span className="text-gray-900 font-bold text-xs md:text-sm px-1 md:px-2">{cartItem.quantity}</span>
                             <button
-                              onClick={() => updateQuantity(selectedProduct.originalProduct?.id || selectedProduct.id, variant.weight, cartItem.quantity + 1, cartItem.cart_item_id)}
+                              onClick={() => updateQuantity(productId, variant.weight, cartItem.quantity + 1, cartItem.cart_item_id)}
                               disabled={isUpdating || (variantAvailableQty !== null && cartItem.quantity >= variantAvailableQty)}
                               className="text-yellow-500 hover:text-yellow-600 font-bold text-base md:text-lg disabled:opacity-50"
                             >+</button>

@@ -14,6 +14,7 @@ export const ROUTES_CONSTANTS = {
     ABOUT_US: "/about-us",
     TRACK_ORDER: "/track-order",
     ORDER_HISTORY: "/order-history",
+    MY_RETURNS: "/my-returns",
     CONTACT_US: "/contact-us",
     TERMS_AND_CONDITION: "/terms-condition",
     SHIPPING_POLICY: "/shipping-policy",

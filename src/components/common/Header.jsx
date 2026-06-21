@@ -1089,6 +1089,19 @@ const Header = ({ onSearch }) => {
       {
         template: () => (
           <button
+            onClick={() => navigate('/my-returns')}
+            className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-gray-50 transition-colors group"
+          >
+            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center group-hover:bg-gray-200 transition-colors">
+              <i className="ri-arrow-go-back-line text-gray-600 text-base"></i>
+            </div>
+            <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">My Returns</span>
+          </button>
+        )
+      },
+      {
+        template: () => (
+          <button
             onClick={() => navigate('/track-order')}
             className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-gray-50 transition-colors group"
           >

@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { logoutUser } from "../../redux/slices/authSlice";
 import { Toast } from "primereact/toast";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
@@ -23,6 +25,7 @@ const normalizeDate = (value) => {
 const DeliveryDashboard = () => {
   const toast = useRef(null);
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const menuRight = useRef(null);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -124,7 +127,8 @@ const DeliveryDashboard = () => {
     }
   ];
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await dispatch(logoutUser()).unwrap(); } catch (_) {}
     localStorage.removeItem('token');
     localStorage.removeItem('userDetails');
     localStorage.removeItem('cart');

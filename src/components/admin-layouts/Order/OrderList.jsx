@@ -1441,7 +1441,7 @@ const OrderList = ({search}) => {
     { header: "Order Info & Dates", body: orderInfoBodyTemplate, style: { width: "160px"}},
     { header: "Delivery Date / By", body: actualDeliveryDateBodyTemplate, style: { width: "160px"}},
     { header: "Status", body: paymentAndOrderStatusBodyTemplate, style: { width: "150px"}},
-    // { header: t("action"), body: actionBodyTemplate, style: { width: "220px"}, headerStyle: { paddingLeft: '3%' } },
+    { header: t("action"), body: actionBodyTemplate, style: { width: "220px"}, headerStyle: { paddingLeft: '3%' } },
   ];
 
   const editOrder = (item) => {
