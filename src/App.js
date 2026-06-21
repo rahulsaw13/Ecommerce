@@ -50,6 +50,7 @@ const PrivacyPolicyPage = lazy(() => import("@userpage-pages/PrivacyPolicyPage")
 const ContactUsPage = lazy(() => import("@userpage-pages/ContactUsPage"));
 const TrackOrderPage = lazy(() => import("@userpage-pages/TrackOrderPage"));
 const OrderHistoryPage = lazy(() => import("@userpage-pages/OrderHistoryPage"));
+const MyReturnsPage = lazy(() => import("@userpage-pages/MyReturnsPage"));
 const PrintInvoiceComponent = lazy(() => import("@adminpage-layouts/Order/PrintInvoiceComponent"));
 const CategoryProductsPage = lazy(() => import("@userpage-pages/CategoryProductsPage"));
 const DealsPage = lazy(() => import("@userpage-pages/DealsPage"));
@@ -120,6 +121,7 @@ function App() {
           <Route path="/contact-us" element={<ContactUsPage />}/>
           <Route path="/track-order" element={<TrackOrderPage />}/>
           <Route path="/order-history" element={<OrderHistoryPage />}/>
+          <Route path="/my-returns" element={<MyReturnsPage />}/>
           <Route path="/print-invoice/:id" element={<PrintInvoiceComponent />}/>
           <Route path="/category" element={<CategoryProductsPage />}/>
           <Route path="/deals/:id" element={<DealsPage />}/>
