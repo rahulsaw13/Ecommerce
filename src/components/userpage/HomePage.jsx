@@ -247,12 +247,12 @@
 //                   )}
 //                   <div className="absolute -bottom-3 md:-bottom-6 left-1/2 transform -translate-x-1/2 bg-white rounded-full w-6 h-6 md:w-12 md:h-12 flex items-center justify-center shadow-lg border-2 md:border-3 border-yellow-400">
 //                     <span className="text-[8px] md:text-sm font-bold text-gray-700">
-//                       {product.name ? product.name.substring(0, 2).toUpperCase() : 'BR'}
+//                       {product.name ? decodeHtml(product.name).substring(0, 2).toUpperCase() : 'BR'}
 //                     </span>
 //                   </div>
 //                 </div>
 //                 <div className="bg-[#FFB700] rounded-b-2xl p-1.5 md:p-4 pt-4 md:pt-8 text-center flex flex-col items-center justify-center h-16 md:h-32">
-//                   <h3 className="text-[9px] md:text-[11px] font-bold text-gray-900 mb-0.5 md:mb-1 line-clamp-2 px-1">{product.name}</h3>
+//                   <h3 className="text-[9px] md:text-[11px] font-bold text-gray-900 mb-0.5 md:mb-1 line-clamp-2 px-1">{decodeHtml(product.name)}</h3>
 //                   <p className="text-[8px] md:text-[9px] text-gray-700 font-medium">Shop Now</p>
 //                 </div>
 //               </div>
@@ -1053,12 +1053,12 @@
 //                   )}
 //                   <div className="absolute -bottom-3 md:-bottom-6 left-1/2 transform -translate-x-1/2 bg-white rounded-full w-6 h-6 md:w-12 md:h-12 flex items-center justify-center shadow-lg border-2 md:border-3 border-yellow-400">
 //                     <span className="text-[8px] md:text-sm font-bold text-gray-700">
-//                       {product.name ? product.name.substring(0, 2).toUpperCase() : 'BR'}
+//                       {product.name ? decodeHtml(product.name).substring(0, 2).toUpperCase() : 'BR'}
 //                     </span>
 //                   </div>
 //                 </div>
 //                 <div className="bg-[#FFB700] rounded-b-2xl p-1.5 md:p-4 pt-4 md:pt-8 text-center flex flex-col items-center justify-center h-16 md:h-32">
-//                   <h3 className="text-[9px] md:text-[11px] font-bold text-gray-900 mb-0.5 md:mb-1 line-clamp-2 px-1">{product.name}</h3>
+//                   <h3 className="text-[9px] md:text-[11px] font-bold text-gray-900 mb-0.5 md:mb-1 line-clamp-2 px-1">{decodeHtml(product.name)}</h3>
 //                   <p className="text-[8px] md:text-[9px] text-gray-700 font-medium">Shop Now</p>
 //                 </div>
 //               </div>
@@ -1430,7 +1430,7 @@
 
 
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import toast, { Toaster } from 'react-hot-toast';
@@ -1466,8 +1466,52 @@ import {
   removeFromCart,
   updateCartQuantity
 } from '../../redux/slices/cartSlice';
+import { decodeHtml } from "@helper";
+import { allApi } from '@api/api';
+import { API_CONSTANTS } from '@constants/apiurl';
 
-const HomePage = () => {
+const TILE_COLORS = ['#fef9c3','#dcfce7','#dbeafe','#fce7f3','#ede9fe','#ffedd5','#d1fae5','#fef3c7','#e0f2fe','#f3e8ff'];
+
+function CategoryTabBar({ categories, activeCategoryId, onCategoryChange }) {
+  const navigate = useNavigate();
+  return (
+    <div className="flex overflow-x-auto scrollbar-hide border-b border-gray-100">
+      <div
+        onClick={() => onCategoryChange ? onCategoryChange(null, null) : navigate('/')}
+        className={`flex flex-col items-center gap-0.5 px-4 py-2 cursor-pointer flex-shrink-0 border-b-2 transition-colors ${
+          !activeCategoryId ? 'border-[#0c831f] text-[#0c831f]' : 'border-transparent text-gray-500 hover:text-gray-800'
+        }`}
+      >
+        <i className="ri-apps-line text-xl"></i>
+        <span className="text-[11px] font-semibold whitespace-nowrap">All</span>
+      </div>
+      {categories.map((category) => {
+        const categoryName = category.name || category.category?.name;
+        const categoryId = category.id || category.category?.id;
+        const imageUrl = category.image_url || category.category?.image_url;
+        const isActive = activeCategoryId === categoryId;
+        return (
+          <div
+            key={categoryId || categoryName}
+            onClick={() => onCategoryChange ? onCategoryChange(categoryId, categoryName) : navigate(`/category?id=${categoryId}`)}
+            className={`flex flex-col items-center gap-0.5 px-4 py-2 cursor-pointer flex-shrink-0 border-b-2 transition-colors ${
+              isActive ? 'border-[#0c831f] text-[#0c831f]' : 'border-transparent text-gray-500 hover:text-gray-800'
+            }`}
+          >
+            {imageUrl ? (
+              <img src={imageUrl} alt={categoryName} className="w-6 h-6 object-contain" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+            ) : (
+              <i className={`${category.icon || 'ri-store-3-line'} text-xl`}></i>
+            )}
+            <span className="text-[11px] font-semibold whitespace-nowrap">{decodeHtml(categoryName)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function HomePage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   
@@ -1494,14 +1538,25 @@ const HomePage = () => {
   const [carouselImages, setCarouselImages] = useState([]);
   const [headerBanner, setHeaderBanner] = useState(null);
   const [footerBanner, setFooterBanner] = useState(null);
+  const [banners, setBanners] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [cartItemCount, setCartItemCount] = useState(0);
   const [addingToCart, setAddingToCart] = useState(false);
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
   
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const productsPerPage = 8; // Show 8 products per page (4 per row in desktop, 2 per row in mobile)
+  // Infinite scroll state
+  const [visibleCount, setVisibleCount] = useState(20);
+  const loadMoreRef = useRef(null);
+
+  // Active category filter (sidebar / tab bar)
+  const [activeCategoryId, setActiveCategoryId] = useState(null);
+  const [activeCategoryName, setActiveCategoryName] = useState(null);
+
+  // Filtered + visible products — declared early so useEffect dep arrays can reference them
+  const filteredProducts = activeCategoryName
+    ? products.filter(p => p.category_name === activeCategoryName)
+    : products;
+  const currentProducts = filteredProducts.slice(0, visibleCount);
 
   // Selected variant index per product for the All Products grid
   const [selectedVariants, setSelectedVariants] = useState({});
@@ -1668,6 +1723,11 @@ const handleAddToCart = async (product) => {
     dispatch(fetchAllActiveProducts());
     dispatch(fetchAllCategories());
     dispatch(fetchHomeSections());
+    allApi.get(API_CONSTANTS.BANNERS_GET).then(res => {
+      if (res.data?.banners?.length > 0) {
+        setBanners(res.data.banners.map(b => ({ url: b.logo })));
+      }
+    }).catch(() => {});
 
     return () => {
       dispatch(clearProducts());
@@ -1686,10 +1746,10 @@ const handleAddToCart = async (product) => {
     return () => window.removeEventListener('userLocationChanged', handleLocationChange);
   }, [dispatch]);
 
-  // Reset to page 1 when products change
+  // Reset visible count when products or active category changes
   useEffect(() => {
-    setCurrentPage(1);
-  }, [products]);
+    setVisibleCount(20);
+  }, [products, activeCategoryId]);
 
   // Fetch cart data when component mounts and user is logged in
   useEffect(() => {
@@ -1709,6 +1769,20 @@ const handleAddToCart = async (product) => {
       }
     }
   }, [homeSections]);
+
+  // Infinite scroll — load 20 more when sentinel enters viewport
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount(prev => Math.min(prev + 20, filteredProducts.length));
+        }
+      },
+      { threshold: 0.1 }
+    );
+    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [filteredProducts.length]);
 
   const handleSearch = (query) => {
     setSearchQuery(query);
@@ -1763,7 +1837,7 @@ const handleAddToCart = async (product) => {
     return (
       <section className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">{section.name}</h2>
+          <h2 className="text-xl font-bold text-gray-900">{decodeHtml(section.name)}</h2>
           <button
             onClick={() => navigate('/products')}
             className="text-sm text-yellow-600 hover:text-yellow-700 font-medium"
@@ -1781,25 +1855,25 @@ const handleAddToCart = async (product) => {
                 className="cursor-pointer hover:opacity-90 transition-all"
               >
                 <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-t-2xl p-2 md:p-6 h-20 md:h-40 flex items-center justify-center relative">
-                  {imageUrl ? (
-                    <img 
-                      src={imageUrl} 
-                      alt={product.name} 
-                      className="w-full h-full object-contain"
+                  <i className="ri-store-line text-2xl md:text-5xl text-gray-400 absolute"></i>
+                  {imageUrl && (
+                    <img
+                      src={imageUrl}
+                      alt={product.name}
+                      className="relative z-10 w-full h-full object-contain"
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <i className="ri-store-line text-2xl md:text-5xl text-gray-400"></i>
-                    </div>
                   )}
                   <div className="absolute -bottom-3 md:-bottom-6 left-1/2 transform -translate-x-1/2 bg-white rounded-full w-6 h-6 md:w-12 md:h-12 flex items-center justify-center shadow-lg border-2 md:border-3 border-yellow-400">
                     <span className="text-[8px] md:text-sm font-bold text-gray-700">
-                      {product.name ? product.name.substring(0, 2).toUpperCase() : 'BR'}
+                      {product.name ? decodeHtml(product.name).substring(0, 2).toUpperCase() : 'BR'}
                     </span>
                   </div>
                 </div>
                 <div className="bg-[#FFB700] rounded-b-2xl p-1.5 md:p-4 pt-4 md:pt-8 text-center flex flex-col items-center justify-center h-16 md:h-32">
-                  <h3 className="text-[9px] md:text-[11px] font-bold text-gray-900 mb-0.5 md:mb-1 line-clamp-2 px-1">{product.name}</h3>
+                  <h3 className="text-[9px] md:text-[11px] font-bold text-gray-900 mb-0.5 md:mb-1 line-clamp-2 px-1">{decodeHtml(product.name)}</h3>
                   <p className="text-[8px] md:text-[9px] text-gray-700 font-medium">Shop Now</p>
                 </div>
               </div>
@@ -1817,7 +1891,7 @@ const handleAddToCart = async (product) => {
     return (
       <section className="mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-900">{section.name}</h2>
+          <h2 className="text-xl font-bold text-gray-900">{decodeHtml(section.name)}</h2>
           <button
             onClick={() => navigate('/products')}
             className="text-sm text-yellow-600 hover:text-yellow-700 font-medium"
@@ -1834,17 +1908,17 @@ const handleAddToCart = async (product) => {
                 onClick={() => handleProductClick(product)}
                 className="overflow-hidden cursor-pointer transition-all p-2 md:p-3"
               >
-                <div className="relative mb-1 md:mb-2">
-                  {imageUrl ? (
-                    <img 
-                      src={imageUrl} 
-                      alt={product.name} 
-                      className="w-full h-16 md:h-24 object-contain"
+                <div className="relative mb-1 md:mb-2 w-full h-16 md:h-24 bg-gray-100 flex items-center justify-center">
+                  <i className="ri-image-line text-xl md:text-2xl text-gray-300 absolute"></i>
+                  {imageUrl && (
+                    <img
+                      src={imageUrl}
+                      alt={product.name}
+                      className="relative z-10 w-full h-full object-contain"
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
-                  ) : (
-                    <div className="w-full h-16 md:h-24 bg-gray-100 flex items-center justify-center">
-                      <i className="ri-image-line text-xl md:text-2xl text-gray-300"></i>
-                    </div>
                   )}
                 </div>
               </div>
@@ -1923,18 +1997,6 @@ const handleAddToCart = async (product) => {
   const hasProductsInSections = homeSections.some(section => section.products && section.products.length > 0);
   const showDefaultProductGrid = hasProducts && !hasProductsInSections;
 
-  // Pagination calculations
-  const indexOfLastProduct = currentPage * productsPerPage;
-  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
-  const currentProducts = products.slice(indexOfFirstProduct, indexOfLastProduct);
-  const totalPages = Math.ceil(products.length / productsPerPage);
-
-  const handlePageChange = (pageNumber) => {
-    setCurrentPage(pageNumber);
-    // Scroll to top when changing pages
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   // Empty state — only after products have actually been fetched
   if (productsLoaded && !hasProducts && !hasSections) {
     return (
@@ -1993,316 +2055,176 @@ const handleAddToCart = async (product) => {
       
       <Header onSearch={handleSearch} />
       
-      <main className="pt-[160px] md:pt-20 pb-20 md:pb-8">
-        <div className="max-w-[1320px] mx-auto px-4">
-          
-          {/* Debug Info Panel */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 text-xs">
-              <p className="font-semibold">Debug Info:</p>
-              <p>✅ Products in Redux: {products?.length || 0}</p>
-              <p>✅ Categories: {categories?.length || 0}</p>
-              <p>✅ Home Sections: {homeSections?.length || 0}</p>
-              <p>✅ Cart Items: {cartItems?.length || 0}</p>
-              <p>✅ User Logged In: {isUserLoggedIn ? 'Yes' : 'No'}</p>
+      <main className="pt-[160px] md:pt-20 pb-20 md:pb-8 bg-white">
+
+        {/* Mobile sticky category tab bar — navigates to category page */}
+        {hasCategories && (
+          <div className="md:hidden sticky top-[100px] z-30 bg-white border-b border-gray-100 shadow-sm">
+            <CategoryTabBar
+              categories={categories}
+              activeCategoryId={null}
+            />
+          </div>
+        )}
+
+        {/* ── HOMEPAGE VIEW: Blinkit-style full width ── */}
+        <div className="px-3 md:px-6">
+
+          {/* Desktop category tab bar — navigates to category page */}
+          {hasCategories && (
+            <div className="hidden md:block mb-4 mt-2">
+              <CategoryTabBar
+                categories={categories}
+                activeCategoryId={null}
+              />
             </div>
           )}
 
-          {/* Categories Bar */}
-          {hasCategories && (
-            <section className="mb-2 mt-2">
-              <div className="py-3 px-0">
-                {(() => {
-                  const tileColors = ['#fef9c3','#dcfce7','#dbeafe','#fce7f3','#ede9fe','#ffedd5','#d1fae5','#fef3c7','#e0f2fe','#f3e8ff'];
-                  return (
-                    <>
-                      {/* Mobile: horizontal scroll */}
-                      <div className="md:hidden flex gap-3 overflow-x-auto pb-2 scrollbar-hide px-1">
-                        {categories.slice(0, 12).map((category, idx) => {
-                          const categoryName = category.name || category.category?.name;
-                          const categoryId = category.id || category.category?.id;
-                          return (
-                            <div
-                              key={categoryId || categoryName}
-                              onClick={() => navigate(`/category?id=${categoryId}`)}
-                              className="flex flex-col items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
-                            >
-                              <div className="w-16 h-16 rounded-2xl flex items-center justify-center overflow-hidden" style={{ backgroundColor: tileColors[idx % tileColors.length] }}>
-                                {(category.image_url || category.category?.image_url) ? (
-                                  <img src={category.image_url || category.category?.image_url} alt={categoryName} className="w-12 h-12 object-contain" loading="lazy" />
-                                ) : (
-                                  <i className={`${category.icon || 'ri-restaurant-line'} text-2xl text-gray-600`}></i>
-                                )}
-                              </div>
-                              <span className="text-[10px] font-semibold text-gray-700 text-center leading-tight max-w-[64px]">{categoryName}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
+            {/* Hero banner */}
+            <div className="mb-4">
+              {banners.length > 0 ? (
+                <PromoCarousel images={banners} />
+              ) : headerBanner ? (
+                <BannerSection image={headerBanner} alt="Header Banner" className="rounded-2xl overflow-hidden" />
+              ) : (
+                <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-[#0c831f] to-[#15803d] h-44 md:h-60 flex items-center px-6 md:px-10 relative">
+                  <div className="z-10 max-w-xs md:max-w-sm">
+                    <h2 className="text-white text-xl md:text-3xl font-bold mb-1 md:mb-2 leading-tight">Stock up on daily essentials</h2>
+                    <p className="text-green-100 text-xs md:text-sm mb-3 md:mb-4">Get fresh groceries delivered fast to your door</p>
+                    <button onClick={() => window.scrollTo({ top: 600, behavior: 'smooth' })} className="bg-white text-[#0c831f] font-bold px-5 py-2 rounded-xl text-sm hover:bg-green-50 transition">
+                      Shop Now
+                    </button>
+                  </div>
+                  <div className="absolute right-4 md:right-10 top-0 h-full flex items-center opacity-30 md:opacity-50">
+                    <i className="ri-shopping-basket-2-fill text-white" style={{ fontSize: '8rem' }}></i>
+                  </div>
+                </div>
+              )}
+            </div>
 
-                      {/* Desktop: grid */}
-                      <div className="hidden md:grid grid-cols-6 lg:grid-cols-10 gap-3">
-                        {categories.slice(0, 10).map((category, idx) => {
-                          const categoryName = category.name || category.category?.name;
-                          const categoryId = category.id || category.category?.id;
-                          return (
-                            <div
-                              key={categoryId || categoryName}
-                              onClick={() => navigate(`/category?id=${categoryId}`)}
-                              className="flex flex-col items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-                            >
-                              <div className="w-full aspect-square rounded-2xl flex items-center justify-center overflow-hidden" style={{ backgroundColor: tileColors[idx % tileColors.length] }}>
-                                {(category.image_url || category.category?.image_url) ? (
-                                  <img src={category.image_url || category.category?.image_url} alt={categoryName} className="w-3/4 h-3/4 object-contain" loading="lazy" />
-                                ) : (
-                                  <i className={`${category.icon || 'ri-restaurant-line'} text-3xl text-gray-600`}></i>
-                                )}
-                              </div>
-                              <span className="text-xs font-semibold text-gray-700 text-center leading-tight">{categoryName}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </section>
-          )}
-
-          <BannerSection image={headerBanner} alt="Header Banner" className="hidden md:block" />
-
-          {/* Default Product Grid with Pagination */}
-          {showDefaultProductGrid && (
-            <section className="mb-8">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">All Products</h2>
-                <p className="text-sm text-gray-500">
-                  Showing {indexOfFirstProduct + 1} to {Math.min(indexOfLastProduct, products.length)} of {products.length} products
-                </p>
-              </div>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
-                {currentProducts.map((product) => {
-                  const hasMultipleVariants = product.variants?.length > 1;
-                  const inStockVariants = product.variants?.filter(v => v.in_stock !== false) || [];
-                  const allOutOfStock = inStockVariants.length === 0;
-                  const selectedIdx = selectedVariants[product.id] ?? 0;
-                  const activeVariant = product.variants?.[selectedIdx] || product.variants?.[0];
-                  const displayPrice = activeVariant?.discountedPrice || activeVariant?.actualPrice || activeVariant?.price || 0;
-
+            {/* 4 colorful promo cards */}
+            {hasCategories && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                {categories.slice(0, 4).map((category, i) => {
+                  const categoryName = category.name || category.category?.name;
+                  const categoryId = category.id || category.category?.id;
+                  const catProducts = products.filter(p => p.category_name === categoryName);
+                  const categoryImg = category.image_url || category.category?.image_url;
+                  const featuredImg = categoryImg || catProducts.find(p => p.image_url)?.image_url;
+                  const PROMO_BG = ['#1c60ff', '#0ea5e9', '#f59e0b', '#e2e8f0'];
+                  const PROMO_TEXT = ['#ffffff', '#ffffff', '#1e293b', '#1e293b'];
+                  const bg = PROMO_BG[i % PROMO_BG.length];
+                  const textColor = PROMO_TEXT[i % PROMO_TEXT.length];
                   return (
                     <div
-                      key={product.id}
-                      onClick={() => handleProductClick(product)}
-                      className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
+                      key={categoryId || categoryName}
+                      onClick={() => navigate(`/category?id=${categoryId}`)}
+                      className="rounded-2xl p-4 cursor-pointer relative overflow-hidden h-36 md:h-44 flex flex-col justify-between hover:opacity-95 active:scale-[.98] transition-all"
+                      style={{ backgroundColor: bg }}
                     >
-                      <div className="aspect-square bg-gray-100 flex items-center justify-center p-4">
-                        {product.image_url ? (
-                          <img src={product.image_url} alt={product.name} className="w-full h-full object-contain" />
-                        ) : (
-                          <i className="ri-image-line text-4xl text-gray-400"></i>
-                        )}
+                      <div className="relative z-10">
+                        <p className="font-bold text-sm md:text-base leading-tight pr-16" style={{ color: textColor }}>{decodeHtml(categoryName)}</p>
+                        <p className="text-xs mt-1 opacity-70 pr-16" style={{ color: textColor }}>{catProducts.length} items available</p>
                       </div>
-                      <div className="p-3">
-                        <h3 className="font-semibold text-gray-800 text-sm line-clamp-2">{product.name}</h3>
-                        <p className="text-lg font-bold text-green-600 mt-1">₹{displayPrice}</p>
-
-                        {hasMultipleVariants && (
-                          <select
-                            className="mt-2 w-full border border-gray-300 rounded-md text-xs py-1 px-2 bg-white text-gray-700 focus:outline-none focus:border-green-500"
-                            value={selectedIdx}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              setSelectedVariants(prev => ({ ...prev, [product.id]: Number(e.target.value) }));
-                            }}
-                          >
-                            {product.variants.map((v, i) => (
-                              <option key={v.productVariantId} value={i} disabled={v.in_stock === false}>
-                                {v.weight || `Variant ${i + 1}`}{v.in_stock === false ? ' (Out of Stock)' : ''}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-
-                        {(() => {
-                          if (allOutOfStock || activeVariant?.in_stock === false) {
-                            return (
-                              <button disabled className="mt-2 w-full bg-gray-100 text-gray-400 py-1.5 rounded-md text-sm font-semibold border border-gray-200 cursor-not-allowed">
-                                Out of Stock
-                              </button>
-                            );
-                          }
-                          const cartItem = cartItems?.find(ci => ci.product_variant_id === activeVariant?.productVariantId);
-                          if (cartItem) {
-                            return (
-                              <div className="mt-2 w-full flex items-center justify-between bg-white rounded-xl border-2 border-[#0c831f] py-1 px-2">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (cartItem.quantity <= 1) {
-                                      dispatch(removeFromCart({ cartItemId: cartItem.cart_item_id })).then(() => dispatch(getCart()));
-                                    } else {
-                                      dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity - 1 })).then(() => dispatch(getCart()));
-                                    }
-                                  }}
-                                  className="font-bold text-lg leading-none" style={{ color: '#0c831f' }}
-                                >−</button>
-                                <span className="font-bold text-sm" style={{ color: '#0c831f' }}>{cartItem.quantity}</span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity + 1 })).then(() => dispatch(getCart()));
-                                  }}
-                                  className="font-bold text-lg leading-none" style={{ color: '#0c831f' }}
-                                >+</button>
-                              </div>
-                            );
-                          }
-                          return (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const productWithVariant = { ...product, variants: [activeVariant, ...(product.variants || [])] };
-                                handleAddToCart(productWithVariant);
-                              }}
-                              disabled={addingToCart}
-                              className="mt-2 w-full bg-[#0c831f] text-white py-1.5 rounded-xl text-sm font-semibold hover:bg-green-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {addingToCart ? (
-                                <div className="flex items-center justify-center gap-1">
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                  Adding...
-                                </div>
-                              ) : 'Add to Cart'}
-                            </button>
-                          );
-                        })()}
-                      </div>
+                      <button
+                        className="w-fit bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-full hover:bg-gray-100 transition relative z-10"
+                        onClick={(e) => { e.stopPropagation(); navigate(`/category?id=${categoryId}`); }}
+                      >
+                        Order Now
+                      </button>
+                      {featuredImg ? (
+                        <img
+                          src={featuredImg}
+                          alt={categoryName}
+                          className="absolute right-1 bottom-0 h-24 md:h-32 w-24 md:w-32 object-contain"
+                          loading="lazy"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <i className={`${category.icon || category.category?.icon || 'ri-store-3-line'} absolute right-4 bottom-4 text-6xl md:text-7xl opacity-20`} style={{ color: textColor }}></i>
+                      )}
                     </div>
                   );
                 })}
               </div>
+            )}
 
-              {/* Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="flex justify-center items-center gap-2 mt-8">
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      currentPage === 1
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    ← Previous
-                  </button>
-                  
-                  <div className="flex gap-1">
-                    {(() => {
-                      const pageNumbers = [];
-                      const maxVisible = 5;
-                      let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-                      let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-                      
-                      if (endPage - startPage + 1 < maxVisible) {
-                        startPage = Math.max(1, endPage - maxVisible + 1);
-                      }
-                      
-                      if (startPage > 1) {
-                        pageNumbers.push(
-                          <button
-                            key={1}
-                            onClick={() => handlePageChange(1)}
-                            className="w-10 h-10 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          >
-                            1
-                          </button>
-                        );
-                        if (startPage > 2) {
-                          pageNumbers.push(<span key="dots1" className="px-2 text-gray-400">...</span>);
-                        }
-                      }
-                      
-                      for (let i = startPage; i <= endPage; i++) {
-                        pageNumbers.push(
-                          <button
-                            key={i}
-                            onClick={() => handlePageChange(i)}
-                            className={`w-10 h-10 rounded-md text-sm font-medium transition-colors ${
-                              currentPage === i
-                                ? 'bg-[#0c831f] text-white font-bold'
-                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            {i}
-                          </button>
-                        );
-                      }
-                      
-                      if (endPage < totalPages) {
-                        if (endPage < totalPages - 1) {
-                          pageNumbers.push(<span key="dots2" className="px-2 text-gray-400">...</span>);
-                        }
-                        pageNumbers.push(
-                          <button
-                            key={totalPages}
-                            onClick={() => handlePageChange(totalPages)}
-                            className="w-10 h-10 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
-                          >
-                            {totalPages}
-                          </button>
-                        );
-                      }
-                      
-                      return pageNumbers;
-                    })()}
+            {/* All Products grid */}
+            {showDefaultProductGrid && (
+              <section className="mb-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-base md:text-lg font-bold text-gray-900">All Products</h2>
+                  <span className="text-sm text-gray-400">{products.length} items</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
+                  {currentProducts.map((product) => {
+                    const hasMultipleVariants = product.variants?.length > 1;
+                    const inStockVariants = product.variants?.filter(v => v.in_stock !== false) || [];
+                    const allOutOfStock = inStockVariants.length === 0;
+                    const selectedIdx = selectedVariants[product.id] ?? 0;
+                    const activeVariant = product.variants?.[selectedIdx] || product.variants?.[0];
+                    const displayPrice = activeVariant?.discountedPrice || activeVariant?.actualPrice || activeVariant?.price || 0;
+                    return (
+                      <div key={product.id} onClick={() => handleProductClick(product)} className="bg-white rounded-2xl border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-shadow flex flex-col">
+                        <div className="aspect-square bg-gray-50 flex items-center justify-center p-3 relative">
+                          <i className="ri-image-line text-3xl text-gray-200 absolute"></i>
+                          {product.image_url && (<img src={product.image_url} alt={product.name} className="relative z-10 w-full h-full object-contain" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.style.display='none'; }} />)}
+                          {activeVariant?.discountedPrice > 0 && activeVariant?.actualPrice > activeVariant.discountedPrice && (
+                            <div className="absolute top-2 left-2 bg-[#0c831f] text-white text-[9px] font-bold px-1.5 py-0.5 rounded z-20">
+                              {Math.round((1 - activeVariant.discountedPrice / activeVariant.actualPrice) * 100)}% OFF
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-2.5 flex flex-col flex-1">
+                          <h3 className="font-semibold text-gray-800 text-xs line-clamp-2 leading-tight">{product.name}</h3>
+                          {activeVariant?.weight && (<p className="text-[10px] text-gray-400 mt-0.5">{activeVariant.net_weight > 0 ? `${activeVariant.net_weight} ${activeVariant.weight}` : activeVariant.weight}</p>)}
+                          <div className="flex items-center justify-between mt-auto pt-2">
+                            <div>
+                              <p className="text-sm font-bold text-gray-900">₹{displayPrice}</p>
+                              {activeVariant?.actualPrice > displayPrice && (<p className="text-[10px] text-gray-400 line-through">₹{activeVariant.actualPrice}</p>)}
+                            </div>
+                            {(() => {
+                              if (allOutOfStock || activeVariant?.in_stock === false) {
+                                return (<span className="text-[10px] text-gray-400 font-medium">Out of stock</span>);
+                              }
+                              const cartItem = cartItems?.find(ci => ci.product_variant_id === activeVariant?.productVariantId);
+                              if (cartItem) {
+                                return (
+                                  <div className="flex items-center gap-2 bg-[#0c831f] rounded-lg px-2 py-1">
+                                    <button onClick={(e) => { e.stopPropagation(); if (cartItem.quantity <= 1) { dispatch(removeFromCart({ cartItemId: cartItem.cart_item_id })).then(() => dispatch(getCart())); } else { dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity - 1 })).then(() => dispatch(getCart())); } }} className="text-white font-bold text-sm leading-none">−</button>
+                                    <span className="text-white font-bold text-xs">{cartItem.quantity}</span>
+                                    <button onClick={(e) => { e.stopPropagation(); dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity + 1 })).then(() => dispatch(getCart())); }} className="text-white font-bold text-sm leading-none">+</button>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <button onClick={(e) => { e.stopPropagation(); handleAddToCart({ ...product, variants: [activeVariant, ...(product.variants || [])] }); }} disabled={addingToCart} className="bg-white border-2 border-[#0c831f] text-[#0c831f] font-bold text-lg w-8 h-8 rounded-lg flex items-center justify-center hover:bg-green-50 transition disabled:opacity-50">+</button>
+                              );
+                            })()}
+                          </div>
+                          {hasMultipleVariants && (
+                            <select className="mt-1.5 w-full border border-gray-200 rounded-md text-[10px] py-0.5 px-1 bg-white text-gray-600 focus:outline-none focus:border-green-500" value={selectedIdx} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); setSelectedVariants(prev => ({ ...prev, [product.id]: Number(e.target.value) })); }}>
+                              {product.variants.map((v, i) => (<option key={v.productVariantId} value={i} disabled={v.in_stock === false}>{v.weight || `Variant ${i+1}`}{v.in_stock === false ? ' (OOS)' : ''}</option>))}
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {visibleCount < filteredProducts.length && (
+                  <div ref={loadMoreRef} className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0c831f]"></div>
                   </div>
-                  
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      currentPage === totalPages
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    Next →
-                  </button>
-                </div>
-              )}
-            </section>
-          )}
+                )}
+              </section>
+            )}
 
-          {/* Render sections normally */}
-          {!showDefaultProductGrid && (
-            <>
-              {renderProductGridSection('order_our_best_food', false, 4)}
-              {renderProductGridSection('explore_quick_caving', true)}
-              {renderProductGridSection('starters_appetizers')}
-              {renderProductGridSection('main_courses', true)}
-              {renderCardSection('combo_meal_deals', 'ri-shopping-bag-line')}
-              {renderCardSection('rice_biryani', 'ri-restaurant-line')}
+            <BannerSection image={footerBanner} alt="Footer Banner" className="hidden md:block mb-4" />
+          </div>
 
-              {carouselImages.length > 0 && (
-                <div className="hidden md:block">
-                  <PromoCarousel images={carouselImages} />
-                </div>
-              )}
-
-              {renderBreadSection()}
-              {renderCardSection('beverages', 'ri-cup-line')}
-              {renderChefRecommendation()}
-              {renderCardSection('deserts', 'ri-cake-3-line')}
-            </>
-          )}
-
-          <BannerSection image={footerBanner} alt="Footer Banner" className="hidden md:block" />
-
-        </div>
       </main>
 
       {/* Floating View Cart Button - Mobile Only */}
@@ -2338,6 +2260,6 @@ const handleAddToCart = async (product) => {
       `}</style>
     </div>
   );
-};
+}
 
 export default HomePage;
