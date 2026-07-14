@@ -11,6 +11,7 @@ import { ROUTES_CONSTANTS } from "@constants/routesurl";
 const ProductForm = lazy(() => import("@adminpage-layouts/Product/ProductForm"));
 const ProductVariantForm = lazy(() => import("@adminpage-layouts/Product/ProductVariantForm"));
 const OrderForm = lazy(() => import("@adminpage-layouts/Order/OrderForm"));
+const BannerList = lazy(() => import("@adminpage-layouts/Banner/BannerList"));
 
 const DashboardPage = () => {
   const [toggle, setToggle] = useState(true);
@@ -49,6 +50,12 @@ const DashboardPage = () => {
       filledIcon: "ri-typhoon-fill",
       route: ROUTES_CONSTANTS.ORDERS,
     },
+    {
+      label: "Banners",
+      icon: "ri-image-line",
+      filledIcon: "ri-image-fill",
+      route: ROUTES_CONSTANTS.BANNERS,
+    },
   ];
 
   return (
@@ -77,6 +84,7 @@ const DashboardPage = () => {
               <Route path="/edit-product-variant/:productId/:variantId" element={<ProductVariantForm />} />
               <Route path="/create-order" element={<OrderForm />} />
               <Route path="/edit-order/:id" element={<OrderForm />} />
+              <Route path="/banners" element={<BannerList />} />
             </Routes>
           </Suspense>
         </div>

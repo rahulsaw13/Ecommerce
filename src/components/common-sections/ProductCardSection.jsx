@@ -5,6 +5,7 @@ import { addToCart as reduxAddToCart, getCart, removeFromCart, updateCartQuantit
 import { allApiWithHeaderToken } from "@api/api";
 import { API_CONSTANTS } from "@constants/apiurl";
 import { Toast } from 'primereact/toast';
+import { decodeHtml } from "@helper";
 
 const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", onProductClick }) => {
   const navigate = useNavigate();
@@ -214,20 +215,26 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
                       {product.discount}% off
                     </div>
                   )}
-                  {product.image ? (
-                    <img src={product.image} alt={product.name} className="w-full h-16 md:h-28 object-contain" loading="lazy" decoding="async" />
-                  ) : (
-                    <div className="w-full h-16 md:h-28 flex items-center justify-center">
-                      <i className={`${icon} text-3xl text-gray-200`}></i>
-                    </div>
-                  )}
+                  <div className="relative w-full h-16 md:h-28 flex items-center justify-center">
+                    <i className={`${icon} text-3xl text-gray-200 absolute`}></i>
+                    {product.image && (
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="relative z-10 w-full h-full object-contain"
+                        loading="lazy"
+                        decoding="async"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    )}
+                  </div>
                 </div>
 
                 {/* Info */}
                 <div className="px-2 md:px-2.5 pt-1 pb-2 md:pb-2.5">
-                  <p className="text-gray-400 text-[9px] md:text-[10px] leading-tight mb-0.5">{firstVariant?.weight || product.weight}</p>
+                  <p className="text-gray-400 text-[9px] md:text-[10px] leading-tight mb-0.5">{firstVariant?.net_weight > 0 ? `${firstVariant.net_weight} ${firstVariant.weight}` : (firstVariant?.weight || product.weight)}</p>
                   <h3 className="text-gray-900 text-[10px] md:text-xs leading-tight font-semibold line-clamp-2 min-h-[24px] md:min-h-[30px] mb-1">
-                    {product.name}
+                    {decodeHtml(product.name)}
                   </h3>
                   <p className="font-bold text-sm leading-tight mb-1.5">
                     ₹{product.price.toFixed(0)}
@@ -290,7 +297,7 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={closeModal}>
             <div className="bg-white rounded-xl p-4 md:p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-3 md:mb-4">
-                <h3 className="text-sm md:text-lg font-bold text-gray-900">{selectedProduct.name}</h3>
+                <h3 className="text-sm md:text-lg font-bold text-gray-900">{decodeHtml(selectedProduct.name)}</h3>
                 <button
                   onClick={closeModal}
                   className="text-gray-400 hover:text-gray-600 transition-colors"

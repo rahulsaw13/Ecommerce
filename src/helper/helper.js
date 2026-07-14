@@ -1,3 +1,10 @@
+export const decodeHtml = (str) => {
+  if (!str || typeof str !== 'string') return str;
+  const el = document.createElement('div');
+  el.innerHTML = str;
+  return el.textContent;
+};
+
 export const refactorPrefilledDate=(date)=>{
     const updateddate = new Date(date);
    

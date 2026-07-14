@@ -8,6 +8,7 @@ import { API_CONSTANTS } from "@constants/apiurl";
 import { getCart } from '../../redux/slices/cartSlice';
 import UserLoader from '@userpage-pages/UserLoader';
 import { Toast } from 'primereact/toast';
+import { decodeHtml } from "@helper";
 
 const CategoryProductsPage = () => {
   const [searchParams] = useSearchParams();
@@ -384,7 +385,7 @@ const CategoryProductsPage = () => {
             )}
             <div className="flex-1 min-w-0">
               <h1 className="text-sm font-bold text-gray-900 truncate">
-                {searchQuery ? `Search: "${searchQuery}"` : categoryData?.name || 'Fresh Grocery'}
+                {searchQuery ? `Search: "${searchQuery}"` : decodeHtml(categoryData?.name) || 'Fresh Grocery'}
               </h1>
               <p className="text-xs text-gray-500">{filteredProducts.length} items</p>
             </div>
@@ -411,11 +412,11 @@ const CategoryProductsPage = () => {
               <span className="text-[#FFC107] font-medium">Search: "{searchQuery}"</span>
             ) : categoryData && (
               <>
-                <span className="text-[#FFC107] font-medium">{categoryData.name}</span>
+                <span className="text-[#FFC107] font-medium">{decodeHtml(categoryData.name)}</span>
                 {selectedSubCategory && (
                   <>
                     <i className="ri-arrow-right-s-line text-gray-400 text-xs"></i>
-                    <span className="text-gray-900 font-medium">{selectedSubCategory.name}</span>
+                    <span className="text-gray-900 font-medium">{decodeHtml(selectedSubCategory.name)}</span>
                   </>
                 )}
               </>
@@ -503,7 +504,7 @@ const CategoryProductsPage = () => {
                               <span className={`md:text-xs text-[9px] font-medium leading-tight flex-1 text-center md:text-left line-clamp-2 ${
                                 isActive ? 'text-gray-900' : 'text-gray-600'
                               }`}>
-                                {subCategory.name}
+                                {decodeHtml(subCategory.name)}
                               </span>
                             </div>
                           </button>
@@ -524,13 +525,15 @@ const CategoryProductsPage = () => {
               {/* Mobile Filters - Horizontal Scroll - Aligned Right */}
               <div className="md:hidden sticky top-[60px] bg-gray-50 z-40 px-4 py-3 overflow-x-auto" style={{ marginRight: '6px' }}>
                 <div className="flex gap-2 min-w-max justify-end">
-                  <button
-                    onClick={() => openFilterModal('brands')}
-                    className="px-3 py-1.5 rounded-full bg-[#0c831f] text-white text-xs font-semibold whitespace-nowrap flex items-center gap-1"
-                  >
-                    Brands <i className="ri-arrow-down-s-line text-sm"></i>
-                  </button>
-                  
+                  {getBrands().length > 0 && (
+                    <button
+                      onClick={() => openFilterModal('brands')}
+                      className="px-3 py-1.5 rounded-full bg-[#0c831f] text-white text-xs font-semibold whitespace-nowrap flex items-center gap-1"
+                    >
+                      Brands <i className="ri-arrow-down-s-line text-sm"></i>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => openFilterModal('sortby')}
                     className="px-3 py-1.5 rounded-full bg-[#0c831f] text-white text-xs font-semibold whitespace-nowrap flex items-center gap-1"
@@ -544,15 +547,17 @@ const CategoryProductsPage = () => {
               <div className="hidden md:flex justify-between items-center mb-4 bg-white p-3 rounded-lg shadow-sm">
                 <div className="flex items-center gap-2">
                 </div>
-                
+
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => openFilterModal('brands')}
-                    className="bg-[#0c831f] hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm flex items-center gap-2"
-                  >
-                    <span>Brands</span>
-                    <i className="ri-arrow-down-s-fill text-gray-900"></i>
-                  </button>
+                  {getBrands().length > 0 && (
+                    <button
+                      onClick={() => openFilterModal('brands')}
+                      className="bg-[#0c831f] hover:bg-green-800 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow-sm flex items-center gap-2"
+                    >
+                      <span>Brands</span>
+                      <i className="ri-arrow-down-s-fill text-gray-900"></i>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => openFilterModal('sortby')}
@@ -647,12 +652,12 @@ const CategoryProductsPage = () => {
                         {/* Product Info */}
                         <div className="px-2 md:px-3 pb-2 md:pb-3">
                           <h3 className="text-gray-800 mb-1 md:mb-1.5 line-clamp-2 text-[10px] md:text-xs leading-tight md:leading-[1.3] font-bold md:font-medium min-h-[24px] md:min-h-[32px]">
-                            {product.name}
+                            {decodeHtml(product.name)}
                           </h3>
                           
                           {firstVariant?.weight && (
                             <div className="text-gray-500 mb-1 md:mb-2 text-[9px] md:text-[10px] leading-tight">
-                              {firstVariant.weight}
+                              {firstVariant.net_weight > 0 ? `${firstVariant.net_weight} ${firstVariant.weight}` : firstVariant.weight}
                             </div>
                           )}
 
@@ -762,7 +767,7 @@ const CategoryProductsPage = () => {
         }}>
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">{selectedProduct.name}</h3>
+              <h3 className="text-lg font-bold text-gray-900">{decodeHtml(selectedProduct.name)}</h3>
               <button
                 onClick={() => {
                   setShowVariantModal(false);
@@ -919,7 +924,12 @@ const CategoryProductsPage = () => {
                     </div>
                   </div>
 
-                  {getBrands().map((brand) => (
+                  {getBrands().length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <i className="ri-price-tag-3-line text-3xl mb-2 block"></i>
+                      <p className="text-sm">No brands available for this category</p>
+                    </div>
+                  ) : getBrands().map((brand) => (
                     <label
                       key={brand}
                       className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer"

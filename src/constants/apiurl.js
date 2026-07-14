@@ -81,6 +81,11 @@ export const API_CONSTANTS = {
     // Home Sections API endpoints (Admin)
     HOME_SECTIONS: "api/v1/home_sections",
 
+    // Banners API endpoints
+    BANNERS_GET: "api/v1/user_dashboard/banners",
+    BANNERS_UPLOAD: "api/v1/admin/banners/upload",
+    BANNERS_DELETE: "api/v1/admin/banners",
+
     // Discounts API endpoints (Admin)
     DISCOUNTS: "api/v1/discounts",
 

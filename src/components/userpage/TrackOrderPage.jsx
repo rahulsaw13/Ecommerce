@@ -122,39 +122,27 @@ const TrackOrderPage = () => {
 
   const getStatusSteps = () => {
     return [
-      { key: 'in_review', label: 'In Review', icon: 'ri-file-list-3-line' },
-      { key: 'pending', label: 'Pending', icon: 'ri-time-line' },
-      { key: 'manufacturing_started', label: 'Manufacturing', icon: 'ri-tools-line' },
-      { key: 'packaging', label: 'Packaging', icon: 'ri-box-3-line' },
+      { key: 'created', label: 'Order Placed', icon: 'ri-file-list-3-line' },
+      { key: 'paid', label: 'Payment Done', icon: 'ri-secure-payment-line' },
+      { key: 'processing', label: 'Processing', icon: 'ri-tools-line' },
       { key: 'shipped', label: 'Shipped', icon: 'ri-truck-line' },
       { key: 'delivered', label: 'Delivered', icon: 'ri-checkbox-circle-line' }
     ];
   };
 
   const getStepStatus = (stepKey, currentStatus) => {
-    const statusOrder = [
-      'in_review',
-      'pending',
-      'manufacturing_started',
-      'manufacturing_completed',
-      'packaging',
-      'packed',
-      'shipped',
-      'delivered'
-    ];
-    const currentIndex = statusOrder.indexOf(currentStatus);
+    const statusOrder = ['created', 'paid', 'processing', 'shipped', 'delivered'];
+    const normalized = (currentStatus || '').toLowerCase();
+    const currentIndex = statusOrder.indexOf(normalized);
     const stepIndex = statusOrder.indexOf(stepKey);
 
-    if (currentStatus === 'cancelled' || currentStatus === 'failed') {
+    if (normalized === 'cancelled' || normalized === 'failed') {
       return stepIndex === 0 ? 'completed' : 'inactive';
     }
 
+    if (currentIndex === -1) return stepIndex === 0 ? 'current' : 'inactive';
     if (stepIndex < currentIndex) return 'completed';
     if (stepIndex === currentIndex) return 'current';
-
-    if (stepKey === 'manufacturing_started' && currentStatus === 'manufacturing_completed') return 'completed';
-    if (stepKey === 'packaging' && currentStatus === 'packed') return 'completed';
-
     return 'inactive';
   };
 
@@ -217,13 +205,13 @@ const TrackOrderPage = () => {
   };
 
   const getMapUrl = () => {
+    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+    const storeCoords = `${storeLocation.lat},${storeLocation.lng}`;
     if (userLocation) {
-      const storeCoords = `${storeLocation.lat},${storeLocation.lng}`;
       const userCoords = `${userLocation.lat},${userLocation.lng}`;
-      return `https://maps.google.com/maps?q=${storeCoords}+to+${userCoords}&output=embed`;
-    } else {
-      return `https://maps.google.com/maps?q=${storeLocation.lat},${storeLocation.lng}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+      return `https://www.google.com/maps/embed/v1/directions?key=${apiKey}&origin=${storeCoords}&destination=${userCoords}&mode=driving`;
     }
+    return `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${storeCoords}&zoom=15`;
   };
 
   if (loader) {

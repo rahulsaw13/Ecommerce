@@ -90,7 +90,7 @@ const MyReturnsPage = () => {
     <div className="min-h-screen bg-BgPrimaryColor">
       <Header />
 
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto px-4 pt-[160px] md:pt-24 pb-8">
         {/* Breadcrumb */}
         <div className="text-xs text-gray-500 mb-4">
           <span className="hover:cursor-pointer hover:underline" onClick={() => navigate('/')}>Home</span>

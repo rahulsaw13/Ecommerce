@@ -36,7 +36,11 @@ const DeliveryDashboard = () => {
   
   // Filter states
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); // Today's date
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const today = new Date().toISOString().split('T')[0];
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const [fromDate, setFromDate] = useState(thirtyDaysAgo);
+  const [toDate, setToDate] = useState(today);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [expandedOrderId, setExpandedOrderId] = useState(null); // For accordion
 
@@ -137,7 +141,7 @@ const DeliveryDashboard = () => {
 
   useEffect(() => {
     fetchAssignedOrders();
-  }, [debouncedSearch, selectedDate, viewMode]);
+  }, [debouncedSearch, selectedDate, fromDate, toDate, viewMode]);
 
   // Debounce search query
   useEffect(() => {
@@ -155,8 +159,13 @@ const DeliveryDashboard = () => {
       // Build query parameters
       const params = new URLSearchParams();
       if (debouncedSearch) params.append('search', debouncedSearch);
-      if (selectedDate) params.append('delivery_date', selectedDate); // Send for both pending and history
-      params.append('status', viewMode); // 'pending' or 'history'
+      params.append('status', viewMode);
+      if (viewMode === 'history') {
+        if (fromDate) params.append('from_date', fromDate);
+        if (toDate) params.append('to_date', toDate);
+      } else {
+        if (selectedDate) params.append('delivery_date', selectedDate);
+      }
       
       const queryString = params.toString();
       const url = queryString ? `api/v1/delivery_agent/orders?${queryString}` : "api/v1/delivery_agent/orders";
@@ -167,6 +176,12 @@ const DeliveryDashboard = () => {
         setOrders(response.data.orders ?? []);
       }
     } catch (error) {
+      if (error?.response?.status === 401) {
+        dispatch(logoutUser());
+        localStorage.clear();
+        navigate("/sign-in");
+        return;
+      }
       toast.current.show({
         severity: "error",
         summary: "Error",
@@ -303,24 +318,57 @@ const DeliveryDashboard = () => {
               </div>
             </div>
 
-            {/* Date Filter - For both Pending and History */}
-            <div className="flex-1">
-              <div className="relative">
-                <input
-                  type="date"
-                  id="date-input"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent peer"
-                />
-                <label
-                  htmlFor="date-input"
-                  className="absolute left-3 -top-2 bg-white px-1 text-xs text-gray-600"
-                >
-                  {viewMode === "pending" ? "Delivery Date" : "Completed Date"}
-                </label>
+            {/* Date Filter */}
+            {viewMode === 'history' ? (
+              <>
+                <div className="flex-1">
+                  <div className="relative">
+                    <input
+                      type="date"
+                      id="from-date-input"
+                      value={fromDate}
+                      max={toDate}
+                      onChange={(e) => setFromDate(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    />
+                    <label htmlFor="from-date-input" className="absolute left-3 -top-2 bg-white px-1 text-xs text-gray-600">
+                      From Date
+                    </label>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <div className="relative">
+                    <input
+                      type="date"
+                      id="to-date-input"
+                      value={toDate}
+                      min={fromDate}
+                      max={today}
+                      onChange={(e) => setToDate(e.target.value)}
+                      className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                    />
+                    <label htmlFor="to-date-input" className="absolute left-3 -top-2 bg-white px-1 text-xs text-gray-600">
+                      To Date
+                    </label>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="flex-1">
+                <div className="relative">
+                  <input
+                    type="date"
+                    id="date-input"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent"
+                  />
+                  <label htmlFor="date-input" className="absolute left-3 -top-2 bg-white px-1 text-xs text-gray-600">
+                    Delivery Date
+                  </label>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Results Count */}

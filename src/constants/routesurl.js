@@ -66,5 +66,6 @@ export const ROUTES_CONSTANTS = {
     EDIT_COUPON: "/dashboard/edit-coupon",
     EDIT_REPORT: "/dashboard/edit-report",
     EDIT_CUSTOMER: "/dashboard/edit-customer",
-    EDIT_ADDRESESS: "/dashboard/edit-addresess"
+    EDIT_ADDRESESS: "/dashboard/edit-addresess",
+    BANNERS: "/dashboard/banners"
 }

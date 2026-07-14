@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Dialog } from 'primereact/dialog';
 import { allApiWithHeaderToken } from '@api/api';
 import { API_CONSTANTS } from '@constants/apiurl';
+import { ROUTES_CONSTANTS } from '@constants/routesurl';
 import Header from '@common/Header';
 import Footer from '@common/Footer';
 import UserLoader from '@userpage-pages/UserLoader';
@@ -40,6 +41,8 @@ const OrderHistoryPage = () => {
   const [returnSubmitting, setReturnSubmitting] = useState(false);
   const [returnSuccess, setReturnSuccess] = useState(null);
   const [returnError, setReturnError] = useState('');
+
+  const [reorderingId, setReorderingId] = useState(null);
 
   let userDetails = null;
   try {
@@ -315,6 +318,42 @@ const OrderHistoryPage = () => {
     setReturnSuccess(null);
     setReturnError('');
     setShowReturnModal(true);
+  };
+
+  const handleReorder = async (order) => {
+    if (!userDetails?.id) return;
+    setReorderingId(order.id);
+    const items = order.orderItems || [];
+    const skipped = [];
+    let added = 0;
+
+    for (const item of items) {
+      const variantId = item.product_variant_id;
+      if (!variantId) { skipped.push(item.product_name || item.name || 'Item'); continue; }
+      try {
+        await allApiWithHeaderToken(
+          API_CONSTANTS.CART_ADD_URL,
+          { user_id: userDetails.id, product_variant_id: variantId, quantity: item.quantity || 1, ...(item.weight ? { selected_weight: item.weight } : {}) },
+          'post'
+        );
+        added++;
+      } catch {
+        skipped.push(item.product_name || item.name || 'Item');
+      }
+    }
+
+    setReorderingId(null);
+
+    if (added === 0) {
+      alert('Could not add any items to cart. They may be unavailable.');
+      return;
+    }
+
+    if (skipped.length > 0) {
+      alert(`Added ${added} item(s) to cart.\nSkipped: ${skipped.join(', ')} (unavailable).`);
+    }
+
+    navigate(ROUTES_CONSTANTS.VIEW_CART);
   };
 
   const handleSubmitReturn = async () => {
@@ -642,6 +681,16 @@ const OrderHistoryPage = () => {
                         >
                           <i className="ri-map-pin-line text-lg"></i>
                         </button>
+                        <button
+                          onClick={() => handleReorder(order)}
+                          disabled={reorderingId === order.id}
+                          className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                          title="Reorder"
+                        >
+                          {reorderingId === order.id
+                            ? <i className="ri-loader-4-line text-lg animate-spin"></i>
+                            : <i className="ri-refresh-line text-lg"></i>}
+                        </button>
                         {canRaiseReturn(order) && (
                           <button
                             onClick={() => handleOpenReturn(order)}
@@ -675,6 +724,16 @@ const OrderHistoryPage = () => {
                             title="Track Order"
                           >
                             <i className="ri-map-pin-line text-lg"></i>
+                          </button>
+                          <button
+                            onClick={() => handleReorder(order)}
+                            disabled={reorderingId === order.id}
+                            className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Reorder"
+                          >
+                            {reorderingId === order.id
+                              ? <i className="ri-loader-4-line text-lg animate-spin"></i>
+                              : <i className="ri-refresh-line text-lg"></i>}
                           </button>
                           {canRaiseReturn(order) && (
                             <button

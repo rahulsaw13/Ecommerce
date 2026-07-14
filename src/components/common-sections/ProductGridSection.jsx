@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { decodeHtml } from "@helper";
 
 const ProductGridSection = ({ title, products, onProductClick, mobileColumns = 3 }) => {
   const navigate = useNavigate();
@@ -11,7 +12,7 @@ const ProductGridSection = ({ title, products, onProductClick, mobileColumns = 3
   return (
     <section className="mb-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+        <h2 className="text-xl font-bold text-gray-900">{decodeHtml(title)}</h2>
         <button
           onClick={() => navigate('/products')}
           className="text-sm text-yellow-600 hover:text-yellow-700 font-medium"
@@ -41,7 +42,7 @@ const ProductGridSection = ({ title, products, onProductClick, mobileColumns = 3
                   </div>
                 )}
               </div>
-              <h3 className="text-[10px] md:text-xs font-bold md:font-medium text-gray-900 text-center line-clamp-2 leading-tight">{product.name}</h3>
+              <h3 className="text-[10px] md:text-xs font-bold md:font-medium text-gray-900 text-center line-clamp-2 leading-tight">{decodeHtml(product.name)}</h3>
             </div>
           );
         })}

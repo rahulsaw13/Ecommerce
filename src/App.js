@@ -43,6 +43,7 @@ const AboutUs = lazy(() => import("@userpage-pages/AboutUs"));
 const TermsAndCondition = lazy(() => import("@userpage-pages/TermsAndCondition"));
 const CategoryDescriptionPage = lazy(() => import("@userpage-pages/CategoryDescriptionPage"));
 const SubCategoryDescriptionPage = lazy(() => import("@userpage-pages/SubCategoryDescriptionPage"));
+const AllCategoriesPage = lazy(() => import("@userpage-components/AllCategoriesPage"));
 const ReturnExchangePolicyPage = lazy(() => import("@userpage-pages/ReturnExchangePolicyPage"));
 const ProductsPage = lazy(() => import("@userpage-pages/ProductsPage"));
 const ShippingPolicyPage = lazy(() => import("@userpage-pages/ShippingPolicyPage"));
@@ -124,6 +125,7 @@ function App() {
           <Route path="/my-returns" element={<MyReturnsPage />}/>
           <Route path="/print-invoice/:id" element={<PrintInvoiceComponent />}/>
           <Route path="/category" element={<CategoryProductsPage />}/>
+          <Route path="/all-categories" element={<AllCategoriesPage />}/>
           <Route path="/deals/:id" element={<DealsPage />}/>
           <Route path="/add-address" element={<AddAddressPage />}/>
           <Route path="/place-order" element={<PlaceOrderPage />}/>

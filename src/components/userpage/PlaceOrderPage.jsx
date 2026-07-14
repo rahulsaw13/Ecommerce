@@ -5,7 +5,7 @@ import { Dialog } from 'primereact/dialog';
 import Header from '@common/Header';
 import Footer from '@common/Footer';
 import LocationPickerPopup from '@common/LocationPickerPopup';
-import { getCart, clearCart } from '../../redux/slices/cartSlice';
+import { getCart, clearCart, updateCartQuantity } from '../../redux/slices/cartSlice';
 import { placeOrderFromCart, clearOrderStatus } from '../../redux/slices/orderSlice';
 import { fetchUserAddresses } from '../../redux/slices/addressSlice';
 import { getLocationFromCookie, saveLocationToCookie } from '@services/locationService';
@@ -260,50 +260,40 @@ const PlaceOrderPage = () => {
   const updateQuantity = async (cartItemId, productId, weight, amount) => {
     const item = cartItemsLocal.find(i => i.cart_item_id === cartItemId);
     if (!item) return;
-    
     const newQuantity = item.quantity + amount;
     if (newQuantity < 1) return;
-    
     setUpdatingItems(prev => ({ ...prev, [cartItemId]: true }));
+    // Optimistic update
+    setCartItemsLocal(prev => prev.map(i => i.cart_item_id === cartItemId ? { ...i, quantity: newQuantity } : i));
     try {
-      console.log('Update quantity - needs cartSlice implementation');
-      await dispatch(getCart());
+      await dispatch(updateCartQuantity({ cartItemId, productId, weight, quantity: newQuantity }));
     } catch (error) {
-      console.error('Error updating quantity:', error);
+      await dispatch(getCart());
     } finally {
       setUpdatingItems(prev => ({ ...prev, [cartItemId]: false }));
     }
   };
 
-  const setDirectQuantity = async (cartItemId, productId, weight, newQuantity) => {
-    if (newQuantity === '') return;
-    if (newQuantity.length > 1 && newQuantity.startsWith('0')) return;
-
-    const quantity = parseInt(newQuantity);
-    if (isNaN(quantity) || quantity < 1) return;
-
-    setUpdatingItems(prev => ({ ...prev, [cartItemId]: true }));
-    try {
-      console.log('Set quantity - needs cartSlice implementation');
-      await dispatch(getCart());
-    } catch (error) {
-      console.error('Error updating quantity:', error);
-    } finally {
-      setUpdatingItems(prev => ({ ...prev, [cartItemId]: false }));
-    }
+  const setDirectQuantity = (cartItemId, productId, weight, newValue) => {
+    if (newValue === '' || (newValue.length > 1 && newValue.startsWith('0'))) return;
+    const qty = parseInt(newValue);
+    if (isNaN(qty) || qty < 1) return;
+    setCartItemsLocal(prev => prev.map(i => i.cart_item_id === cartItemId ? { ...i, quantity: qty } : i));
   };
 
   const handleQuantityBlur = async (cartItemId, productId, weight, value) => {
-    if (value === '' || parseInt(value) < 1) {
-      setUpdatingItems(prev => ({ ...prev, [cartItemId]: true }));
-      try {
-        console.log('Quantity blur - needs cartSlice implementation');
-        await dispatch(getCart());
-      } catch (error) {
-        console.error('Error updating quantity:', error);
-      } finally {
-        setUpdatingItems(prev => ({ ...prev, [cartItemId]: false }));
-      }
+    const qty = parseInt(value);
+    if (!qty || qty < 1) {
+      await dispatch(getCart());
+      return;
+    }
+    setUpdatingItems(prev => ({ ...prev, [cartItemId]: true }));
+    try {
+      await dispatch(updateCartQuantity({ cartItemId, productId, weight, quantity: qty }));
+    } catch (error) {
+      await dispatch(getCart());
+    } finally {
+      setUpdatingItems(prev => ({ ...prev, [cartItemId]: false }));
     }
   };
 
@@ -561,15 +551,17 @@ const PlaceOrderPage = () => {
                     return (
                       <div key={item.cart_item_id || item.id} className="flex items-start gap-4">
                         <div className="flex-shrink-0">
-                          <div className="w-16 h-16 bg-white rounded-lg border border-gray-200 p-1 flex items-center justify-center">
-                            <img
-                              src={imageUrl}
-                              alt={item.name}
-                              className="w-full h-full object-contain"
-                              onError={(e) => {
-                                e.target.src = 'https://via.placeholder.com/100?text=No+Image';
-                              }}
-                            />
+                          <div className="w-16 h-16 bg-gray-50 rounded-lg border border-gray-200 p-1 flex items-center justify-center relative overflow-hidden">
+                            <i className="ri-image-line text-2xl text-gray-300 absolute"></i>
+                            {imageUrl && (
+                              <img
+                                src={imageUrl}
+                                alt={item.name}
+                                className="relative z-10 w-full h-full object-contain"
+                                loading="lazy"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                              />
+                            )}
                           </div>
                         </div>
 

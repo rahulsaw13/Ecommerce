@@ -1199,7 +1199,7 @@ const Header = ({ onSearch }) => {
             background: 'linear-gradient(180deg, #FFC107 0%, #FFD54F 100%)'
           }}
         >
-          <div className="max-w-[1320px] mx-auto px-3 md:px-4 py-3 md:py-4">
+          <div className="w-full px-3 md:px-6 py-3 md:py-4">
             {/* Mobile Layout */}
             <div className="md:hidden">
               <div 

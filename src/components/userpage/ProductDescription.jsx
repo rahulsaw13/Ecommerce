@@ -7,6 +7,7 @@ import Header from "@common/Header";
 import Footer from "@common/Footer";
 import CustomerReview from "@userpage-pages/CustomerReview";
 import { allApi, allApiWithHeaderToken } from "@api/api";
+import { decodeHtml } from "@helper";
 import { API_CONSTANTS } from "@constants/apiurl";
 import UserLoader from '@userpage-pages/UserLoader';
 import { useDispatch, useSelector } from 'react-redux';
@@ -69,6 +70,7 @@ const ProductDescription = () => {
           mrp: variant.actualPrice || variant.discountedPrice || 0,
           stock: variant.available_qty ?? null,
           in_stock: variant.in_stock,
+          net_weight: variant.net_weight || 0,
           shelf_life: productData.shelf_life || null,
           is_active: true
         }));
@@ -450,7 +452,7 @@ const ProductDescription = () => {
             <div>
               {/* Product Name */}
               <h1 className="text-2xl font-bold text-gray-900 mb-2 uppercase">
-                {product.name}
+                {decodeHtml(product.name)}
               </h1>
 
               {/* Rating */}
@@ -525,7 +527,7 @@ const ProductDescription = () => {
                         
                         <div className={`p-3 ${discount > 0 ? '' : 'pt-3'}`}>
                           <p className={`text-sm font-semibold mb-1.5 ${isSelected ? 'text-gray-900' : 'text-gray-400'}`}>
-                            {variant?.weight}
+                            {variant?.net_weight > 0 ? `${variant.net_weight} ${variant.weight}` : variant?.weight}
                             {isOutOfStock && <span className="block text-[10px] font-normal">Out of stock</span>}
                           </p>
                           <div className="flex items-center gap-1.5">
@@ -594,8 +596,14 @@ const ProductDescription = () => {
                         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-gray-600">Variant</span>
-                            <span className="text-sm font-semibold text-gray-900">{selectedVariant.weight}</span>
+                            <span className="text-sm font-semibold text-gray-900">{selectedVariant.net_weight > 0 ? `${selectedVariant.net_weight} ${selectedVariant.weight}` : selectedVariant.weight}</span>
                           </div>
+                          {selectedVariant.net_weight > 0 && (
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm text-gray-600">Net Weight</span>
+                              <span className="text-sm font-semibold text-gray-900">{selectedVariant.net_weight}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between items-center">
                             <span className="text-sm text-gray-600">Selling Price</span>
                             <span className="text-sm font-semibold text-gray-900">₹{selectedSellingPrice.toFixed(2)}</span>
@@ -615,7 +623,7 @@ const ProductDescription = () => {
                         </div>
                       </div>
                     )}
-                    
+
                     {product.product_variants && product.product_variants.length > 1 && (
                       <div>
                         <h3 className="text-base font-semibold text-gray-900 mb-2">Available Units</h3>
@@ -629,7 +637,7 @@ const ProductDescription = () => {
                             
                             return (
                               <div key={variant.id} className="flex justify-between items-center bg-gray-50 rounded p-3">
-                                <span className="text-sm font-medium text-gray-700">{variant.weight}</span>
+                                <span className="text-sm font-medium text-gray-700">{variant.net_weight > 0 ? `${variant.net_weight} ${variant.weight}` : variant.weight}</span>
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm font-semibold text-gray-900">₹{sellingPrice.toFixed(0)}</span>
                                   {mrp > sellingPrice && (
@@ -662,7 +670,7 @@ const ProductDescription = () => {
                       <i className="ri-shopping-basket-line text-xl text-gray-900"></i>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-base font-bold text-gray-900">{product.category_name}</p>
+                      <p className="text-base font-bold text-gray-900">{decodeHtml(product.category_name)}</p>
                       <p className="text-sm text-gray-500">Explore all products</p>
                     </div>
                   </div>
@@ -707,7 +715,7 @@ const ProductDescription = () => {
                       </div>
                       
                       <h3 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2 min-h-[40px]">
-                        {recProduct.name}
+                        {decodeHtml(recProduct.name)}
                       </h3>
                       
                       {firstVariant && (
@@ -817,7 +825,7 @@ const ProductDescription = () => {
 
           {/* Product Name */}
           <h1 className="text-lg font-bold text-gray-900 mb-4 uppercase">
-            {product.name}
+            {decodeHtml(product.name)}
           </h1>
 
           {/* Select Unit Section */}
@@ -864,7 +872,7 @@ const ProductDescription = () => {
                   <div className={`p-2 ${discount > 0 ? '' : 'pt-2.5'}`}>
                     {/* Weight */}
                     <p className={`text-xs font-semibold mb-1 ${isSelected ? 'text-gray-900' : 'text-gray-400'}`}>
-                      {variant?.weight}
+                      {variant?.net_weight > 0 ? `${variant.net_weight} ${variant.weight}` : variant?.weight}
                       {isOutOfStock && <span className="block text-[9px] font-normal">Out of stock</span>}
                     </p>
 
@@ -913,8 +921,14 @@ const ProductDescription = () => {
                     <div className="bg-gray-50 rounded-lg p-3 space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-600">Variant</span>
-                        <span className="text-xs font-semibold text-gray-900">{selectedVariant.weight}</span>
+                        <span className="text-xs font-semibold text-gray-900">{selectedVariant.net_weight > 0 ? `${selectedVariant.net_weight} ${selectedVariant.weight}` : selectedVariant.weight}</span>
                       </div>
+                      {selectedVariant.net_weight > 0 && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-gray-600">Net Weight</span>
+                          <span className="text-xs font-semibold text-gray-900">{selectedVariant.net_weight}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-600">Selling Price</span>
                         <span className="text-xs font-semibold text-gray-900">₹{selectedSellingPrice.toFixed(2)}</span>
@@ -949,7 +963,7 @@ const ProductDescription = () => {
                         
                         return (
                           <div key={variant.id} className="flex justify-between items-center bg-gray-50 rounded p-2">
-                            <span className="text-xs font-medium text-gray-700">{variant.weight}</span>
+                            <span className="text-xs font-medium text-gray-700">{variant.net_weight > 0 ? `${variant.net_weight} ${variant.weight}` : variant.weight}</span>
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-semibold text-gray-900">₹{sellingPrice.toFixed(0)}</span>
                               {mrp > sellingPrice && (
@@ -1029,7 +1043,7 @@ const ProductDescription = () => {
                       
                       {/* Product Name */}
                       <h3 className="text-[11px] font-semibold text-gray-900 mb-1 line-clamp-2 min-h-[28px]">
-                        {recProduct.name}
+                        {decodeHtml(recProduct.name)}
                       </h3>
                       
                       {/* Rating */}
@@ -1096,7 +1110,7 @@ const ProductDescription = () => {
             <div className="flex items-center justify-between gap-4">
               {/* Left Side - Price Info */}
               <div className="flex-1">
-                <p className="text-xs text-gray-600 mb-0.5">{selectedVariant.weight}</p>
+                <p className="text-xs text-gray-600 mb-0.5">{selectedVariant.net_weight > 0 ? `${selectedVariant.net_weight} ${selectedVariant.weight}` : selectedVariant.weight}</p>
                 <div className="flex items-center gap-2 mb-0.5">
                   <span className="text-2xl font-bold text-gray-900">
                     ₹{selectedSellingPrice.toFixed(0)}

@@ -392,6 +392,9 @@ const DeliveryOrderDetails = () => {
           } else if (parseFloat(cashAmount) <= 0) {
             errors.cashAmount = 'Amount must be greater than 0';
             hasError = true;
+          } else if (parseFloat(cashAmount) < parseFloat(order.total_price)) {
+            errors.cashAmount = `Amount cannot be less than order total ₹${parseFloat(order.total_price).toFixed(2)}`;
+            hasError = true;
           }
         }
         
