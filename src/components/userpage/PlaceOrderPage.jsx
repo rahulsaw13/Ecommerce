@@ -8,6 +8,7 @@ import LocationPickerPopup from '@common/LocationPickerPopup';
 import { getCart, clearCart, updateCartQuantity } from '../../redux/slices/cartSlice';
 import { placeOrderFromCart, clearOrderStatus } from '../../redux/slices/orderSlice';
 import { fetchUserAddresses } from '../../redux/slices/addressSlice';
+import { fetchAllActiveProducts, fetchAllCategories } from '../../redux/slices/productSlice';
 import { getLocationFromCookie, saveLocationToCookie } from '@services/locationService';
 import { allApi } from '@api/api';
 
@@ -22,6 +23,8 @@ const PlaceOrderPage = () => {
   const { items: cartItems, loading: cartLoading } = useSelector((state) => state.cart);
   const { addresses } = useSelector((state) => state.address);
   const { loading: orderLoading, orderSuccess, orderId, error: orderError } = useSelector((state) => state.order);
+  const allProducts = useSelector((state) => state.products?.products || []);
+  const allCategories = useSelector((state) => state.products?.categories || []);
   
   const [address, setAddress] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
@@ -57,6 +60,7 @@ const PlaceOrderPage = () => {
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [availableCoupons, setAvailableCoupons] = useState([]);
   const [applyingCoupon, setApplyingCoupon] = useState(false);
+  const [expandedCouponCategories, setExpandedCouponCategories] = useState({});
 
   // Delivery availability — backend is the authoritative check; frontend only tracks location name
   const [deliveryCheck, setDeliveryCheck] = useState({ checked: true, available: true, locationName: '' });
@@ -144,6 +148,9 @@ const PlaceOrderPage = () => {
         await dispatch(getCart());
         await dispatch(fetchUserAddresses(userDetails.id));
       }
+      // Ensure products and categories are loaded for coupon validation and display
+      dispatch(fetchAllActiveProducts());
+      dispatch(fetchAllCategories());
     };
     
     fetchData();
@@ -297,17 +304,114 @@ const PlaceOrderPage = () => {
     }
   };
 
-  const fetchAvailableCoupons = async () => {
-    setAvailableCoupons([]);
+  const buildCategoryMap = () => {
+    const map = {};
+    allCategories.forEach(c => {
+      if (c.category?.id) map[String(c.category.id)] = c.category.name;
+    });
+    return map;
   };
 
-  const handleApplyCoupon = async (code) => {
-    if (!code) {
-      alert('Please enter a coupon code');
-      return;
+  const renderCouponScope = (coupon) => {
+    if (!coupon.applies_category && !coupon.applies_products) return null;
+    if (coupon.applies_products) {
+      return <p className="text-xs text-orange-600 mt-1">Applicable on selected products</p>;
     }
-    alert('Coupon functionality coming soon');
-    setShowCouponModal(false);
+    if (coupon.applies_category) {
+      const ids = coupon.applies_category.split(',').map(s => s.trim()).filter(Boolean);
+      const categoryMap = buildCategoryMap();
+      const names = ids.map(id => categoryMap[id]).filter(Boolean);
+      if (names.length === 0) return null;
+      const isExpanded = expandedCouponCategories[coupon.id];
+      const visible = isExpanded ? names : names.slice(0, 3);
+      const remaining = names.length - 3;
+      return (
+        <p className="text-xs text-orange-600 mt-1">
+          Applicable on: {visible.join(', ')}
+          {!isExpanded && remaining > 0 && (
+            <>
+              {' '}
+              <button
+                type="button"
+                className="underline font-semibold"
+                onClick={(e) => { e.stopPropagation(); setExpandedCouponCategories(prev => ({ ...prev, [coupon.id]: true })); }}
+              >
+                +{remaining} more
+              </button>
+            </>
+          )}
+          {isExpanded && (
+            <>
+              {' '}
+              <button
+                type="button"
+                className="underline font-semibold"
+                onClick={(e) => { e.stopPropagation(); setExpandedCouponCategories(prev => ({ ...prev, [coupon.id]: false })); }}
+              >
+                show less
+              </button>
+            </>
+          )}
+        </p>
+      );
+    }
+    return null;
+  };
+
+  const fetchAvailableCoupons = async () => {
+    try {
+      const res = await allApi.get('/user_dashboard/available_discounts');
+      setAvailableCoupons(res.data?.discounts || []);
+    } catch {
+      setAvailableCoupons([]);
+    }
+  };
+
+  const handleApplyCoupon = async (code, exact = false) => {
+    if (!code) return;
+    setApplyingCoupon(true);
+    try {
+      // Ensure products are loaded so variant→category map is accurate
+      let products = allProducts;
+      if (!products || products.length === 0) {
+        const result = await dispatch(fetchAllActiveProducts());
+        products = result.payload || [];
+      }
+
+      // Build variant → category_id lookup from products
+      const variantCategoryMap = {};
+      products.forEach(p => {
+        if (p.category_id) {
+          (p.variants || []).forEach(v => {
+            variantCategoryMap[String(v.productVariantId)] = String(p.category_id);
+          });
+        }
+      });
+      const cartItemsPayload = cartItemsLocal.map(item => ({
+        product_variant_id: String(item.product_variant_id),
+        category_id: variantCategoryMap[String(item.product_variant_id)] || String(item.category_id || ''),
+        quantity: item.quantity || 1,
+        price: item.selling_price || item.price || 0
+      }));
+      const res = await allApi.post('/user_dashboard/validate_discount', {
+        code: exact ? code.trim() : code.trim().toUpperCase(),
+        cart_total: cartTotals.subtotal_selling_price,
+        cart_items: cartItemsPayload
+      });
+      if (res.data?.valid) {
+        const discountAmt = res.data.discount_amount || 0;
+        setCouponDiscount(discountAmt);
+        setAppliedCoupon({ code: res.data.coupon?.code || code, ...res.data.coupon });
+        setCouponCode('');
+        setShowCouponModal(false);
+      } else {
+        alert(res.data?.message || 'Invalid coupon code');
+      }
+    } catch {
+      alert('Failed to apply coupon. Please try again.');
+    } finally {
+      setApplyingCoupon(false);
+    }
   };
 
   const handleRemoveCoupon = () => {
@@ -350,12 +454,15 @@ const PlaceOrderPage = () => {
         } catch (_) {}
       }
 
+      const effectiveTotal = Math.max(0, cartTotals.grand_total - couponDiscount);
       await dispatch(placeOrderFromCart({
         userId: userDetails.id,
-        totalPrice: cartTotals.grand_total.toFixed(2),
+        totalPrice: effectiveTotal.toFixed(2),
         addressId: addressId,
         paymentMethod: paymentMethod,
         orderType: 'home_delivery',
+        couponCode: appliedCoupon?.code || null,
+        couponDiscount: couponDiscount || 0,
         ...locationCoords
       })).unwrap();
       
@@ -792,14 +899,14 @@ const PlaceOrderPage = () => {
 
               <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300">
                 <span className="text-gray-900 font-bold text-base">Grand total</span>
-                <span className="text-gray-900 font-bold text-base">₹{cartTotals.grand_total.toFixed(2)}</span>
+                <span className="text-gray-900 font-bold text-base">₹{Math.max(0, cartTotals.grand_total - couponDiscount).toFixed(2)}</span>
               </div>
             </div>
           </div>
 
           <div className="bg-black text-white rounded-lg p-3 flex justify-between items-center">
             <span className="text-sm">Your total savings</span>
-            <span className="font-bold text-base">₹{cartTotals.savings.toFixed(2)}</span>
+            <span className="font-bold text-base">₹{(cartTotals.savings + couponDiscount).toFixed(2)}</span>
           </div>
 
           {/* Branch stock check result */}
@@ -836,7 +943,7 @@ const PlaceOrderPage = () => {
             disabled={placingOrder || stockCheck.loading || stockCheck.unavailable.length > 0}
             className="w-full bg-[#FFC107] hover:bg-[#FFB300] text-gray-900 font-bold py-4 rounded-lg text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {placingOrder ? 'Processing...' : `Checkout ₹${cartTotals.grand_total.toFixed(2)}`}
+            {placingOrder ? 'Processing...' : `Checkout ₹${Math.max(0, cartTotals.grand_total - couponDiscount).toFixed(2)}`}
           </button>
         </div>
       </div>
@@ -896,12 +1003,13 @@ const PlaceOrderPage = () => {
                           </span>
                         </div>
                         <p className="text-xs text-gray-600 mb-1">{coupon.description}</p>
+                        {renderCouponScope(coupon)}
                         {coupon.min_cart_value > 0 && (
                           <p className="text-xs text-gray-500">Min. cart value: ₹{coupon.min_cart_value}</p>
                         )}
                       </div>
                       <button
-                        onClick={() => handleApplyCoupon(coupon.code)}
+                        onClick={() => handleApplyCoupon(coupon.code, true)}
                         disabled={applyingCoupon}
                         className="ml-2 px-3 py-1 text-xs bg-[#FFC107] hover:bg-[#FFB300] text-gray-900 font-semibold rounded transition-colors disabled:opacity-50"
                       >

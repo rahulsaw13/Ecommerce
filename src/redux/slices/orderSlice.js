@@ -4,7 +4,7 @@ import API from "../../services/api";
 // ✅ Place Order from Cart
 export const placeOrderFromCart = createAsyncThunk(
   "order/placeOrderFromCart",
-  async ({ userId, totalPrice, addressId, paymentMethod = 'cod', orderType = 'home_delivery', latitude, longitude }, thunkAPI) => {
+  async ({ userId, totalPrice, addressId, paymentMethod = 'cod', orderType = 'home_delivery', latitude, longitude, couponCode, couponDiscount }, thunkAPI) => {
     try {
       const orderData = {
         user_id: userId,
@@ -16,6 +16,10 @@ export const placeOrderFromCart = createAsyncThunk(
       if (latitude != null && longitude != null) {
         orderData.latitude = latitude;
         orderData.longitude = longitude;
+      }
+      if (couponCode) {
+        orderData.coupon_code = couponCode;
+        orderData.coupon_discount = String(couponDiscount || 0);
       }
       
       console.log("Placing order with data:", orderData);

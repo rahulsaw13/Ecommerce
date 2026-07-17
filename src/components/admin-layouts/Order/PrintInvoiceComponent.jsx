@@ -76,9 +76,11 @@ const PrintInvoice = ({ data }) => {
   const taxPrice = currentData?.tax_price ? parseFloat(currentData.tax_price) : 0;
   const handlingFee = currentData?.handling_fee ? parseFloat(currentData.handling_fee) : 0;
   const discount = currentData?.discount ? parseFloat(currentData.discount) : 0;
-  
+  const couponDiscount = currentData?.coupon_discount ? parseFloat(currentData.coupon_discount) : 0;
+  const couponCode = currentData?.coupon_code || null;
+
   // Calculate total
-  const finalTotal = subtotal + taxPrice + handlingFee;
+  const finalTotal = subtotal + taxPrice + handlingFee - couponDiscount;
 
   return (
     <div className="max-w-4xl mx-auto p-8 bg-white">
@@ -284,6 +286,12 @@ const PrintInvoice = ({ data }) => {
                   <span>Discount:</span>
                   <span>Rs. {discount.toFixed(2)}</span>
                 </div>
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between mb-2 text-sm text-green-700">
+                    <span>Coupon ({couponCode}):</span>
+                    <span>- Rs. {couponDiscount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-lg font-bold border-t border-gray-300 pt-2">
                   <span>Total:</span>
                   <span>Rs. {finalTotal.toFixed(2)}</span>
