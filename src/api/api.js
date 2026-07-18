@@ -130,7 +130,9 @@
 
 import axios from "axios";
 
-const BASE_URL = (process.env.REACT_APP_BASE_URL || "http://localhost:8070") + "/api/v1/ecommerce";
+// In production, REACT_APP_BASE_URL is empty so API calls use the current domain (relative URL).
+// In local dev, .env.local sets it to http://localhost:8070.
+const BASE_URL = (process.env.REACT_APP_BASE_URL || "") + "/api/v1/ecommerce";
 const TENANT_DOMAIN = typeof window !== "undefined" ? window.location.hostname : "localhost";
 
 const _getBranchIdFromCookie = () => {
