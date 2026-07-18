@@ -18,7 +18,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: (process.env.REACT_APP_BASE_URL || "http://localhost:8070") + "/api/v1/ecommerce",
+  baseURL: (process.env.REACT_APP_BASE_URL || "") + "/api/v1/ecommerce",
 });
 
 // Interceptor to fix duplicate /api/v1/ in URLs
