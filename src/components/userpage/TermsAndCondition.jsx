@@ -9,9 +9,10 @@ import Header from '@common/Header';
 import Footer from '@common/Footer';
 import { allApi } from "@api/api";
 import { API_CONSTANTS } from "@constants/apiurl";
-import { SHOP_INFO } from '@config/srirammart.config';
+import { useCompanyInfo } from '@hooks/useCompanyInfo';
 
 const TermsAndCondition = () => {
+  const companyInfo = useCompanyInfo();
   const [loader, setLoader] = useState(false);
   const { t } = useTranslation("msg");
   const [menuList, setMenuList] = useState([]);
@@ -120,8 +121,8 @@ const TermsAndCondition = () => {
             <div className='mt-8 p-4 bg-gray-50 border border-gray-200 rounded-lg'>
               <p className='text-[0.9rem] leading-7 font-[500] text-gray-800'>
                 <strong>Questions?</strong> Contact us at{' '}
-                <a className='underline text-[#C7A756] hover:text-[#b4974c]' href={`mailto:${SHOP_INFO.email}`}>
-                  {SHOP_INFO.email}
+                <a className='underline text-[#C7A756] hover:text-[#b4974c]' href={`mailto:${companyInfo.email}`}>
+                  {companyInfo.email}
                 </a>
               </p>
             </div>

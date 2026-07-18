@@ -15,7 +15,7 @@ import ContactFromBannerImage from "@assets/contact-from-banner.webp";
 import Image from "@common/Image";
 import InputTextComponent from "@common/InputTextComponent";
 import InputTextAreaComponent from "@common/InputTextAreaComponent";
-import { SHOP_INFO, SRIRAMMART_CONFIG } from '@config/srirammart.config';
+import { useCompanyInfo } from '@hooks/useCompanyInfo';
 import { ROUTES_CONSTANTS } from "@constants/routesurl";
 
 const initialValues = {
@@ -30,6 +30,7 @@ const ContactUsPage = () => {
   const navigate = useNavigate();
   const [loader, setLoader] = useState(false);
   const { t } = useTranslation("msg");
+  const companyInfo = useCompanyInfo();
   const [data, setData] = useState(initialValues);
   const [menuList, setMenuList] = useState([]);
   const [footerRangeList, setFooterRangeList] = useState([]);
@@ -123,8 +124,8 @@ const ContactUsPage = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-[#1D2E43] text-lg mb-2">Phone</h3>
-                      <a href={`tel:${SHOP_INFO.phoneNumber}`} className="text-gray-700 hover:text-[#C7A756] transition-colors">
-                        {SHOP_INFO.phoneNumber}
+                      <a href={`tel:${companyInfo.phone}`} className="text-gray-700 hover:text-[#C7A756] transition-colors">
+                        {companyInfo.phone}
                       </a>
                     </div>
                   </div>
@@ -137,8 +138,8 @@ const ContactUsPage = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-[#1D2E43] text-lg mb-2">Email</h3>
-                      <a href={`mailto:${SHOP_INFO.email}`} className="text-gray-700 hover:text-[#C7A756] transition-colors break-all">
-                        {SHOP_INFO.email}
+                      <a href={`mailto:${companyInfo.email}`} className="text-gray-700 hover:text-[#C7A756] transition-colors break-all">
+                        {companyInfo.email}
                       </a>
                     </div>
                   </div>
@@ -152,7 +153,7 @@ const ContactUsPage = () => {
                     <div>
                       <h3 className="font-semibold text-[#1D2E43] text-lg mb-2">Address</h3>
                       <p className="text-gray-700">
-                        {SHOP_INFO.address}
+                        {companyInfo.address}
                       </p>
                     </div>
                   </div>
@@ -166,8 +167,8 @@ const ContactUsPage = () => {
                     <div>
                       <h3 className="font-semibold text-[#1D2E43] text-lg mb-2">Business Hours</h3>
                       <p className="text-gray-700">
-                        {SHOP_INFO.timing.days}<br />
-                        {SHOP_INFO.timing.time}
+                        Every day<br />
+                        8 AM to 8 PM
                       </p>
                     </div>
                   </div>
@@ -176,7 +177,11 @@ const ContactUsPage = () => {
                 <div className="bg-white rounded-lg border p-6">
                   <h3 className="font-semibold text-[#1D2E43] text-lg mb-4">Follow Us</h3>
                   <div className="flex gap-3">
-                    {SHOP_INFO.social.map((item, index) => (
+                    {[
+                      { name: 'Facebook', url: '#', icon: 'ri-facebook-fill' },
+                      { name: 'Instagram', url: '#', icon: 'ri-instagram-fill' },
+                      { name: 'Whatsapp', url: `https://api.whatsapp.com/send/?phone=${companyInfo.phone?.replace(/\D/g,'')}`, icon: 'ri-whatsapp-fill' },
+                    ].map((item, index) => (
                       <a
                         key={index}
                         href={item?.url}

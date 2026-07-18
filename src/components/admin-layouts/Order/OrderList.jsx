@@ -1,5 +1,6 @@
 // utils
 import { useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Toast } from "primereact/toast";
@@ -17,7 +18,7 @@ import { ROUTES_CONSTANTS } from "@constants/routesurl";
 import { API_CONSTANTS } from "@constants/apiurl";
 import { refactorPrefilledDate } from '@helper';
 import AutocompleteComponent from "@common/Autocomplete";
-import { SHOP_INFO, TAX_INFO, INVOICE_CONFIG, numberToWords } from "@config/srirammart.config";
+import { INVOICE_CONFIG, numberToWords } from "@config/srirammart.config";
 
 // Add custom styles for order table
 const orderTableStyles = `
@@ -278,6 +279,7 @@ const OrderList = ({search}) => {
   const toast = useRef(null);
   const { t } = useTranslation("msg");
   const navigate = useNavigate();
+  const companyInfo = useSelector((state) => state.company?.info) || {};
   const [searchParams, setSearchParams] = useSearchParams();
   const highlightOrderId = searchParams.get('highlightOrder');
   const highlightedRowRef = useRef(null);
@@ -772,21 +774,21 @@ const OrderList = ({search}) => {
                   </div>
                   <div class="info-item">
                     <div class="info-label">HSN Code:</div>
-                    <div class="info-value">${TAX_INFO.hsnCode}</div>
+                    <div class="info-value">996331</div>
                   </div>
                 </div>
                 <div>
                   <div class="info-item">
                     <div class="info-label">Service Description:</div>
-                    <div class="info-value">${TAX_INFO.serviceDescription}</div>
+                    <div class="info-value">Retail Service</div>
                   </div>
                   <div class="info-item">
                     <div class="info-label">Category:</div>
-                    <div class="info-value">${TAX_INFO.category}</div>
+                    <div class="info-value">B2C</div>
                   </div>
                   <div class="info-item">
                     <div class="info-label">Reverse Charges Applicable:</div>
-                    <div class="info-value">${TAX_INFO.reverseChargesApplicable}</div>
+                    <div class="info-value">No</div>
                   </div>
                 </div>
               </div>
@@ -820,27 +822,27 @@ const OrderList = ({search}) => {
                   <div class="section-title">Invoice Issued By:</div>
                   <div class="info-item">
                     <div class="info-label">Company Name:</div>
-                    <div class="info-value">${SHOP_INFO.companyName}</div>
+                    <div class="info-value">${companyInfo.name || 'Dukaansarthi'}</div>
                   </div>
                   <div class="info-item">
                     <div class="info-label">Restaurant Name:</div>
-                    <div class="info-value">${SHOP_INFO.restaurantName}</div>
+                    <div class="info-value">${companyInfo.name || 'Dukaansarthi'}</div>
                   </div>
                   <div class="info-item">
                     <div class="info-label">Restaurant GSTIN:</div>
-                    <div class="info-value">${TAX_INFO.gstin}</div>
+                    <div class="info-value">${companyInfo.gstin || ''}</div>
                   </div>
                   <div class="info-item">
                     <div class="info-label">Address:</div>
-                    <div class="info-value">${SHOP_INFO.address}, ${SHOP_INFO.pincode}</div>
+                    <div class="info-value">${companyInfo.address || ''}, ${companyInfo.pincode || ''}</div>
                   </div>
                   <div class="info-item">
                     <div class="info-label">Phone:</div>
-                    <div class="info-value">${SHOP_INFO.phoneNumber}</div>
+                    <div class="info-value">${companyInfo.phone || ''}</div>
                   </div>
                   <div class="info-item">
                     <div class="info-label">Email:</div>
-                    <div class="info-value">${SHOP_INFO.email}</div>
+                    <div class="info-value">${companyInfo.email || ''}</div>
                   </div>
                 </div>
               </div>
@@ -957,7 +959,7 @@ const OrderList = ({search}) => {
                   <div style="text-align: right;">
                     <div style="font-weight: bold; margin-bottom: 5px;">Authorized Signature</div>
                     <div style="font-size: 10px; color: #666;">Digitally Signed by</div>
-                    <div style="font-weight: bold;">${SHOP_INFO.companyName}</div>
+                    <div style="font-weight: bold;">${companyInfo.name || 'Dukaansarthi'}</div>
                     <div style="font-size: 10px; color: #666;">${new Date().toLocaleDateString('en-IN')}</div>
                   </div>
                 </div>

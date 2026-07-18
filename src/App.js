@@ -11,8 +11,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import 'remixicon/fonts/remixicon.css';
 import "primereact/resources/themes/lara-light-cyan/theme.css";
 import { loadThemeColors, initializeThemeFromStorage } from '@utils/themeUtils';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { checkAuth } from './redux/slices/authSlice';
+import { fetchCompanyInfo } from './redux/slices/companySlice';
 
 // Admin pages
 const DashboardPage = lazy(() => import("@pages/DashboardPage"));
@@ -81,15 +82,20 @@ function App() {
   initializeThemeFromStorage();
 
   const dispatch = useDispatch();
+  const companyName = useSelector((state) => state.company?.info?.name);
 
-  // Load theme colors from API only if user is logged in
   useEffect(() => {
+    dispatch(fetchCompanyInfo());
     dispatch(checkAuth());
     const token = localStorage.getItem('token');
     if (token) {
       loadThemeColors();
     }
   }, []);
+
+  useEffect(() => {
+    if (companyName) document.title = companyName;
+  }, [companyName]);
 
   return (
     <Suspense fallback={<RouteLoader />}>

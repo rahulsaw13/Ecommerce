@@ -1,12 +1,13 @@
 // Utils
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { SRIRAMMART_CONFIG } from '@config/srirammart.config';
+import { useSelector } from 'react-redux';
 import { ROUTES_CONSTANTS } from "@constants/routesurl";
 
 const Footer = ({ data }) => {
   const navigate = useNavigate();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const companyInfo = useSelector((state) => state.company?.info) || {};
 
   // Get user details from localStorage
   const getUserDetails = () => {
@@ -48,11 +49,11 @@ const Footer = ({ data }) => {
                     {/* Left Section - Logo and Description */}
                     <div className="text-gray-900">
                         <div className="flex items-center gap-1 mb-4">
-                            <span className="text-3xl font-bold text-gray-900">{SRIRAMMART_CONFIG.company.name.replace('Mart', '')}</span>
-                            <span className="text-3xl font-bold text-green-600">Mart</span>
+                            <span className="text-3xl font-bold text-gray-900">{(companyInfo.name || 'Dukaansarthi').replace('Mart', '').replace('mart', '')}</span>
+                            <span className="text-3xl font-bold text-green-600">{(companyInfo.name || '').includes('art') ? 'mart' : ''}</span>
                         </div>
                         <p className="text-sm leading-relaxed mb-2">
-                            {SRIRAMMART_CONFIG.company.description}
+                            Your trusted source for quality products delivered fresh to your doorstep.
                         </p>
                     </div>
 
@@ -129,7 +130,7 @@ const Footer = ({ data }) => {
                         {/* Social Media Icons */}
                         <div className="flex gap-3 mb-6">
                             <a
-                                href={SRIRAMMART_CONFIG.social.facebook}
+                                href={"#"}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-8 h-8 rounded-full bg-gray-900 text-white flex justify-center items-center hover:bg-gray-700 transition-colors"
@@ -137,7 +138,7 @@ const Footer = ({ data }) => {
                                 <i className="ri-facebook-fill text-sm"></i>
                             </a>
                             <a
-                                href={SRIRAMMART_CONFIG.social.instagram}
+                                href={"#"}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-8 h-8 rounded-full bg-gray-900 text-white flex justify-center items-center hover:bg-gray-700 transition-colors"
@@ -145,7 +146,7 @@ const Footer = ({ data }) => {
                                 <i className="ri-instagram-line text-sm"></i>
                             </a>
                             <a
-                                href={SRIRAMMART_CONFIG.social.twitter}
+                                href={"#"}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-8 h-8 rounded-full bg-gray-900 text-white flex justify-center items-center hover:bg-gray-700 transition-colors"
@@ -153,7 +154,7 @@ const Footer = ({ data }) => {
                                 <i className="ri-twitter-fill text-sm"></i>
                             </a>
                             <a
-                                href={SRIRAMMART_CONFIG.social.youtube}
+                                href={"#"}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-8 h-8 rounded-full bg-gray-900 text-white flex justify-center items-center hover:bg-gray-700 transition-colors"

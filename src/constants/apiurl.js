@@ -30,6 +30,9 @@ export const API_CONSTANTS = {
     COMMON_SETTINGS_URL: "api/v1/settings",
     COMMON_WAREHOUSES_URL: "api/v1/warehouses",
 
+    // Company info (multi-tenant)
+    COMPANY_INFO_URL: "user_dashboard/company_info",
+
     // General use
     BLOGS_URL: "api/v1/user_dashboard/latest_blogs",
     SNACK_RANGE_URL: "api/v1/user_dashboard/snacks_category",

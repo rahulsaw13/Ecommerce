@@ -1,5 +1,5 @@
 import { setCookie, getCookie } from '@utils/cookies';
-import { isDeliveryAvailable, SHOP_INFO, DELIVERY_CONFIG } from '@config/srirammart.config';
+import { isDeliveryAvailable } from '@config/srirammart.config';
 
 // Haversine formula — returns distance in km between two lat/lng points
 export const haversineDistance = (lat1, lon1, lat2, lon2) => {
@@ -13,16 +13,13 @@ export const haversineDistance = (lat1, lon1, lat2, lon2) => {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-// Check delivery availability purely on the frontend using store coordinates.
-// SHOP_INFO has longitude/latitude labels swapped (see config comment):
-//   SHOP_INFO.longitude = actual latitude value (23.x)
-//   SHOP_INFO.latitude  = actual longitude value (72.x)
-export const checkDeliveryAvailabilityLocal = (userLat, userLng) => {
-  const storeLat = parseFloat(SHOP_INFO.longitude); // actually lat
-  const storeLng = parseFloat(SHOP_INFO.latitude);  // actually lng
+// Check delivery availability using store coordinates passed from Redux company info.
+// storeLat/storeLng come from companyInfo.latitude/longitude (properly named in DB).
+// maxRadiusKm defaults to 50 if not provided.
+export const checkDeliveryAvailabilityLocal = (userLat, userLng, storeLat = 0, storeLng = 0, maxRadiusKm = 50) => {
   if (!storeLat || !storeLng) return { available: true, distance: 0 };
   const distance = haversineDistance(userLat, userLng, storeLat, storeLng);
-  return { available: distance <= DELIVERY_CONFIG.maxDeliveryRadius, distance };
+  return { available: distance <= maxRadiusKm, distance };
 };
 
 // Get user's current location using browser geolocation API

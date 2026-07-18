@@ -9,9 +9,10 @@ import Header from '@common/Header';
 import Footer from '@common/Footer';
 import { allApi } from "@api/api";
 import { API_CONSTANTS } from "@constants/apiurl";
-import { SHOP_INFO } from '@config/srirammart.config';
+import { useCompanyInfo } from '@hooks/useCompanyInfo';
 
 const Register = () => {
+  const companyInfo = useCompanyInfo();
   const [loader, setLoader] = useState(false);
   const { t } = useTranslation("msg");
   const navigate = useNavigate();
@@ -82,8 +83,8 @@ const Register = () => {
                         <h3 className="text-lg font-bold text-[#1D2E43] mb-1">Contact Us</h3>
                         <p className="text-gray-700">
                             Reach out to our support team via email at{' '}
-                            <a href={`mailto:${SHOP_INFO.email}`} className="text-blue-600 underline hover:text-blue-700">
-                                {SHOP_INFO.email}
+                            <a href={`mailto:${companyInfo.email}`} className="text-blue-600 underline hover:text-blue-700">
+                                {companyInfo.email}
                             </a>
                         </p>
                     </div>

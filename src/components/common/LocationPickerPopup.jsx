@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import { allApi } from '@api/api';
 import { saveLocationToCookie, checkDeliveryAvailabilityLocal } from '@services/locationService';
 
@@ -26,6 +27,7 @@ const extractSecondary = (addressObj) => {
 };
 
 const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef }) => {
+  const companyInfo = useSelector((state) => state.company?.info);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
@@ -131,7 +133,7 @@ const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef })
       branchId = response.data.branch_id ?? null;
     } catch (_) {
       // API unavailable — fall back to local distance check
-      const result = checkDeliveryAvailabilityLocal(lat, lng);
+      const result = checkDeliveryAvailabilityLocal(lat, lng, companyInfo?.latitude, companyInfo?.longitude);
       deliveryAvailable = result.available;
     }
     if (!deliveryAvailable) {

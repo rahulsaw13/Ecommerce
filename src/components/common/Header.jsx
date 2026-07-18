@@ -715,7 +715,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { TieredMenu } from 'primereact/tieredmenu';
 import { useTranslation } from "react-i18next";
 import toast, { Toaster } from 'react-hot-toast';
-import { SRIRAMMART_CONFIG } from '@config/srirammart.config';
 import { getLocationFromCookie } from '@services/locationService';
 import LocationPickerPopup from './LocationPickerPopup';
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { allApiWithHeaderToken } from "@api/api";
 import { API_CONSTANTS } from "@constants/apiurl";
 import { useTranslation } from "react-i18next";
-import { SHOP_INFO } from "@config/srirammart.config";
+import { useCompanyInfo } from '@hooks/useCompanyInfo';
 import Header from '@common/Header';
 import Footer from '@common/Footer';
 import UserLoader from '@userpage-pages/UserLoader';
@@ -11,6 +11,7 @@ import UserLoader from '@userpage-pages/UserLoader';
 const TrackOrderPage = () => {
   const navigate = useNavigate();
   const { t } = useTranslation("msg");
+  const companyInfo = useCompanyInfo();
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [loader, setLoader] = useState(true);
@@ -19,10 +20,9 @@ const TrackOrderPage = () => {
   const [showAllOrders, setShowAllOrders] = useState(false);
   const [actualRoadDistance, setActualRoadDistance] = useState(null);
 
-  // Note: SHOP_INFO.longitude holds the latitude value (23.x) and .latitude holds longitude (72.x)
   const storeLocation = {
-    lat: parseFloat(SHOP_INFO.longitude),
-    lng: parseFloat(SHOP_INFO.latitude)
+    lat: companyInfo.latitude || 0,
+    lng: companyInfo.longitude || 0,
   };
 
   useEffect(() => {
@@ -533,8 +533,8 @@ const TrackOrderPage = () => {
                         <i className="ri-map-pin-line text-xl text-yellow-500 mt-0.5"></i>
                         <div>
                           <h4 className="text-sm font-bold text-gray-900 mb-1">Store Address</h4>
-                          <p className="text-sm text-gray-600">{SHOP_INFO.address}</p>
-                          <p className="text-xs text-gray-500 mt-1">Pincode: {SHOP_INFO.pincode}</p>
+                          <p className="text-sm text-gray-600">{companyInfo.address}</p>
+                          <p className="text-xs text-gray-500 mt-1">Pincode: {companyInfo.pincode}</p>
                           {userLocation && (
                             <>
                               <div className="mt-3 pt-3 border-t border-gray-200">
