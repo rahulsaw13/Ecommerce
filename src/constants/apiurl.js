@@ -40,6 +40,8 @@ export const API_CONSTANTS = {
     GIFTING_CATEGORY_URL: "api/v1/user_dashboard/gifting_category",
     ALL_CATEGORY_URL: "api/v1/user_dashboard/all_categories",
     ALL_PRODUCTS_URL: "api/v1/user_dashboard/all_active_products",
+    BESTSELLING_URL: "api/v1/user_dashboard/bestselling",
+    BESTSELLING_BY_CATEGORY_URL: "api/v1/user_dashboard/bestselling_by_category",
     ALL_PRODUCT_URL: "api/v1/products/active_product",
     MENU_LIST_URL: "api/v1/user_dashboard/nav_menu_list",
     GET_PRODUCT_BY_SUBCATEGORY_ID_URL: "api/v1/user_dashboard/get_products_by_subcategory",
@@ -54,7 +56,7 @@ export const API_CONSTANTS = {
     CHANGE_PASSWORD_URL: "api/v1/users/change_password",
     GOOGLE_AUTH: "api/v1/users/google_signin",
     PAYMENT_INTENT_CREATE: "api/v1/payment_transactions/create_payment_intent",
-    PAYMENT_VERIFY: "api/v1/payment_transactions/verify_payment",
+    PAYMENT_INTENT_VERIFY: "api/v1/payment_transactions/verify_payment",
     ADD_CONTACT_DETAILS: "api/v1/user_dashboard/add_contact_details",
     GET_ALL_SUBCATEGORY_BY_CATEGORY_NAME_URL: "api/v1/user_dashboard/get_subcategories_by_category_name",
     GET_PRODUCT_BY_CATEGORY_NAME_URL: "api/v1/user_dashboard/get_products_by_category_name",
@@ -111,5 +113,18 @@ export const API_CONSTANTS = {
         SHOW: "api/v1/settings/:id",
         UPDATE: "api/v1/settings/:id",
         THEME_COLORS: "api/v1/settings/theme_colors"
-    }
+    },
+
+    // Wallet API endpoints (admin — DukanSarthi token required)
+    WALLET_ADMIN_SETTINGS: "api/v1/ecommerceadmin/wallet/settings",
+    WALLET_ADMIN_BONUS: "api/v1/ecommerceadmin/wallet/bonus",
+    WALLET_ADMIN_USERS: "api/v1/ecommerceadmin/wallet/users",
+
+    // Wallet API endpoints (ecommerce user)
+    WALLET_SETTINGS: "wallet/settings",
+    WALLET_BALANCE: "wallet/balance",
+
+    // Razorpay payment endpoints
+    PAYMENT_CREATE_ORDER: "payment/create_order",
+    PAYMENT_VERIFY: "payment/verify",
 }
