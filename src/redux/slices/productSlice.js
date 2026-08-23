@@ -43,6 +43,18 @@ export const fetchHomeSections = createAsyncThunk(
 
 
 
+export const fetchBestSellingByCategory = createAsyncThunk(
+  "products/fetchBestSellingByCategory",
+  async (_, thunkAPI) => {
+    try {
+      const response = await allApi.get("/user_dashboard/bestselling_by_category");
+      return response.data;
+    } catch (err) {
+      return thunkAPI.rejectWithValue(err.response?.data || err.message || "Failed to fetch bestselling by category");
+    }
+  }
+);
+
 // Add this to your productSlice.js
 export const fetchMenuList = createAsyncThunk(
   "products/fetchMenuList",
@@ -62,6 +74,7 @@ const productSlice = createSlice({
     products: [],
     categories: [],
     homeSections: [],
+    bestSellingByCategory: [],
     selectedProduct: null,
     categoryProducts: [],
      menuList: [],
@@ -162,20 +175,27 @@ const productSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
         state.homeSections = [];
+      })
+
+      .addCase(fetchBestSellingByCategory.fulfilled, (state, action) => {
+        state.bestSellingByCategory = Array.isArray(action.payload) ? action.payload : [];
+      })
+      .addCase(fetchBestSellingByCategory.rejected, (state) => {
+        state.bestSellingByCategory = [];
       });
 
 
-      
+
   },
   
 });
 
-export const { 
-  clearProducts, 
-  clearSelectedProduct, 
+export const {
+  clearProducts,
+  clearSelectedProduct,
   clearCategories,
   clearHomeSections,
-  clearCategoryProducts 
+  clearCategoryProducts
 } = productSlice.actions;
 
 export default productSlice.reducer;

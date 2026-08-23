@@ -9,6 +9,8 @@ import { getCart } from '../../redux/slices/cartSlice';
 import UserLoader from '@userpage-pages/UserLoader';
 import { Toast } from 'primereact/toast';
 import { decodeHtml } from "@helper";
+import useWishlistStore from '../../useWishlistStore';
+import { expandSearchTerms } from '@config/searchSynonyms';
 
 const CategoryProductsPage = () => {
   const [searchParams] = useSearchParams();
@@ -17,6 +19,7 @@ const CategoryProductsPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const toast = useRef(null);
+  const { items: wishlistItems, toggleWishlist } = useWishlistStore();
 
   const [categoryData, setCategoryData] = useState(null);
   const [subCategories, setSubCategories] = useState([]);
@@ -69,12 +72,15 @@ const CategoryProductsPage = () => {
     // Filter products based on selected subcategory and search query
     let filtered = [...products];
     
-    // Apply search filter if search query exists
+    // Apply search filter with synonym expansion
+    // e.g. "aloo" → matches products containing "potato", "batata", etc.
     if (searchQuery && searchQuery.trim()) {
-      filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const terms = expandSearchTerms(searchQuery);
+      filtered = filtered.filter(product => {
+        const name = product.name.toLowerCase();
+        const desc = (product.description || '').toLowerCase();
+        return terms.some(term => name.includes(term) || desc.includes(term));
+      });
     }
     
     if (selectedSubCategory) {
@@ -616,6 +622,24 @@ const CategoryProductsPage = () => {
                       ? Math.round(((mrp - sellingPrice) / mrp) * 100)
                       : 0;
 
+                    const wishlistKey_id = product.id;
+                    const wishlistKey_weight = firstVariant?.weight;
+                    const wishlisted = wishlistItems.some(w => w.id === wishlistKey_id && w.weight === wishlistKey_weight);
+                    const handleWishlistToggle = (e) => {
+                      e.stopPropagation();
+                      toggleWishlist({
+                        id: wishlistKey_id,
+                        productVariantId: firstVariant?.productVariantId,
+                        name: product.name,
+                        image: product.image_url,
+                        price: sellingPrice,
+                        originalPrice: mrp,
+                        weight: wishlistKey_weight,
+                        in_stock: firstVariant?.in_stock,
+                        discount,
+                      });
+                    };
+
                     return (
                       <div key={product.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden border border-gray-100">
                         {/* Product Image */}
@@ -632,6 +656,12 @@ const CategoryProductsPage = () => {
                               {discount}% Off
                             </div>
                           )}
+                          <button
+                            onClick={handleWishlistToggle}
+                            className="absolute top-1.5 right-1.5 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white shadow-sm"
+                          >
+                            <i className={`${wishlisted ? 'ri-heart-fill text-red-500' : 'ri-heart-line text-gray-400'} text-sm`}></i>
+                          </button>
                           {product.image_url ? (
                             <img
                               src={product.image_url}

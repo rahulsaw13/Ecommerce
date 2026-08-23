@@ -4,7 +4,7 @@ import API from "../../services/api";
 // ✅ Place Order from Cart
 export const placeOrderFromCart = createAsyncThunk(
   "order/placeOrderFromCart",
-  async ({ userId, totalPrice, addressId, paymentMethod = 'cod', orderType = 'home_delivery', latitude, longitude, couponCode, couponDiscount }, thunkAPI) => {
+  async ({ userId, totalPrice, addressId, paymentMethod = 'cod', orderType = 'home_delivery', latitude, longitude, couponCode, couponDiscount, walletAmountUsed }, thunkAPI) => {
     try {
       const orderData = {
         user_id: userId,
@@ -20,6 +20,9 @@ export const placeOrderFromCart = createAsyncThunk(
       if (couponCode) {
         orderData.coupon_code = couponCode;
         orderData.coupon_discount = String(couponDiscount || 0);
+      }
+      if (walletAmountUsed && walletAmountUsed > 0) {
+        orderData.wallet_amount_used = walletAmountUsed;
       }
       
       console.log("Placing order with data:", orderData);
@@ -42,12 +45,14 @@ const orderSlice = createSlice({
     error: null,
     orderSuccess: false,
     orderId: null,
+    ecomOrderId: null,
   },
   reducers: {
     clearOrderStatus: (state) => {
       state.error = null;
       state.orderSuccess = false;
       state.orderId = null;
+      state.ecomOrderId = null;
     },
   },
   extraReducers: (builder) => {
@@ -62,6 +67,7 @@ const orderSlice = createSlice({
         state.loading = false;
         state.orderSuccess = true;
         state.orderId = action.payload?.order_id || action.payload?.data?.order_id;
+        state.ecomOrderId = action.payload?.ecom_order_id || action.payload?.data?.ecom_order_id || null;
         state.error = null;
       })
       .addCase(placeOrderFromCart.rejected, (state, action) => {

@@ -6,6 +6,7 @@ import { allApiWithHeaderToken } from "@api/api";
 import { API_CONSTANTS } from "@constants/apiurl";
 import { Toast } from 'primereact/toast';
 import { decodeHtml } from "@helper";
+import useWishlistStore from '../../useWishlistStore';
 
 const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", onProductClick }) => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
   const reduxCart = useSelector(state => state.cart.items || []);
 
   const toast = useRef(null);
+  const { items: wishlistItems, toggleWishlist } = useWishlistStore();
   const [showVariantModal, setShowVariantModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [addingToCart, setAddingToCart] = useState(false);
@@ -184,7 +186,7 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
       <Toast ref={toast} position="top-right" />
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+          <h2 className="text-base md:text-xl font-extrabold text-gray-900">{title}</h2>
           {products.length > 8 && (
             <button
               onClick={() => navigate('/products')}
@@ -197,9 +199,32 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
         </div>
         <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3">
           {products.map((product) => {
-            // Get first variant for display
             const firstVariant = product.originalProduct?.variants?.[0];
             const hasMultipleVariants = product.originalProduct?.variants?.length > 1;
+            const wishlistKey_id = product.originalProduct?.id || product.id;
+            const wishlistKey_weight = firstVariant?.weight || product.weight;
+            const wishlisted = wishlistItems.some(
+              w => w.id === wishlistKey_id && w.weight === wishlistKey_weight
+            );
+            const handleWishlistToggle = (e) => {
+              e.stopPropagation();
+              const added = toggleWishlist({
+                id: wishlistKey_id,
+                productVariantId: firstVariant?.productVariantId,
+                name: product.name,
+                image: product.image,
+                price: product.price,
+                originalPrice: product.originalPrice,
+                weight: wishlistKey_weight,
+                in_stock: firstVariant?.in_stock,
+                discount: product.discount,
+              });
+              toast.current?.show({
+                severity: added ? 'success' : 'info',
+                summary: added ? 'Added to Wishlist' : 'Removed from Wishlist',
+                life: 1500,
+              });
+            };
 
             return (
               <div
@@ -215,8 +240,15 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
                       {product.discount}% off
                     </div>
                   )}
-                  <div className="relative w-full h-16 md:h-28 flex items-center justify-center">
-                    <i className={`${icon} text-3xl text-gray-200 absolute`}></i>
+                  {/* Wishlist heart */}
+                  <button
+                    onClick={handleWishlistToggle}
+                    className="absolute top-1.5 right-1.5 z-10 w-5 h-5 flex items-center justify-center rounded-full bg-white shadow-sm"
+                  >
+                    <i className={`${wishlisted ? 'ri-heart-fill text-red-500' : 'ri-heart-line text-gray-400'} text-xs`}></i>
+                  </button>
+                  <div className="relative w-full h-24 md:h-36 flex items-center justify-center">
+                    <i className={`${icon} text-4xl text-gray-200 absolute`}></i>
                     {product.image && (
                       <img
                         src={product.image}
@@ -231,15 +263,15 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
                 </div>
 
                 {/* Info */}
-                <div className="px-2 md:px-2.5 pt-1 pb-2 md:pb-2.5">
-                  <p className="text-gray-400 text-[9px] md:text-[10px] leading-tight mb-0.5">{firstVariant?.net_weight > 0 ? `${firstVariant.net_weight} ${firstVariant.weight}` : (firstVariant?.weight || product.weight)}</p>
-                  <h3 className="text-gray-900 text-[10px] md:text-xs leading-tight font-semibold line-clamp-2 min-h-[24px] md:min-h-[30px] mb-1">
+                <div className="px-2 md:px-3 pt-1 pb-2.5 md:pb-3">
+                  <p className="text-gray-400 text-[10px] leading-tight mb-0.5">{firstVariant?.net_weight > 0 ? `${firstVariant.net_weight} ${firstVariant.weight}` : (firstVariant?.weight || product.weight)}</p>
+                  <h3 className="text-gray-900 text-[11px] md:text-[13px] leading-snug font-semibold line-clamp-2 min-h-[28px] md:min-h-[36px] mb-1">
                     {decodeHtml(product.name)}
                   </h3>
-                  <p className="font-bold text-sm leading-tight mb-1.5">
+                  <p className="font-extrabold text-sm md:text-base leading-tight mb-1.5">
                     ₹{product.price.toFixed(0)}
                     {product.originalPrice > product.price && (
-                      <span className="text-gray-400 line-through font-normal text-[10px] ml-1">₹{product.originalPrice.toFixed(0)}</span>
+                      <span className="text-gray-400 line-through font-normal text-[10px] ml-1.5">₹{product.originalPrice.toFixed(0)}</span>
                     )}
                   </p>
 

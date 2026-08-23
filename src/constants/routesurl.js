@@ -15,6 +15,7 @@ export const ROUTES_CONSTANTS = {
     TRACK_ORDER: "/track-order",
     ORDER_HISTORY: "/order-history",
     MY_RETURNS: "/my-returns",
+    WISHLIST: "/wishlist",
     CONTACT_US: "/contact-us",
     TERMS_AND_CONDITION: "/terms-condition",
     SHIPPING_POLICY: "/shipping-policy",
@@ -67,5 +68,7 @@ export const ROUTES_CONSTANTS = {
     EDIT_REPORT: "/dashboard/edit-report",
     EDIT_CUSTOMER: "/dashboard/edit-customer",
     EDIT_ADDRESESS: "/dashboard/edit-addresess",
-    BANNERS: "/dashboard/banners"
+    BANNERS: "/dashboard/banners",
+    WALLET: "/dashboard/wallet",
+    WALLET_RECHARGE: "/wallet-recharge",
 }

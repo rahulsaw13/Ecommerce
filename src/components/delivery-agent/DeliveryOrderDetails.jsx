@@ -437,7 +437,7 @@ const DeliveryOrderDetails = () => {
 
       const token = localStorage.getItem('token');
       const cleanToken = token ? token.replace(/"/g, '').replace(/^Bearer\s+/, '') : '';
-      const baseURL = `${process.env.REACT_APP_BASE_URL || 'http://localhost:8070'}/api/v1/ecommerce`;
+      const baseURL = `${process.env.REACT_APP_BASE_URL || ''}/api/v1/ecommerce`;
       
       const response = await axios.patch(
         `${baseURL}/delivery_agent/orders/${orderId}/mark_delivered`,
@@ -495,7 +495,7 @@ const DeliveryOrderDetails = () => {
 
       const token = localStorage.getItem('token');
       const cleanToken = token ? token.replace(/"/g, '').replace(/^Bearer\s+/, '') : '';
-      const baseURL = `${process.env.REACT_APP_BASE_URL || 'http://localhost:8070'}/api/v1/ecommerce`;
+      const baseURL = `${process.env.REACT_APP_BASE_URL || ''}/api/v1/ecommerce`;
       
       const response = await axios.patch(
         `${baseURL}/delivery_agent/orders/${orderId}/cancel_order`,

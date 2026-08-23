@@ -12,6 +12,7 @@ const ProductForm = lazy(() => import("@adminpage-layouts/Product/ProductForm"))
 const ProductVariantForm = lazy(() => import("@adminpage-layouts/Product/ProductVariantForm"));
 const OrderForm = lazy(() => import("@adminpage-layouts/Order/OrderForm"));
 const BannerList = lazy(() => import("@adminpage-layouts/Banner/BannerList"));
+const WalletPage = lazy(() => import("@adminpage-layouts/Wallet/WalletPage"));
 
 const DashboardPage = () => {
   const [toggle, setToggle] = useState(true);
@@ -56,6 +57,12 @@ const DashboardPage = () => {
       filledIcon: "ri-image-fill",
       route: ROUTES_CONSTANTS.BANNERS,
     },
+    {
+      label: "Wallet",
+      icon: "ri-wallet-3-line",
+      filledIcon: "ri-wallet-3-fill",
+      route: ROUTES_CONSTANTS.WALLET,
+    },
   ];
 
   return (
@@ -85,6 +92,7 @@ const DashboardPage = () => {
               <Route path="/create-order" element={<OrderForm />} />
               <Route path="/edit-order/:id" element={<OrderForm />} />
               <Route path="/banners" element={<BannerList />} />
+              <Route path="/wallet" element={<WalletPage />} />
             </Routes>
           </Suspense>
         </div>

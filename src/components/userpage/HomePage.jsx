@@ -1449,10 +1449,11 @@ import PromoCarousel from '@common-sections/PromoCarousel';
 import BannerSection from '@common-sections/BannerSection';
 
 // Redux actions - Products
-import { 
-  fetchAllActiveProducts, 
-  fetchAllCategories, 
+import {
+  fetchAllActiveProducts,
+  fetchAllCategories,
   fetchHomeSections,
+  fetchBestSellingByCategory,
   clearProducts,
   clearCategories,
   clearHomeSections
@@ -1469,42 +1470,45 @@ import {
 import { decodeHtml } from "@helper";
 import { allApi } from '@api/api';
 import { API_CONSTANTS } from '@constants/apiurl';
+import useWishlistStore from '../../useWishlistStore';
 
 const TILE_COLORS = ['#fef9c3','#dcfce7','#dbeafe','#fce7f3','#ede9fe','#ffedd5','#d1fae5','#fef3c7','#e0f2fe','#f3e8ff'];
 
 function CategoryTabBar({ categories, activeCategoryId, onCategoryChange }) {
   const navigate = useNavigate();
-  return (
-    <div className="flex overflow-x-auto scrollbar-hide border-b border-gray-100">
-      <div
-        onClick={() => onCategoryChange ? onCategoryChange(null, null) : navigate('/')}
-        className={`flex flex-col items-center gap-0.5 px-4 py-2 cursor-pointer flex-shrink-0 border-b-2 transition-colors ${
-          !activeCategoryId ? 'border-[#0c831f] text-[#0c831f]' : 'border-transparent text-gray-500 hover:text-gray-800'
-        }`}
-      >
-        <i className="ri-apps-line text-xl"></i>
-        <span className="text-[11px] font-semibold whitespace-nowrap">All</span>
+  const Item = ({ onClick, isActive, icon, imageUrl, label }) => (
+    <div onClick={onClick} className="flex flex-col items-center gap-1 px-2 py-2 cursor-pointer flex-shrink-0 min-w-[64px]">
+      <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all ${
+        isActive ? 'border-[#0c831f] bg-green-50' : 'border-gray-100 bg-gray-50'
+      }`}>
+        {imageUrl ? (
+          <img src={imageUrl} alt={label} className="w-9 h-9 object-contain" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+        ) : (
+          <i className={`${icon || 'ri-store-3-line'} text-2xl ${isActive ? 'text-[#0c831f]' : 'text-gray-500'}`}></i>
+        )}
       </div>
+      <span className={`text-[11px] font-semibold whitespace-nowrap leading-tight text-center ${isActive ? 'text-[#0c831f]' : 'text-gray-600'}`}>
+        {label}
+      </span>
+    </div>
+  );
+  return (
+    <div className="flex overflow-x-auto scrollbar-hide gap-1 px-1 py-2">
+      <Item onClick={() => onCategoryChange ? onCategoryChange(null, null) : navigate('/')} isActive={!activeCategoryId} icon="ri-apps-line" label="All" />
       {categories.map((category) => {
         const categoryName = category.name || category.category?.name;
         const categoryId = category.id || category.category?.id;
         const imageUrl = category.image_url || category.category?.image_url;
-        const isActive = activeCategoryId === categoryId;
+        const icon = category.icon || category.category?.icon;
         return (
-          <div
+          <Item
             key={categoryId || categoryName}
             onClick={() => onCategoryChange ? onCategoryChange(categoryId, categoryName) : navigate(`/category?id=${categoryId}`)}
-            className={`flex flex-col items-center gap-0.5 px-4 py-2 cursor-pointer flex-shrink-0 border-b-2 transition-colors ${
-              isActive ? 'border-[#0c831f] text-[#0c831f]' : 'border-transparent text-gray-500 hover:text-gray-800'
-            }`}
-          >
-            {imageUrl ? (
-              <img src={imageUrl} alt={categoryName} className="w-6 h-6 object-contain" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            ) : (
-              <i className={`${category.icon || 'ri-store-3-line'} text-xl`}></i>
-            )}
-            <span className="text-[11px] font-semibold whitespace-nowrap">{decodeHtml(categoryName)}</span>
-          </div>
+            isActive={activeCategoryId === categoryId}
+            icon={icon}
+            imageUrl={imageUrl}
+            label={decodeHtml(categoryName)}
+          />
         );
       })}
     </div>
@@ -1514,21 +1518,22 @@ function CategoryTabBar({ categories, activeCategoryId, onCategoryChange }) {
 function HomePage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { items: wishlistItems, toggleWishlist } = useWishlistStore();
   
   // Products Redux state
   const {
     products,
     categories,
     homeSections,
+    bestSellingByCategory,
     loading: productsLoading,
     productsLoaded,
     error: productsError
   } = useSelector((state) => state.products);
   
   // Cart Redux state
-  const { 
+  const {
     items: cartItems,
-    loading: cartLoading
   } = useSelector((state) => state.cart);
   
   // Auth state
@@ -1560,6 +1565,8 @@ function HomePage() {
 
   // Selected variant index per product for the All Products grid
   const [selectedVariants, setSelectedVariants] = useState({});
+  const [bestSellingProducts, setBestSellingProducts] = useState([]);
+  const [bscActiveTab, setBscActiveTab] = useState(null);
 
   // Check if user is logged in from localStorage (most reliable)
  const checkUserLoginStatus = () => {
@@ -1723,10 +1730,14 @@ const handleAddToCart = async (product) => {
     dispatch(fetchAllActiveProducts());
     dispatch(fetchAllCategories());
     dispatch(fetchHomeSections());
+    dispatch(fetchBestSellingByCategory());
     allApi.get(API_CONSTANTS.BANNERS_GET).then(res => {
       if (res.data?.banners?.length > 0) {
         setBanners(res.data.banners.map(b => ({ url: b.logo })));
       }
+    }).catch(() => {});
+    allApi.get(API_CONSTANTS.BESTSELLING_URL + '?length=20').then(res => {
+      if (res.data?.products?.length > 0) setBestSellingProducts(res.data.products);
     }).catch(() => {});
 
     return () => {
@@ -1965,8 +1976,58 @@ const handleAddToCart = async (product) => {
     );
   };
 
+  // Shared card used by ALL horizontal-scroll sections (curated + per-category)
+  const renderProductCard = (product) => {
+    const activeVariant = product.variants?.[0];
+    const displayPrice = activeVariant?.discountedPrice || activeVariant?.actualPrice || 0;
+    const allOutOfStock = product.variants?.every(v => v.in_stock === false);
+    const wishlistKey_weight = activeVariant?.weight;
+    const wishlisted = wishlistItems.some(w => w.id === product.id && w.weight === wishlistKey_weight);
+    const handleWishlistToggle = (e) => {
+      e.stopPropagation();
+      toggleWishlist({ id: product.id, productVariantId: activeVariant?.productVariantId, name: product.name, image: product.image_url, price: displayPrice, originalPrice: activeVariant?.actualPrice || displayPrice, weight: wishlistKey_weight, in_stock: activeVariant?.in_stock });
+    };
+    return (
+      <div key={product.id} onClick={() => handleProductClick(product)} className="bg-white rounded-2xl border border-gray-100 overflow-hidden cursor-pointer hover:shadow-lg transition-shadow flex flex-col w-[160px] md:w-[180px] flex-shrink-0">
+        <div className="bg-gray-50 flex items-center justify-center p-3 relative" style={{ height: 150 }}>
+          <i className="ri-image-line text-4xl text-gray-200 absolute"></i>
+          {product.image_url && (<img src={product.image_url} alt={product.name} className="relative z-10 w-full h-full object-contain" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.style.display='none'; }} />)}
+          {(() => { const pct = (activeVariant?.discountedPrice > 0 && activeVariant?.actualPrice > activeVariant.discountedPrice) ? Math.round((1 - activeVariant.discountedPrice / activeVariant.actualPrice) * 100) : 0; return pct > 0 ? (<div className="absolute top-2 left-2 bg-[#e23744] text-white text-[10px] font-bold px-2 py-0.5 rounded-md z-20">{pct}% OFF</div>) : null; })()}
+          <button onClick={handleWishlistToggle} className="absolute top-2 right-2 z-20 w-7 h-7 flex items-center justify-center rounded-full bg-white shadow-sm">
+            <i className={`${wishlisted ? 'ri-heart-fill text-red-500' : 'ri-heart-line text-gray-400'} text-sm`}></i>
+          </button>
+        </div>
+        <div className="p-3 flex flex-col flex-1">
+          <h3 className="font-semibold text-gray-800 text-[13px] line-clamp-2 leading-snug">{product.name}</h3>
+          {activeVariant?.weight && (<p className="text-[11px] text-gray-400 mt-0.5">{activeVariant.weight}</p>)}
+          <div className="flex items-center justify-between mt-auto pt-2">
+            <div>
+              <p className="text-base font-extrabold text-gray-900">₹{displayPrice}</p>
+              {activeVariant?.actualPrice > displayPrice && (<p className="text-xs text-gray-400 line-through">₹{activeVariant.actualPrice}</p>)}
+            </div>
+            {allOutOfStock || activeVariant?.in_stock === false ? (
+              <span className="text-[10px] text-gray-400 font-medium">Out of stock</span>
+            ) : (() => {
+              const cartItem = cartItems?.find(ci => ci.product_variant_id === activeVariant?.productVariantId);
+              if (cartItem) {
+                return (
+                  <div className="flex items-center gap-2 bg-[#0c831f] rounded-lg px-2 py-1">
+                    <button onClick={(e) => { e.stopPropagation(); if (cartItem.quantity <= 1) { dispatch(removeFromCart({ cartItemId: cartItem.cart_item_id })).then(() => dispatch(getCart())); } else { dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity - 1 })).then(() => dispatch(getCart())); } }} className="text-white font-bold text-sm leading-none">−</button>
+                    <span className="text-white font-bold text-xs">{cartItem.quantity}</span>
+                    <button onClick={(e) => { e.stopPropagation(); dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity + 1 })).then(() => dispatch(getCart())); }} className="text-white font-bold text-sm leading-none">+</button>
+                  </div>
+                );
+              }
+              return (<button onClick={(e) => { e.stopPropagation(); handleAddToCart({ ...product, variants: [activeVariant, ...(product.variants || [])] }); }} disabled={addingToCart} className="bg-white border-2 border-[#0c831f] text-[#0c831f] font-bold text-xl w-9 h-9 rounded-xl flex items-center justify-center hover:bg-green-50 transition disabled:opacity-50">+</button>);
+            })()}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Loading state
-  if (productsLoading || cartLoading) {
+  if (productsLoading) {
     return <UserLoader />;
   }
 
@@ -2087,16 +2148,28 @@ const handleAddToCart = async (product) => {
               ) : headerBanner ? (
                 <BannerSection image={headerBanner} alt="Header Banner" className="rounded-2xl overflow-hidden" />
               ) : (
-                <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-[#0c831f] to-[#15803d] h-44 md:h-60 flex items-center px-6 md:px-10 relative">
-                  <div className="z-10 max-w-xs md:max-w-sm">
-                    <h2 className="text-white text-xl md:text-3xl font-bold mb-1 md:mb-2 leading-tight">Stock up on daily essentials</h2>
-                    <p className="text-green-100 text-xs md:text-sm mb-3 md:mb-4">Get fresh groceries delivered fast to your door</p>
-                    <button onClick={() => window.scrollTo({ top: 600, behavior: 'smooth' })} className="bg-white text-[#0c831f] font-bold px-5 py-2 rounded-xl text-sm hover:bg-green-50 transition">
-                      Shop Now
-                    </button>
+                <div className="rounded-2xl overflow-hidden bg-gradient-to-br from-[#0c831f] via-[#0d9124] to-[#15803d] h-52 md:h-72 flex items-center px-7 md:px-14 relative">
+                  {/* Background pattern */}
+                  <div className="absolute inset-0 opacity-10">
+                    <div className="absolute top-4 right-20 w-32 h-32 rounded-full border-4 border-white"></div>
+                    <div className="absolute bottom-4 right-8 w-20 h-20 rounded-full border-4 border-white"></div>
+                    <div className="absolute top-10 right-48 w-12 h-12 rounded-full border-2 border-white"></div>
                   </div>
-                  <div className="absolute right-4 md:right-10 top-0 h-full flex items-center opacity-30 md:opacity-50">
-                    <i className="ri-shopping-basket-2-fill text-white" style={{ fontSize: '8rem' }}></i>
+                  <div className="z-10 max-w-xs md:max-w-lg">
+                    <span className="inline-block bg-white bg-opacity-20 text-white text-xs font-bold px-3 py-1 rounded-full mb-3 tracking-wide uppercase">Fresh & Fast Delivery</span>
+                    <h2 className="text-white text-2xl md:text-4xl font-extrabold mb-2 md:mb-3 leading-tight">Your daily essentials,<br className="hidden md:block" /> delivered in minutes</h2>
+                    <p className="text-green-100 text-sm md:text-base mb-4 md:mb-6 opacity-90">Fresh groceries, snacks &amp; household items right to your door</p>
+                    <div className="flex gap-3">
+                      <button onClick={() => window.scrollTo({ top: 600, behavior: 'smooth' })} className="bg-white text-[#0c831f] font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-green-50 transition shadow-md">
+                        Shop Now
+                      </button>
+                      <button onClick={() => navigate('/products')} className="border-2 border-white text-white font-bold px-6 py-2.5 rounded-xl text-sm hover:bg-white hover:bg-opacity-10 transition">
+                        Browse All
+                      </button>
+                    </div>
+                  </div>
+                  <div className="absolute right-4 md:right-14 top-0 h-full flex items-center opacity-20 md:opacity-40">
+                    <i className="ri-shopping-basket-2-fill text-white" style={{ fontSize: '10rem' }}></i>
                   </div>
                 </div>
               )}
@@ -2122,9 +2195,21 @@ const handleAddToCart = async (product) => {
                       className="rounded-2xl p-4 cursor-pointer relative overflow-hidden h-36 md:h-44 flex flex-col justify-between hover:opacity-95 active:scale-[.98] transition-all"
                       style={{ backgroundColor: bg }}
                     >
+                      {categoryImg && (
+                        <>
+                          <img
+                            src={categoryImg}
+                            alt={categoryName}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            loading="lazy"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                          <div className="absolute inset-0 bg-black/45" />
+                        </>
+                      )}
                       <div className="relative z-10">
-                        <p className="font-bold text-sm md:text-base leading-tight pr-16" style={{ color: textColor }}>{decodeHtml(categoryName)}</p>
-                        <p className="text-xs mt-1 opacity-70 pr-16" style={{ color: textColor }}>{catProducts.length} items available</p>
+                        <p className="font-bold text-sm md:text-base leading-tight pr-16" style={{ color: categoryImg ? '#ffffff' : textColor }}>{decodeHtml(categoryName)}</p>
+                        <p className="text-xs mt-1 opacity-70 pr-16" style={{ color: categoryImg ? '#ffffff' : textColor }}>{catProducts.length} items available</p>
                       </div>
                       <button
                         className="w-fit bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-full hover:bg-gray-100 transition relative z-10"
@@ -2132,16 +2217,18 @@ const handleAddToCart = async (product) => {
                       >
                         Order Now
                       </button>
-                      {featuredImg ? (
-                        <img
-                          src={featuredImg}
-                          alt={categoryName}
-                          className="absolute right-1 bottom-0 h-24 md:h-32 w-24 md:w-32 object-contain"
-                          loading="lazy"
-                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                        />
-                      ) : (
-                        <i className={`${category.icon || category.category?.icon || 'ri-store-3-line'} absolute right-4 bottom-4 text-6xl md:text-7xl opacity-20`} style={{ color: textColor }}></i>
+                      {!categoryImg && (
+                        featuredImg ? (
+                          <img
+                            src={featuredImg}
+                            alt={categoryName}
+                            className="absolute right-1 bottom-0 h-24 md:h-32 w-24 md:w-32 object-contain"
+                            loading="lazy"
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                        ) : (
+                          <i className={`${category.icon || category.category?.icon || 'ri-store-3-line'} absolute right-4 bottom-4 text-6xl md:text-7xl opacity-20`} style={{ color: textColor }}></i>
+                        )
                       )}
                     </div>
                   );
@@ -2149,103 +2236,183 @@ const handleAddToCart = async (product) => {
               </div>
             )}
 
-            {/* All Products grid */}
-            {showDefaultProductGrid && (
-              <section className="mb-8">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-base md:text-lg font-bold text-gray-900">All Products</h2>
-                  <span className="text-sm text-gray-400">{products.length} items</span>
-                </div>
+            {/* Curated sections: Best Selling, On Sale, New Arrivals */}
+            {showDefaultProductGrid && (() => {
+              const inStockWithPrice = products.filter(p => p.variants?.[0]?.in_stock !== false && (p.variants?.[0]?.discountedPrice || p.variants?.[0]?.actualPrice) > 0);
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-3">
-                  {currentProducts.map((product) => {
-                    const hasMultipleVariants = product.variants?.length > 1;
-                    const inStockVariants = product.variants?.filter(v => v.in_stock !== false) || [];
-                    const allOutOfStock = inStockVariants.length === 0;
-                    const selectedIdx = selectedVariants[product.id] ?? 0;
-                    const activeVariant = product.variants?.[selectedIdx] || product.variants?.[0];
-                    const displayPrice = activeVariant?.discountedPrice || activeVariant?.actualPrice || activeVariant?.price || 0;
-                    return (
-                      <div key={product.id} onClick={() => handleProductClick(product)} className="bg-white rounded-2xl border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-shadow flex flex-col">
-                        <div className="aspect-square bg-gray-50 flex items-center justify-center p-3 relative">
-                          <i className="ri-image-line text-3xl text-gray-200 absolute"></i>
-                          {product.image_url && (<img src={product.image_url} alt={product.name} className="relative z-10 w-full h-full object-contain" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.style.display='none'; }} />)}
-                          {activeVariant?.discountedPrice > 0 && activeVariant?.actualPrice > activeVariant.discountedPrice && (
-                            <div className="absolute top-2 left-2 bg-[#0c831f] text-white text-[9px] font-bold px-1.5 py-0.5 rounded z-20">
-                              {Math.round((1 - activeVariant.discountedPrice / activeVariant.actualPrice) * 100)}% OFF
-                            </div>
-                          )}
-                        </div>
-                        <div className="p-2.5 flex flex-col flex-1">
-                          <h3 className="font-semibold text-gray-800 text-xs line-clamp-2 leading-tight">{product.name}</h3>
-                          {activeVariant?.weight && (<p className="text-[10px] text-gray-400 mt-0.5">{activeVariant.net_weight > 0 ? `${activeVariant.net_weight} ${activeVariant.weight}` : activeVariant.weight}</p>)}
-                          <div className="flex items-center justify-between mt-auto pt-2">
-                            <div>
-                              <p className="text-sm font-bold text-gray-900">₹{displayPrice}</p>
-                              {activeVariant?.actualPrice > displayPrice && (<p className="text-[10px] text-gray-400 line-through">₹{activeVariant.actualPrice}</p>)}
-                            </div>
-                            {(() => {
-                              if (allOutOfStock || activeVariant?.in_stock === false) {
-                                return (<span className="text-[10px] text-gray-400 font-medium">Out of stock</span>);
-                              }
-                              const cartItem = cartItems?.find(ci => ci.product_variant_id === activeVariant?.productVariantId);
-                              if (cartItem) {
-                                return (
-                                  <div className="flex items-center gap-2 bg-[#0c831f] rounded-lg px-2 py-1">
-                                    <button onClick={(e) => { e.stopPropagation(); if (cartItem.quantity <= 1) { dispatch(removeFromCart({ cartItemId: cartItem.cart_item_id })).then(() => dispatch(getCart())); } else { dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity - 1 })).then(() => dispatch(getCart())); } }} className="text-white font-bold text-sm leading-none">−</button>
-                                    <span className="text-white font-bold text-xs">{cartItem.quantity}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity + 1 })).then(() => dispatch(getCart())); }} className="text-white font-bold text-sm leading-none">+</button>
-                                  </div>
-                                );
-                              }
-                              return (
-                                <button onClick={(e) => { e.stopPropagation(); handleAddToCart({ ...product, variants: [activeVariant, ...(product.variants || [])] }); }} disabled={addingToCart} className="bg-white border-2 border-[#0c831f] text-[#0c831f] font-bold text-lg w-8 h-8 rounded-lg flex items-center justify-center hover:bg-green-50 transition disabled:opacity-50">+</button>
-                              );
-                            })()}
-                          </div>
-                          {hasMultipleVariants && (
-                            <select className="mt-1.5 w-full border border-gray-200 rounded-md text-[10px] py-0.5 px-1 bg-white text-gray-600 focus:outline-none focus:border-green-500" value={selectedIdx} onClick={(e) => e.stopPropagation()} onChange={(e) => { e.stopPropagation(); setSelectedVariants(prev => ({ ...prev, [product.id]: Number(e.target.value) })); }}>
-                              {product.variants.map((v, i) => (<option key={v.productVariantId} value={i} disabled={v.in_stock === false}>{v.weight || `Variant ${i+1}`}{v.in_stock === false ? ' (OOS)' : ''}</option>))}
-                            </select>
-                          )}
-                        </div>
+              const bestSelling = bestSellingProducts.length > 0
+                ? bestSellingProducts
+                    .map(bs => {
+                      const p = products.find(p => p.id === bs.product_id);
+                      return p ? { ...p, image_url: p.image_url || bs.image_url } : null;
+                    })
+                    .filter(Boolean)
+                    .filter(p => p.variants?.[0]?.in_stock !== false)
+                    .slice(0, 8)
+                : [...inStockWithPrice]
+                    .sort((a, b) => {
+                      const da = a.variants?.[0]?.discountedPrice || a.variants?.[0]?.actualPrice || 0;
+                      const db = b.variants?.[0]?.discountedPrice || b.variants?.[0]?.actualPrice || 0;
+                      return db - da;
+                    })
+                    .slice(0, 8);
+
+              const onSale = inStockWithPrice
+                .filter(p => {
+                  const v = p.variants?.[0];
+                  return v?.actualPrice > 0 && v?.discountedPrice > 0 && v.discountedPrice < v.actualPrice;
+                })
+                .slice(0, 8);
+
+              const newArrivals = [...inStockWithPrice]
+                .sort((a, b) => b.id - a.id)
+                .slice(0, 8);
+
+              const renderSection = (title, icon, sectionProducts, viewAllPath) => {
+                if (sectionProducts.length === 0) return null;
+                const scrollRef = { current: null };
+                const scroll = (dir) => scrollRef.current?.scrollBy({ left: dir * 280, behavior: 'smooth' });
+                return (
+                  <section key={title} className="mb-8">
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-base md:text-xl font-extrabold text-gray-900 flex items-center gap-2">
+                        <i className={`${icon} text-[#0c831f]`}></i> {title}
+                      </h2>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => scroll(-1)} className="hidden md:flex w-8 h-8 rounded-full border border-gray-200 bg-white items-center justify-center hover:bg-gray-50 transition shadow-sm">
+                          <i className="ri-arrow-left-s-line text-gray-600 text-lg"></i>
+                        </button>
+                        <button onClick={() => scroll(1)} className="hidden md:flex w-8 h-8 rounded-full border border-gray-200 bg-white items-center justify-center hover:bg-gray-50 transition shadow-sm">
+                          <i className="ri-arrow-right-s-line text-gray-600 text-lg"></i>
+                        </button>
+                        <button onClick={() => navigate(viewAllPath)} className="text-[#0c831f] text-xs md:text-sm font-semibold flex items-center gap-1">
+                          See all <i className="ri-arrow-right-s-line"></i>
+                        </button>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                    <div ref={(el) => { scrollRef.current = el; }} className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                      {sectionProducts.map(renderProductCard)}
+                    </div>
+                  </section>
+                );
+              };
 
-                {visibleCount < filteredProducts.length && (
-                  <div ref={loadMoreRef} className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0c831f]"></div>
-                  </div>
-                )}
-              </section>
-            )}
+              // Best Selling by Category (tabbed)
+              const bscCategories = bestSellingByCategory || [];
+              const activeBscId = bscActiveTab !== null ? bscActiveTab : (bscCategories[0]?.categoryId ?? null);
+              const activeBscEntry = bscCategories.find(c => c.categoryId === activeBscId) || bscCategories[0];
+              const activeBscProducts = (activeBscEntry?.products || []).filter(p => p.variants?.[0]?.in_stock !== false);
+
+              return (
+                <>
+                  {/* Best Selling — category tabs */}
+                  {bscCategories.length > 0 && (
+                    <section className="mb-8">
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-base md:text-lg font-bold text-gray-900 flex items-center gap-2">
+                          <i className="ri-fire-line text-[#0c831f]"></i> Best Selling
+                        </h2>
+                      </div>
+                      {/* Category pill tabs */}
+                      <div className="flex gap-2 overflow-x-auto pb-3 mb-4" style={{ scrollbarWidth: 'none' }}>
+                        {bscCategories.map(cat => (
+                          <button
+                            key={cat.categoryId}
+                            onClick={() => setBscActiveTab(cat.categoryId)}
+                            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                              activeBscId === cat.categoryId
+                                ? 'bg-[#0c831f] text-white border-[#0c831f] shadow-sm'
+                                : 'bg-white text-gray-600 border-gray-200 hover:border-[#0c831f] hover:text-[#0c831f]'
+                            }`}
+                          >
+                            {cat.categoryName}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Products for active category */}
+                      {activeBscProducts.length > 0 ? (
+                        <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                          {activeBscProducts.map(renderProductCard)}
+                        </div>
+                      ) : (
+                        <p className="text-gray-400 text-sm text-center py-4">No products</p>
+                      )}
+                    </section>
+                  )}
+                  {onSale.length > 0 && renderSection('On Sale', 'ri-price-tag-3-line', onSale, '/products')}
+                  {renderSection('New Arrivals', 'ri-sparkling-line', newArrivals, '/products')}
+                </>
+              );
+            })()}
+
+            {/* Category-wise product sections */}
+            {showDefaultProductGrid && (() => {
+              const productsByCategory = {};
+              products.forEach(p => {
+                const catId = p.category_id;
+                if (!catId) return;
+                if (!productsByCategory[catId]) productsByCategory[catId] = [];
+                productsByCategory[catId].push(p);
+              });
+
+              return categories.map(catObj => {
+                const cat = catObj.category || catObj;
+                const catId = cat.id;
+                const catName = cat.name;
+                const catProducts = productsByCategory[catId] || [];
+                if (catProducts.length === 0) return null;
+
+                return (
+                  <section key={catId} className="mb-8">
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-base md:text-lg font-bold text-gray-900">{decodeHtml(catName)}</h2>
+                      <button
+                        onClick={() => navigate(`/category?id=${catId}`)}
+                        className="text-[#0c831f] text-xs md:text-sm font-semibold flex items-center gap-1"
+                      >
+                        See all <i className="ri-arrow-right-s-line"></i>
+                      </button>
+                    </div>
+
+                    <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                      {catProducts.slice(0, 12).map(product => renderProductCard(product))}
+                    </div>
+                  </section>
+                );
+              });
+            })()}
 
             <BannerSection image={footerBanner} alt="Footer Banner" className="hidden md:block mb-4" />
           </div>
 
       </main>
 
-      {/* Floating View Cart Button - Mobile Only */}
-      {cartItemCount > 0 && (
-        <div className="md:hidden fixed bottom-24 left-1/2 transform -translate-x-1/2 z-50 w-[40%] max-w-xs">
-          <button
-            onClick={() => navigate('/view-cart')}
-            className="w-full bg-[#0c831f] text-white rounded-full font-bold shadow-lg flex items-center justify-between hover:bg-green-800 transition-all px-4 py-2.5"
-          >
-            <div className="flex flex-col items-start">
-              <span className="text-sm font-bold">View cart</span>
-              <span className="text-xs font-semibold">
-                {cartItemCount} ITEM{cartItemCount > 1 ? 'S' : ''}
-              </span>
-            </div>
-            <div className="w-9 h-9 bg-green-700 rounded-full flex items-center justify-center flex-shrink-0">
-              <i className="ri-arrow-right-line text-lg text-gray-900"></i>
-            </div>
-          </button>
-        </div>
-      )}
+      {/* Sticky Cart Bar - Mobile Only */}
+      {cartItemCount > 0 && (() => {
+        const cartTotal = Array.isArray(cartItems) ? cartItems.reduce((sum, item) => sum + (Number(item.selling_price || item.price || 0) * (item.quantity || 1)), 0) : 0;
+        return (
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 p-3 bg-transparent pointer-events-none">
+            <button
+              onClick={() => navigate('/view-cart')}
+              className="w-full bg-[#0c831f] text-white rounded-2xl font-bold shadow-2xl flex items-center justify-between px-5 py-3.5 pointer-events-auto"
+              style={{ boxShadow: '0 -2px 20px rgba(12,131,31,0.3)' }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="bg-green-700 rounded-xl w-8 h-8 flex items-center justify-center flex-shrink-0">
+                  <i className="ri-shopping-cart-2-fill text-white text-base"></i>
+                </div>
+                <div className="text-left">
+                  <p className="text-[11px] font-semibold opacity-90 leading-none mb-0.5">{cartItemCount} item{cartItemCount > 1 ? 's' : ''} in cart</p>
+                  {cartTotal > 0 && <p className="text-base font-extrabold leading-none">₹{cartTotal.toFixed(0)}</p>}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-sm font-bold">
+                View Cart <i className="ri-arrow-right-s-line text-lg"></i>
+              </div>
+            </button>
+          </div>
+        );
+      })()}
 
       <Footer data={[]} />
 

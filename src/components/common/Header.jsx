@@ -717,6 +717,7 @@ import { useTranslation } from "react-i18next";
 import toast, { Toaster } from 'react-hot-toast';
 import { getLocationFromCookie } from '@services/locationService';
 import LocationPickerPopup from './LocationPickerPopup';
+import useWishlistStore from '../../useWishlistStore';
 
 // Redux actions
 import { logoutUser, clearUserProfile, fetchUserProfile } from '../../redux/slices/authSlice';
@@ -1008,6 +1009,8 @@ const Header = ({ onSearch }) => {
   };
 
   const cartItemCount = cartCount;
+  const { items: wishlistItems } = useWishlistStore();
+  const wishlistCount = wishlistItems.length;
 
   const loggedInItems = userDetails ? [
     {
@@ -1095,6 +1098,19 @@ const Header = ({ onSearch }) => {
               <i className="ri-arrow-go-back-line text-gray-600 text-base"></i>
             </div>
             <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">My Returns</span>
+          </button>
+        )
+      },
+      {
+        template: () => (
+          <button
+            onClick={() => navigate('/wallet-recharge')}
+            className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-gray-50 transition-colors group"
+          >
+            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center group-hover:bg-blue-100 transition-colors">
+              <i className="ri-wallet-3-line text-blue-600 text-base"></i>
+            </div>
+            <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900">My Wallet</span>
           </button>
         )
       },
@@ -1395,20 +1411,35 @@ const Header = ({ onSearch }) => {
                 )}
 
                 {(userDetails?.role_id !== 1 && userDetails?.user?.role_id !== 1) && (
-                  <button
-                    onClick={() => navigate('/view-cart')}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-white rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="relative">
-                      <i className="ri-shopping-cart-line text-lg"></i>
-                      {cartItemCount > 0 && (
-                        <span className="absolute -top-3 -right-3 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                          {cartItemCount}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-sm font-medium">My Cart</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => navigate('/wishlist')}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="relative">
+                        <i className="ri-heart-line text-lg"></i>
+                        {wishlistCount > 0 && (
+                          <span className="absolute -top-3 -right-3 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                            {wishlistCount}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => navigate('/view-cart')}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-white rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="relative">
+                        <i className="ri-shopping-cart-line text-lg"></i>
+                        {cartItemCount > 0 && (
+                          <span className="absolute -top-3 -right-3 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                            {cartItemCount}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium">My Cart</span>
+                    </button>
+                  </>
                 )}
               </div>
             </div>

@@ -282,7 +282,7 @@ const ViewCart = () => {
       const userDetails = JSON.parse(localStorage.getItem('userDetails'));
       if (!userDetails?.id) return;
 
-      const response = await fetch(`${process.env.REACT_APP_BASE_URL || 'http://localhost:8070'}/api/v1/ecommerce/addresses?user_id=${userDetails.id}`, {
+      const response = await fetch(`${process.env.REACT_APP_BASE_URL || ''}/api/v1/ecommerce/addresses?user_id=${userDetails.id}`, {
         headers: {
           'X-Tenant-Domain': typeof window !== 'undefined' ? window.location.hostname : 'localhost',
           'Content-Type': 'application/json'
@@ -314,7 +314,7 @@ const ViewCart = () => {
   const handleDeleteAddress = async (addressId) => {
     setShowAddressMenu(null);
     try {
-      const response = await fetch(`${process.env.REACT_APP_BASE_URL || 'http://localhost:8070'}/api/v1/ecommerce/addresses/${addressId}`, {
+      const response = await fetch(`${process.env.REACT_APP_BASE_URL || ''}/api/v1/ecommerce/addresses/${addressId}`, {
         method: 'DELETE',
         headers: {
           'X-Tenant-Domain': typeof window !== 'undefined' ? window.location.hostname : 'localhost',

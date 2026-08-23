@@ -58,6 +58,8 @@ const CategoryProductsPage = lazy(() => import("@userpage-pages/CategoryProducts
 const DealsPage = lazy(() => import("@userpage-pages/DealsPage"));
 const AddAddressPage = lazy(() => import("@userpage-pages/AddAddressPage"));
 const PlaceOrderPage = lazy(() => import("@userpage-pages/PlaceOrderPage"));
+const WishlistPage = lazy(() => import("@userpage-pages/WishlistPage"));
+const WalletRechargePage = lazy(() => import("@userpage-components/WalletRechargePage"));
 
 export function PrivateRoute({ children, role, type }) {
   const authorization = JSON.parse(localStorage.getItem('userDetails'));
@@ -135,6 +137,8 @@ function App() {
           <Route path="/deals/:id" element={<DealsPage />}/>
           <Route path="/add-address" element={<AddAddressPage />}/>
           <Route path="/place-order" element={<PlaceOrderPage />}/>
+          <Route path="/wishlist" element={<WishlistPage />}/>
+          <Route path="/wallet-recharge" element={<WalletRechargePage />}/>
           
           {/* Routes for delivery agent screen */}
           <Route path="/delivery-dashboard" element={

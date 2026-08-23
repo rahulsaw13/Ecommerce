@@ -7,6 +7,7 @@ import UserLoader from '@userpage-pages/UserLoader';
 import { allApi, allApiWithHeaderToken } from "@api/api";
 import { API_CONSTANTS } from "@constants/apiurl";
 import { getCart } from '../../redux/slices/cartSlice';
+import useWishlistStore from '../../useWishlistStore';
 
 const ProductsPage = () => {
   const [loading, setLoading] = useState(true);
@@ -16,6 +17,7 @@ const ProductsPage = () => {
   const [addingToCart, setAddingToCart] = useState(false);
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { items: wishlistItems, toggleWishlist } = useWishlistStore();
 
   useEffect(() => {
     fetchProducts();
@@ -169,15 +171,33 @@ const ProductsPage = () => {
               {products.map((product) => {
                 const variants = product.variants || product.product_variants || [];
                 const firstVariant = variants[0];
-                
+
                 if (!firstVariant) return null;
-                
+
                 const mrp = parseFloat(firstVariant?.actualPrice || firstVariant?.mrp || 0);
                 const sellingPrice = parseFloat(firstVariant?.discountedPrice || firstVariant?.selling_price || firstVariant?.price || 0);
-                
+
                 const discount = mrp > sellingPrice && sellingPrice > 0
                   ? Math.round(((mrp - sellingPrice) / mrp) * 100)
                   : 0;
+
+                const wishlistKey_id = product.id;
+                const wishlistKey_weight = firstVariant?.weight;
+                const wishlisted = wishlistItems.some(w => w.id === wishlistKey_id && w.weight === wishlistKey_weight);
+                const handleWishlistToggle = (e) => {
+                  e.stopPropagation();
+                  toggleWishlist({
+                    id: wishlistKey_id,
+                    productVariantId: firstVariant?.productVariantId,
+                    name: product.name,
+                    image: product.image_url,
+                    price: sellingPrice,
+                    originalPrice: mrp,
+                    weight: wishlistKey_weight,
+                    in_stock: firstVariant?.in_stock,
+                    discount,
+                  });
+                };
 
                 return (
                   <div key={product.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden border border-gray-100">
@@ -195,6 +215,12 @@ const ProductsPage = () => {
                           {discount}% Off
                         </div>
                       )}
+                      <button
+                        onClick={handleWishlistToggle}
+                        className="absolute top-1.5 right-1.5 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white shadow-sm"
+                      >
+                        <i className={`${wishlisted ? 'ri-heart-fill text-red-500' : 'ri-heart-line text-gray-400'} text-sm`}></i>
+                      </button>
                       {product.image_url ? (
                         <img
                           src={product.image_url}

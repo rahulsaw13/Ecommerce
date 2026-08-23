@@ -9,8 +9,11 @@ import { getCart, clearCart, updateCartQuantity } from '../../redux/slices/cartS
 import { placeOrderFromCart, clearOrderStatus } from '../../redux/slices/orderSlice';
 import { fetchUserAddresses } from '../../redux/slices/addressSlice';
 import { fetchAllActiveProducts, fetchAllCategories } from '../../redux/slices/productSlice';
+import { fetchWalletSettings, fetchWalletBalance } from '../../redux/slices/walletSlice';
 import { getLocationFromCookie, saveLocationToCookie } from '@services/locationService';
 import { allApi } from '@api/api';
+import { loadRazorpayScript, openRazorpayModal } from '@utils/razorpay';
+import { API_CONSTANTS } from '@constants/apiurl';
 
 const PlaceOrderPage = () => {
   const dispatch = useDispatch();
@@ -22,14 +25,17 @@ const PlaceOrderPage = () => {
   // Redux state
   const { items: cartItems, loading: cartLoading } = useSelector((state) => state.cart);
   const { addresses } = useSelector((state) => state.address);
-  const { loading: orderLoading, orderSuccess, orderId, error: orderError } = useSelector((state) => state.order);
+  const { loading: orderLoading, orderSuccess, orderId, ecomOrderId, error: orderError } = useSelector((state) => state.order);
   const allProducts = useSelector((state) => state.products?.products || []);
   const allCategories = useSelector((state) => state.products?.categories || []);
+  const { enabled: walletEnabled, balance: walletBalance } = useSelector((state) => state.wallet);
   
   const [address, setAddress] = useState(null);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
+  const [useWallet, setUseWallet] = useState(false);
+  const walletAmountUsed = useWallet ? Math.min(walletBalance, Math.max(0, cartTotals.grand_total - couponDiscount)) : 0;
   const [minDate, setMinDate] = useState('');
   const [cartTotals, setCartTotals] = useState({ 
     subtotal_mrp: 0,
@@ -473,14 +479,18 @@ const PlaceOrderPage = () => {
     }
   };
 
-  // Handle order success
+  // Handle order success — for COD, show success immediately; for online payment, open Razorpay
   useEffect(() => {
     if (orderSuccess && orderId) {
-      dispatch(clearCart());
-      setShowSuccessModal(true);
-      dispatch(clearOrderStatus());
+      if (paymentMethod === 'online_payment' && ecomOrderId) {
+        handleOnlinePayment(ecomOrderId);
+      } else {
+        dispatch(clearCart());
+        setShowSuccessModal(true);
+        dispatch(clearOrderStatus());
+      }
     }
-  }, [orderSuccess, orderId, dispatch]);
+  }, [orderSuccess, orderId, ecomOrderId, paymentMethod]);
 
   // Handle order error
   useEffect(() => {
@@ -491,9 +501,47 @@ const PlaceOrderPage = () => {
     }
   }, [orderError, dispatch]);
 
-  const handleOnlinePayment = async (orderData) => {
-    alert('Online payment coming soon. Please use Cash on Delivery.');
-    setPlacingOrder(false);
+  const handleOnlinePayment = async (localEcomOrderId) => {
+    try {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        alert('Failed to load payment gateway. Please try again.');
+        setPlacingOrder(false);
+        return;
+      }
+
+      const userDetails = JSON.parse(localStorage.getItem('userDetails') || '{}');
+      const amountToPay = Math.max(0, cartTotals.grand_total - couponDiscount - (useWallet ? walletAmountUsed : 0));
+
+      const createRes = await allApi.post(`/${API_CONSTANTS.PAYMENT_CREATE_ORDER}`, { amount: amountToPay });
+      const { razorpay_key_id, razorpay_order, name, logo } = createRes.data;
+
+      const paymentResponse = await openRazorpayModal({
+        keyId: razorpay_key_id,
+        order: razorpay_order,
+        name,
+        logo,
+        prefill: { name: userDetails.name, contact: userDetails.phone },
+      });
+
+      await allApi.post(`/${API_CONSTANTS.PAYMENT_VERIFY}`, {
+        payment_method: 'bank',
+        razorpay_payment_id: paymentResponse.razorpay_payment_id,
+        razorpay_order_id: paymentResponse.razorpay_order_id,
+        razorpay_signature: paymentResponse.razorpay_signature,
+        payment_status: 'completed',
+        type: 'order',
+        ecom_order_id: localEcomOrderId,
+        user_id: userDetails.id,
+      });
+
+      dispatch(clearCart());
+      setShowSuccessModal(true);
+      dispatch(clearOrderStatus());
+    } catch (err) {
+      alert(err?.message || 'Payment failed. Please try again.');
+      setPlacingOrder(false);
+    }
   };
 
   const handleContinueShopping = async () => {

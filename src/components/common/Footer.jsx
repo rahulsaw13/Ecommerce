@@ -163,19 +163,32 @@ const Footer = ({ data }) => {
                             </a>
                         </div>
 
+                        {/* Address */}
+                        {(companyInfo.address || companyInfo.pincode) && (
+                          <div className="mb-4 text-sm text-gray-600 flex gap-2">
+                            <i className="ri-map-pin-2-line text-gray-400 mt-0.5 flex-shrink-0"></i>
+                            <span>
+                              {companyInfo.address || 'KALYANPUR, SAMASTIPUR'}
+                              {companyInfo.pincode ? ` - ${companyInfo.pincode}` : ''}
+                            </span>
+                          </div>
+                        )}
+
                         {/* Map */}
-                        <div className="rounded-lg overflow-hidden">
+                        {companyInfo.latitude && companyInfo.longitude && companyInfo.latitude !== 0 && (
+                          <div className="rounded-lg overflow-hidden">
                             <iframe
-                                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d235013.74842653308!2d72.41493075!3d23.020474!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x395e848aba5bd449%3A0x4fcedd11614f6516!2sAhmedabad%2C%20Gujarat!5e0!3m2!1sen!2sin!4v1705234567890!5m2!1sen!2sin"
-                                width="100%"
-                                height="150"
-                                style={{ border: 0, display: 'block' }}
-                                allowFullScreen=""
-                                loading="lazy"
-                                referrerPolicy="no-referrer-when-downgrade"
-                                title="Ahmedabad Location"
+                              src={`https://maps.google.com/maps?q=${companyInfo.latitude},${companyInfo.longitude}&z=15&output=embed`}
+                              width="100%"
+                              height="150"
+                              style={{ border: 0, display: 'block' }}
+                              allowFullScreen=""
+                              loading="lazy"
+                              referrerPolicy="no-referrer-when-downgrade"
+                              title={`${companyInfo.name || 'Store'} Location`}
                             ></iframe>
-                        </div>
+                          </div>
+                        )}
                     </div>
 
                 </div>
@@ -201,18 +214,12 @@ const Footer = ({ data }) => {
                     <i className="ri-apps-fill text-[26px]"></i>
                 </button>
 
-                {/* Brands of the Day - Center with special styling */}
+                {/* Wishlist */}
                 <button
-                    onClick={() => navigate('/brands')}
-                    className="flex"
+                    onClick={() => navigate(ROUTES_CONSTANTS.WISHLIST)}
+                    className="flex items-center justify-center p-2 text-gray-600 hover:text-gray-900 transition-colors"
                 >
-                    <div className="w-14 h-14 p-[8px] rounded-full flex items-center justify-center shadow-lg border-2 border-yellow-500">
-                        <div className="text-center leading-tight">
-                            <div className="text-[8px] font-bold text-gray-800">BRANDS</div>
-                            <div className="text-[8px] font-bold text-gray-800">OF THE</div>
-                            <div className="text-[12px] font-bold text-yellow-600">DAY</div>
-                        </div>
-                    </div>
+                    <i className="ri-heart-line text-[26px]"></i>
                 </button>
 
                 {/* Cart/Orders */}

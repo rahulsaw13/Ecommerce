@@ -57,11 +57,11 @@ export const getPincodeFromCoordinates = async (latitude, longitude) => {
     
     // Mock response - replace with actual API call
     return {
-      pincode: '380060',
-      city: 'Ahmedabad',
-      state: 'Gujarat',
-      area: 'Satellite',
-      address: 'Ahmedabad, Gujarat, 380060'
+      pincode: '848302',
+      city: 'Samastipur',
+      state: 'Bihar',
+      area: 'Kalyanpur',
+      address: 'KALYANPUR, SAMASTIPUR, Samastipur, Bihar, 848302'
     };
   } catch (error) {
     return null;

@@ -203,12 +203,17 @@ const allApiWithHeaderToken = (url, data, method, contentType) => {
   if (authHeader) headers["Authorization"] = authHeader;
 
   if (contentType === "multipart/form-data") {
-    const formData = new FormData();
-    if (data && typeof data === "object") {
-      Object.keys(data).forEach((key) => formData.append(key, data[key]));
+    let payload;
+    if (data instanceof FormData) {
+      payload = data;
+    } else {
+      payload = new FormData();
+      if (data && typeof data === "object") {
+        Object.keys(data).forEach((key) => payload.append(key, data[key]));
+      }
     }
-    if (method === "put") return _authAxios.put(cleanUrl, formData, { headers });
-    return _authAxios.post(cleanUrl, formData, { headers });
+    if (method === "put") return _authAxios.put(cleanUrl, payload, { headers });
+    return _authAxios.post(cleanUrl, payload, { headers });
   }
 
   if (method === "post") return _authAxios.post(cleanUrl, data, { headers });

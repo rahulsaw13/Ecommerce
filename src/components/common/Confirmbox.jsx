@@ -69,7 +69,7 @@ const Confirmbox = ({ isConfirm, closeDialogbox, confirmDialogbox, header, messa
                 }}
                 type="button"
                 label={t("confirm")}
-                className="rounded-md bg-TextPrimaryColor hover:opacity-90 px-5 py-2.5 text-sm text-white font-medium transition-all duration-200"
+                className="rounded-md bg-red-600 hover:bg-red-700 px-5 py-2.5 text-sm text-white font-medium transition-colors duration-200"
               />
             </div>
           </div>
