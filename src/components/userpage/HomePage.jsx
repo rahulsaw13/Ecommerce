@@ -2178,7 +2178,11 @@ const handleAddToCart = async (product) => {
             {/* 4 colorful promo cards */}
             {hasCategories && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                {categories.slice(0, 4).map((category, i) => {
+                {[...categories].sort((a, b) => {
+                  const aImg = a.image_url || a.category?.image_url;
+                  const bImg = b.image_url || b.category?.image_url;
+                  return (bImg ? 1 : 0) - (aImg ? 1 : 0);
+                }).slice(0, 4).map((category, i) => {
                   const categoryName = category.name || category.category?.name;
                   const categoryId = category.id || category.category?.id;
                   const catProducts = products.filter(p => p.category_name === categoryName);

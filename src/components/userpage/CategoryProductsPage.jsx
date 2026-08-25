@@ -38,7 +38,8 @@ const CategoryProductsPage = () => {
   const [cartItems, setCartItems] = useState({});
   const [cartItemIds, setCartItemIds] = useState({}); // productId â†’ cart_item_id
   const [updatingQuantity, setUpdatingQuantity] = useState({});
-  
+  const [visibleCount, setVisibleCount] = useState(40);
+
   // Temporary filter states (only applied when user clicks "Apply")
   const [tempSortBy, setTempSortBy] = useState('default');
   const [tempSelectedBrand, setTempSelectedBrand] = useState('all');
@@ -72,14 +73,22 @@ const CategoryProductsPage = () => {
     // Filter products based on selected subcategory and search query
     let filtered = [...products];
     
-    // Apply search filter with synonym expansion
-    // e.g. "aloo" → matches products containing "potato", "batata", etc.
+    // Apply search filter: split query into words, expand each word with synonyms,
+    // require ALL words to match (AND logic). Within each word, synonyms are OR.
+    // e.g. "himalaya soap" → must contain "himalaya" AND ("soap" OR "sabun")
+    // e.g. "aloo" → matches "potato", "batata", etc.
     if (searchQuery && searchQuery.trim()) {
-      const terms = expandSearchTerms(searchQuery);
+      const words = searchQuery.toLowerCase().trim().split(/\s+/);
+      const termGroups = words.map(w => {
+        const expanded = expandSearchTerms(w);
+        return expanded.length > 0 ? expanded : [w];
+      });
       filtered = filtered.filter(product => {
         const name = product.name.toLowerCase();
         const desc = (product.description || '').toLowerCase();
-        return terms.some(term => name.includes(term) || desc.includes(term));
+        return termGroups.every(group =>
+          group.some(term => name.includes(term) || desc.includes(term))
+        );
       });
     }
     
@@ -120,15 +129,32 @@ const CategoryProductsPage = () => {
     }
 
     setFilteredProducts(filtered);
+    setVisibleCount(40);
   }, [selectedSubCategory, products, sortBy, selectedBrand, searchQuery]);
 
   const fetchCategoryPageData = async () => {
     setLoading(true);
     try {
       if (searchQuery && searchQuery.trim()) {
-        const response = await allApi.get("user_dashboard/all_active_products");
-        if (response?.status === 200) {
-          const allProducts = response?.data?.products || [];
+        const CACHE_KEY = 'all_products_cache';
+        const CACHE_TTL = 5 * 60 * 1000;
+        let allProducts = null;
+        try {
+          const cached = sessionStorage.getItem(CACHE_KEY);
+          if (cached) {
+            const { data, ts } = JSON.parse(cached);
+            if (Date.now() - ts < CACHE_TTL) allProducts = data;
+          }
+        } catch (_) {}
+
+        if (!allProducts) {
+          const response = await allApi.get("user_dashboard/all_active_products");
+          if (response?.status === 200) {
+            allProducts = response?.data?.products || [];
+            try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: allProducts, ts: Date.now() })); } catch (_) {}
+          }
+        }
+        if (allProducts) {
           setProducts(allProducts);
           setCategoryData({ name: 'Search Results' });
           setSubCategories([]);
@@ -605,7 +631,7 @@ const CategoryProductsPage = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 px-4 md:px-0 pb-24 md:pb-4">
-                  {filteredProducts.map((product) => {
+                  {filteredProducts.slice(0, visibleCount).map((product) => {
                     const variants = product.variants || product.product_variants || [];
                     const firstVariant = variants[0];
                     
@@ -666,6 +692,8 @@ const CategoryProductsPage = () => {
                             <img
                               src={product.image_url}
                               alt={product.name}
+                              loading="lazy"
+                              decoding="async"
                               className="w-full h-16 md:h-[120px] object-contain cursor-pointer"
                               onClick={() => {
                                 const slug = product.slug || product.name?.toLowerCase().replace(/\s+/g, '-');
@@ -776,6 +804,16 @@ const CategoryProductsPage = () => {
                       </div>
                     );
                   })}
+                </div>
+              )}
+              {!loading && filteredProducts.length > visibleCount && (
+                <div className="flex justify-center py-6 px-4">
+                  <button
+                    onClick={() => setVisibleCount(c => c + 40)}
+                    className="px-8 py-2.5 rounded-xl font-bold text-sm border-2 border-[#0c831f] text-[#0c831f] hover:bg-green-50 transition-colors"
+                  >
+                    Load More ({filteredProducts.length - visibleCount} remaining)
+                  </button>
                 </div>
               )}
             </div>
