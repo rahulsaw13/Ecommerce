@@ -1430,7 +1430,7 @@
 
 
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import toast, { Toaster } from 'react-hot-toast';
@@ -1450,7 +1450,7 @@ import BannerSection from '@common-sections/BannerSection';
 
 // Redux actions - Products
 import {
-  fetchAllActiveProducts,
+  fetchProductsPage,
   fetchAllCategories,
   fetchHomeSections,
   fetchBestSellingByCategory,
@@ -1527,7 +1527,10 @@ function HomePage() {
     homeSections,
     bestSellingByCategory,
     loading: productsLoading,
+    loadingMore,
     productsLoaded,
+    hasMore,
+    currentPage,
     error: productsError
   } = useSelector((state) => state.products);
   
@@ -1549,19 +1552,111 @@ function HomePage() {
   const [addingToCart, setAddingToCart] = useState(false);
   const [isUserLoggedIn, setIsUserLoggedIn] = useState(false);
   
-  // Infinite scroll state
-  const [visibleCount, setVisibleCount] = useState(20);
+  // Sentinel ref for IntersectionObserver (load next page on scroll)
   const loadMoreRef = useRef(null);
+
+  // Per-category lazy-load state: { [catId]: { items, loading, loaded } }
+  const [catProductsMap, setCatProductsMap] = useState({});
+  const catObserverRef = useRef(null);
+
+  const fetchCategoryProducts = useCallback((catId) => {
+    setCatProductsMap(prev => {
+      if (prev[catId]?.loading || prev[catId]?.loaded) return prev;
+      allApi.get(`/user_dashboard/all_active_products?page=0&size=50&categoryId=${catId}`)
+        .then(res => setCatProductsMap(p => ({ ...p, [catId]: { items: res.data?.products || [], loading: false, loaded: true } })))
+        .catch(() => setCatProductsMap(p => ({ ...p, [catId]: { items: [], loading: false, loaded: true } })));
+      return { ...prev, [catId]: { items: [], loading: true, loaded: false } };
+    });
+  }, []);
+
+  // Single IntersectionObserver that watches all category sections
+  useEffect(() => {
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          const catId = e.target.dataset.catId;
+          if (catId) {
+            fetchCategoryProducts(catId);
+            obs.unobserve(e.target);
+          }
+        }
+      });
+    }, { threshold: 0.05, rootMargin: '200px' });
+    catObserverRef.current = obs;
+    return () => obs.disconnect();
+  }, [fetchCategoryProducts]);
+
+  const registerCatSection = useCallback((catId, el) => {
+    if (el && catObserverRef.current) {
+      catObserverRef.current.observe(el);
+    }
+  }, []);
+
+  // How many category sections to show — start with 5, expand by 5 on "Load more"
+  const [visibleCatCount, setVisibleCatCount] = useState(5);
+
+  // Pre-fetch a slice of categories silently in the background
+  const prefetchCategorySlice = useCallback((from, count) => {
+    categories.slice(from, from + count).forEach(catObj => {
+      const cat = catObj.category || catObj;
+      if (cat.id) fetchCategoryProducts(cat.id);
+    });
+  }, [categories, fetchCategoryProducts]);
+
+  const loadMoreCategories = useCallback(() => {
+    setVisibleCatCount(prev => {
+      const next = prev + 5;
+      return next;
+    });
+  }, []);
+
+  // Pre-fetch first 5 + the next 5 the moment categories arrive — so "Load more" click is instant
+  useEffect(() => {
+    if (categories.length > 0) {
+      prefetchCategorySlice(0, 10); // first 5 visible + next 5 ready in advance
+    }
+  }, [categories, prefetchCategorySlice]);
+
+  // When visible count grows, immediately pre-fetch the batch AFTER what just became visible
+  useEffect(() => {
+    if (categories.length > 0 && visibleCatCount > 5) {
+      prefetchCategorySlice(visibleCatCount, 5); // pre-load the next 5 beyond current view
+    }
+  }, [visibleCatCount, categories, prefetchCategorySlice]);
+
+  // Active tab on the homepage category bar (highlight + scroll-to-section)
+  const [homeCategoryTab, setHomeCategoryTab] = useState(null);
+
+  const handleHomeCategoryTab = useCallback((catId) => {
+    setHomeCategoryTab(catId || null);
+    if (!catId) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    fetchCategoryProducts(catId);
+    setTimeout(() => {
+      const el = document.querySelector(`[data-cat-id="${catId}"]`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }, [fetchCategoryProducts]);
+
+  // Keep tab bar in sync as user scrolls through sections
+  useEffect(() => {
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          setHomeCategoryTab(e.target.dataset.catId || null);
+        }
+      });
+    }, { threshold: 0.3 });
+    const sections = document.querySelectorAll('[data-cat-id]');
+    sections.forEach(s => obs.observe(s));
+    return () => obs.disconnect();
+  }, [categories]);
 
   // Active category filter (sidebar / tab bar)
   const [activeCategoryId, setActiveCategoryId] = useState(null);
   const [activeCategoryName, setActiveCategoryName] = useState(null);
-
-  // Filtered + visible products — declared early so useEffect dep arrays can reference them
-  const filteredProducts = activeCategoryName
-    ? products.filter(p => p.category_name === activeCategoryName)
-    : products;
-  const currentProducts = filteredProducts.slice(0, visibleCount);
 
   // Selected variant index per product for the All Products grid
   const [selectedVariants, setSelectedVariants] = useState({});
@@ -1727,7 +1822,7 @@ const handleAddToCart = async (product) => {
 
   // Fetch all data using Redux
   useEffect(() => {
-    dispatch(fetchAllActiveProducts());
+    dispatch(fetchProductsPage({ page: 0, size: 50 }));
     dispatch(fetchAllCategories());
     dispatch(fetchHomeSections());
     dispatch(fetchBestSellingByCategory());
@@ -1751,16 +1846,11 @@ const handleAddToCart = async (product) => {
   // Re-fetch products when user changes delivery location (new branch → new stock)
   useEffect(() => {
     const handleLocationChange = () => {
-      dispatch(fetchAllActiveProducts());
+      dispatch(fetchProductsPage({ page: 0, size: 50 }));
     };
     window.addEventListener('userLocationChanged', handleLocationChange);
     return () => window.removeEventListener('userLocationChanged', handleLocationChange);
   }, [dispatch]);
-
-  // Reset visible count when products or active category changes
-  useEffect(() => {
-    setVisibleCount(20);
-  }, [products, activeCategoryId]);
 
   // Fetch cart data when component mounts and user is logged in
   useEffect(() => {
@@ -1781,19 +1871,23 @@ const handleAddToCart = async (product) => {
     }
   }, [homeSections]);
 
-  // Infinite scroll — load 20 more when sentinel enters viewport
+  // Infinite scroll — fetch next page when sentinel enters viewport
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
-          setVisibleCount(prev => Math.min(prev + 20, filteredProducts.length));
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !productsLoading) {
+          dispatch(fetchProductsPage({
+            page: currentPage + 1,
+            size: 50,
+            categoryId: activeCategoryId || null
+          }));
         }
       },
       { threshold: 0.1 }
     );
     if (loadMoreRef.current) observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
-  }, [filteredProducts.length]);
+  }, [hasMore, loadingMore, productsLoading, currentPage, activeCategoryId, dispatch]);
 
   const handleSearch = (query) => {
     setSearchQuery(query);
@@ -2027,7 +2121,7 @@ const handleAddToCart = async (product) => {
   };
 
   // Loading state
-  if (productsLoading) {
+  if (productsLoading && products.length === 0) {
     return <UserLoader />;
   }
 
@@ -2118,12 +2212,13 @@ const handleAddToCart = async (product) => {
       
       <main className="pt-[160px] md:pt-20 pb-20 md:pb-8 bg-white">
 
-        {/* Mobile sticky category tab bar — navigates to category page */}
+        {/* Mobile sticky category tab bar — scrolls to section on homepage */}
         {hasCategories && (
           <div className="md:hidden sticky top-[100px] z-30 bg-white border-b border-gray-100 shadow-sm">
             <CategoryTabBar
               categories={categories}
-              activeCategoryId={null}
+              activeCategoryId={homeCategoryTab}
+              onCategoryChange={handleHomeCategoryTab}
             />
           </div>
         )}
@@ -2131,12 +2226,13 @@ const handleAddToCart = async (product) => {
         {/* ── HOMEPAGE VIEW: Blinkit-style full width ── */}
         <div className="px-3 md:px-6">
 
-          {/* Desktop category tab bar — navigates to category page */}
+          {/* Desktop category tab bar — scrolls to section on homepage */}
           {hasCategories && (
             <div className="hidden md:block mb-4 mt-2">
               <CategoryTabBar
                 categories={categories}
-                activeCategoryId={null}
+                activeCategoryId={homeCategoryTab}
+                onCategoryChange={handleHomeCategoryTab}
               />
             </div>
           )}
@@ -2349,44 +2445,90 @@ const handleAddToCart = async (product) => {
               );
             })()}
 
-            {/* Category-wise product sections */}
-            {showDefaultProductGrid && (() => {
-              const productsByCategory = {};
-              products.forEach(p => {
-                const catId = p.category_id;
-                if (!catId) return;
-                if (!productsByCategory[catId]) productsByCategory[catId] = [];
-                productsByCategory[catId].push(p);
-              });
+            {/* Category-wise product sections — 5 at a time, more on button click */}
+            {showDefaultProductGrid && categories.slice(0, visibleCatCount).map(catObj => {
+              const cat = catObj.category || catObj;
+              const catId = cat.id;
+              const catName = cat.name;
+              const catData = catProductsMap[catId];
+              const catItems = catData?.items || [];
 
-              return categories.map(catObj => {
-                const cat = catObj.category || catObj;
-                const catId = cat.id;
-                const catName = cat.name;
-                const catProducts = productsByCategory[catId] || [];
-                if (catProducts.length === 0) return null;
+              return (
+                <section
+                  key={catId}
+                  ref={(el) => registerCatSection(catId, el)}
+                  data-cat-id={catId}
+                  className="mb-8 min-h-[80px]"
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-base md:text-lg font-bold text-gray-900">{decodeHtml(catName)}</h2>
+                    <button
+                      onClick={() => navigate(`/category?id=${catId}`)}
+                      className="text-[#0c831f] text-xs md:text-sm font-semibold flex items-center gap-1"
+                    >
+                      See all <i className="ri-arrow-right-s-line"></i>
+                    </button>
+                  </div>
 
-                return (
-                  <section key={catId} className="mb-8">
-                    <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base md:text-lg font-bold text-gray-900">{decodeHtml(catName)}</h2>
-                      <button
-                        onClick={() => navigate(`/category?id=${catId}`)}
-                        className="text-[#0c831f] text-xs md:text-sm font-semibold flex items-center gap-1"
-                      >
-                        See all <i className="ri-arrow-right-s-line"></i>
-                      </button>
+                  {catData?.loading && (
+                    <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>
+                      {[...Array(5)].map((_, i) => (
+                        <div key={i} className="flex-shrink-0 w-[160px] md:w-[180px] rounded-2xl overflow-hidden bg-white" style={{ border: '1px solid #e5e7eb' }}>
+                          {/* image area */}
+                          <div className="skeleton-shimmer w-full h-[105px] md:h-[130px]" style={{ backgroundColor: '#f8f9fa' }} />
+                          {/* info area */}
+                          <div className="px-2 pt-2 pb-3 flex flex-col gap-2">
+                            {/* weight pill */}
+                            <div className="skeleton-shimmer h-2.5 w-12 rounded-full" />
+                            {/* name line 1 */}
+                            <div className="skeleton-shimmer h-3 w-full rounded" />
+                            {/* name line 2 */}
+                            <div className="skeleton-shimmer h-3 w-3/4 rounded" />
+                            {/* price */}
+                            <div className="skeleton-shimmer h-4 w-16 rounded" />
+                            {/* add button */}
+                            <div className="skeleton-shimmer h-7 w-full rounded-xl mt-1" />
+                          </div>
+                        </div>
+                      ))}
                     </div>
+                  )}
 
+                  {!catData?.loading && catItems.length > 0 && (
                     <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                      {catProducts.slice(0, 12).map(product => renderProductCard(product))}
+                      {catItems.map(renderProductCard)}
                     </div>
-                  </section>
-                );
-              });
-            })()}
+                  )}
+                </section>
+              );
+            })}
+
+            {/* Load more categories button */}
+            {showDefaultProductGrid && visibleCatCount < categories.length && (
+              <div className="flex justify-center mb-8">
+                <button
+                  onClick={loadMoreCategories}
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm border-2 border-[#0c831f] text-[#0c831f] bg-white hover:bg-green-50 transition-colors"
+                >
+                  <i className="ri-add-line"></i>
+                  Load more categories ({categories.length - visibleCatCount} remaining)
+                </button>
+              </div>
+            )}
 
             <BannerSection image={footerBanner} alt="Footer Banner" className="hidden md:block mb-4" />
+
+            {/* Infinite scroll sentinel — only active when showing the All Products grid, not category sections */}
+            {!showDefaultProductGrid && (
+              <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+                {loadingMore && (
+                  <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
+                    <div className="w-5 h-5 border-2 border-gray-300 border-t-[#0c831f] rounded-full animate-spin"></div>
+                    Loading more products…
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
       </main>

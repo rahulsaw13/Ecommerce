@@ -321,13 +321,13 @@ const CategoryProductsPage = () => {
   };
 
   const handleProductClick = (product) => {
-    if (product.variants && product.variants.length > 1) {
-      setSelectedProduct(product);
+    const variants = product.variants || product.product_variants || [];
+    if (variants.length > 1) {
+      setSelectedProduct({ ...product, variants });
       setSelectedVariant(null);
       setShowVariantModal(true);
-    } else if (product.variants && product.variants.length === 1) {
-      // Add single variant directly to cart
-      addToCart(product, product.variants[0]);
+    } else if (variants.length === 1) {
+      addToCart(product, variants[0]);
     }
   };
 
@@ -339,6 +339,8 @@ const CategoryProductsPage = () => {
       const userDetails = JSON.parse(localStorage.getItem('userDetails'));
       
       if (!userDetails?.id) {
+        toast.current?.show({ severity: 'warn', summary: 'Login Required', detail: 'Please sign in to add items to cart', life: 3000 });
+        navigate('/sign-in');
         return;
       }
 

@@ -1,14 +1,28 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { allApi } from "../../api/api";
 
-// ✅ Fetch all active products from ERP
+// ✅ Fetch all active products from ERP (used by PlaceOrderPage, ViewCartPage)
 export const fetchAllActiveProducts = createAsyncThunk(
   "products/fetchAllActiveProducts",
   async (_, thunkAPI) => {
     try {
       const response = await allApi.get("/user_dashboard/all_active_products");
-      console.log("API Response:", response.data); // Debug log
       return response.data;
+    } catch (err) {
+      return thunkAPI.rejectWithValue(err.response?.data || err.message || "Failed to fetch products");
+    }
+  }
+);
+
+// ✅ Fetch a single page of products (used by HomePage infinite scroll)
+export const fetchProductsPage = createAsyncThunk(
+  "products/fetchProductsPage",
+  async ({ page = 0, size = 50, categoryId = null } = {}, thunkAPI) => {
+    try {
+      let url = `/user_dashboard/all_active_products?page=${page}&size=${size}`;
+      if (categoryId) url += `&categoryId=${categoryId}`;
+      const response = await allApi.get(url);
+      return { ...response.data, page, categoryId };
     } catch (err) {
       return thunkAPI.rejectWithValue(err.response?.data || err.message || "Failed to fetch products");
     }
@@ -77,9 +91,12 @@ const productSlice = createSlice({
     bestSellingByCategory: [],
     selectedProduct: null,
     categoryProducts: [],
-     menuList: [],
+    menuList: [],
     loading: false,
+    loadingMore: false,
     productsLoaded: false,
+    hasMore: true,
+    currentPage: 0,
     error: null,
     totalProducts: 0,
   },
@@ -87,6 +104,9 @@ const productSlice = createSlice({
     clearProducts: (state) => {
       state.products = [];
       state.productsLoaded = false;
+      state.hasMore = true;
+      state.currentPage = 0;
+      state.loadingMore = false;
       state.error = null;
     },
     clearSelectedProduct: (state) => {
@@ -127,11 +147,9 @@ const productSlice = createSlice({
       
       // ✅ Fetch all categories
       .addCase(fetchAllCategories.pending, (state) => {
-        state.loading = true;
         state.error = null;
       })
       .addCase(fetchAllCategories.fulfilled, (state, action) => {
-        state.loading = false;
         // Handle different response structures
         if (action.payload?.data) {
           state.categories = action.payload.data;
@@ -153,11 +171,9 @@ const productSlice = createSlice({
       
       // ✅ Fetch home sections
       .addCase(fetchHomeSections.pending, (state) => {
-        state.loading = true;
         state.error = null;
       })
       .addCase(fetchHomeSections.fulfilled, (state, action) => {
-        state.loading = false;
         // Handle different response structures
         if (action.payload?.data) {
           state.homeSections = action.payload.data;
@@ -182,6 +198,38 @@ const productSlice = createSlice({
       })
       .addCase(fetchBestSellingByCategory.rejected, (state) => {
         state.bestSellingByCategory = [];
+      })
+
+      // ✅ Paginated product fetch (HomePage infinite scroll)
+      .addCase(fetchProductsPage.pending, (state, action) => {
+        const isFirstPage = action.meta.arg?.page === 0;
+        if (isFirstPage) {
+          state.loading = true;
+          state.products = [];
+        } else {
+          state.loadingMore = true;
+        }
+        state.error = null;
+      })
+      .addCase(fetchProductsPage.fulfilled, (state, action) => {
+        const { products = [], total = 0, hasMore = false, page = 0 } = action.payload;
+        state.loading = false;
+        state.loadingMore = false;
+        state.productsLoaded = true;
+        if (page === 0) {
+          state.products = products;
+        } else {
+          state.products = [...state.products, ...products];
+        }
+        state.hasMore = hasMore;
+        state.currentPage = page;
+        state.totalProducts = total;
+        state.error = null;
+      })
+      .addCase(fetchProductsPage.rejected, (state, action) => {
+        state.loading = false;
+        state.loadingMore = false;
+        state.error = action.payload;
       });
 
 

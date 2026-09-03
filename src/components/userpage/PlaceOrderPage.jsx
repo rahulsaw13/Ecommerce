@@ -35,7 +35,6 @@ const PlaceOrderPage = () => {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash_on_delivery');
   const [useWallet, setUseWallet] = useState(false);
-  const walletAmountUsed = useWallet ? Math.min(walletBalance, Math.max(0, cartTotals.grand_total - couponDiscount)) : 0;
   const [minDate, setMinDate] = useState('');
   const [cartTotals, setCartTotals] = useState({ 
     subtotal_mrp: 0,
@@ -64,6 +63,7 @@ const PlaceOrderPage = () => {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
+  const walletAmountUsed = useWallet ? Math.min(walletBalance, Math.max(0, cartTotals.grand_total - couponDiscount)) : 0;
   const [availableCoupons, setAvailableCoupons] = useState([]);
   const [applyingCoupon, setApplyingCoupon] = useState(false);
   const [expandedCouponCategories, setExpandedCouponCategories] = useState({});
@@ -157,6 +157,9 @@ const PlaceOrderPage = () => {
       // Ensure products and categories are loaded for coupon validation and display
       dispatch(fetchAllActiveProducts());
       dispatch(fetchAllCategories());
+      dispatch(fetchWalletSettings());
+      const uid = userDetails?.id || userDetails?.user?.id;
+      if (uid) dispatch(fetchWalletBalance(uid));
     };
     
     fetchData();
@@ -817,6 +820,24 @@ const PlaceOrderPage = () => {
                   <i className="ri-check-line text-[#FFC107] text-xl"></i>
                 )}
               </label>
+
+              {walletEnabled && walletBalance > 0 && (
+                <div className="flex items-center justify-between cursor-pointer py-1" onClick={() => setUseWallet(w => !w)}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                      <i className="ri-wallet-3-line text-green-600 text-lg"></i>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-900">Pay using Wallet</span>
+                      <p className="text-xs text-green-600 font-medium">Balance: ₹{walletBalance.toFixed(2)}</p>
+                    </div>
+                  </div>
+                  {useWallet
+                    ? <i className="ri-check-line text-[#FFC107] text-xl"></i>
+                    : <span className="text-xs text-green-600 border border-green-500 rounded px-2 py-0.5">Apply</span>
+                  }
+                </div>
+              )}
             </div>
           </div>
 
@@ -865,6 +886,16 @@ const PlaceOrderPage = () => {
                     </div>
                   </div>
                   <span className="text-green-600 font-medium">-₹{couponDiscount.toFixed(0)}</span>
+                </div>
+              )}
+
+              {useWallet && walletAmountUsed > 0 && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <i className="ri-wallet-3-line text-gray-700 text-base"></i>
+                    <span className="text-gray-900 font-medium">Wallet</span>
+                  </div>
+                  <span className="text-green-600 font-medium">-₹{walletAmountUsed.toFixed(2)}</span>
                 </div>
               )}
 
@@ -947,7 +978,7 @@ const PlaceOrderPage = () => {
 
               <div className="flex justify-between items-center pt-3 border-t-2 border-gray-300">
                 <span className="text-gray-900 font-bold text-base">Grand total</span>
-                <span className="text-gray-900 font-bold text-base">₹{Math.max(0, cartTotals.grand_total - couponDiscount).toFixed(2)}</span>
+                <span className="text-gray-900 font-bold text-base">₹{Math.max(0, cartTotals.grand_total - couponDiscount - walletAmountUsed).toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -991,7 +1022,7 @@ const PlaceOrderPage = () => {
             disabled={placingOrder || stockCheck.loading || stockCheck.unavailable.length > 0}
             className="w-full bg-[#FFC107] hover:bg-[#FFB300] text-gray-900 font-bold py-4 rounded-lg text-base transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {placingOrder ? 'Processing...' : `Checkout ₹${Math.max(0, cartTotals.grand_total - couponDiscount).toFixed(2)}`}
+            {placingOrder ? 'Processing...' : `Checkout ₹${Math.max(0, cartTotals.grand_total - couponDiscount - walletAmountUsed).toFixed(2)}`}
           </button>
         </div>
       </div>
