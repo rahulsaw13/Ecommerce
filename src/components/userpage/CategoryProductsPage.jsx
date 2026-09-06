@@ -671,22 +671,15 @@ const CategoryProductsPage = () => {
                     return (
                       <div key={product.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden border border-gray-100">
                         {/* Product Image */}
-                        <div className="relative pt-2 md:pt-4 px-2 md:px-3 pb-2 md:pb-3">
+                        <div className="relative px-2 pt-2 pb-1" style={{ backgroundColor: '#f3f4f6' }}>
                           {discount > 0 && (
-                            <div 
-                              className="absolute top-2 md:top-3 left-2 md:left-3 bg-[#0c831f] text-white rounded-full font-bold z-10"
-                              style={{ 
-                                padding: '2px 6px',
-                                fontSize: '8px',
-                                lineHeight: '1.2'
-                              }}
-                            >
-                              {discount}% Off
+                            <div className="absolute top-2 left-2 text-white rounded font-bold z-10" style={{ backgroundColor: '#e23744', padding: '2px 6px', fontSize: '10px', lineHeight: '1.3' }}>
+                              {discount}% OFF
                             </div>
                           )}
                           <button
                             onClick={handleWishlistToggle}
-                            className="absolute top-1.5 right-1.5 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white shadow-sm"
+                            className="absolute top-2 right-2 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white shadow-sm"
                           >
                             <i className={`${wishlisted ? 'ri-heart-fill text-red-500' : 'ri-heart-line text-gray-400'} text-sm`}></i>
                           </button>
@@ -696,27 +689,28 @@ const CategoryProductsPage = () => {
                               alt={product.name}
                               loading="lazy"
                               decoding="async"
-                              className="w-full h-16 md:h-[120px] object-contain cursor-pointer"
+                              className="w-full object-contain cursor-pointer"
+                              style={{ height: '120px', padding: '4px' }}
                               onClick={() => {
                                 const slug = product.slug || product.name?.toLowerCase().replace(/\s+/g, '-');
                                 navigate(`/product/${slug}`, { state: product });
                               }}
                             />
                           ) : (
-                            <div className="w-full h-16 md:h-[120px] flex items-center justify-center bg-gray-100 rounded">
-                              <i className="ri-image-line text-2xl md:text-4xl text-gray-300"></i>
+                            <div className="w-full flex items-center justify-center" style={{ height: '120px' }}>
+                              <i className="ri-image-line text-4xl text-gray-300"></i>
                             </div>
                           )}
                         </div>
 
                         {/* Product Info */}
                         <div className="px-2 md:px-3 pb-2 md:pb-3">
-                          <h3 className="text-gray-800 mb-1 md:mb-1.5 line-clamp-2 text-[10px] md:text-xs leading-tight md:leading-[1.3] font-bold md:font-medium min-h-[24px] md:min-h-[32px]">
+                          <h3 className="text-gray-800 mb-1 line-clamp-2 text-xs leading-snug font-semibold" style={{ minHeight: '32px' }}>
                             {decodeHtml(product.name)}
                           </h3>
-                          
+
                           {firstVariant?.weight && (
-                            <div className="text-gray-500 mb-1 md:mb-2 text-[9px] md:text-[10px] leading-tight">
+                            <div className="text-gray-500 mb-1 text-[11px] leading-tight">
                               {firstVariant.net_weight > 0 ? `${firstVariant.net_weight} ${firstVariant.weight}` : firstVariant.weight}
                             </div>
                           )}

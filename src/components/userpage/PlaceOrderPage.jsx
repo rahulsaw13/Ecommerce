@@ -28,6 +28,7 @@ const PlaceOrderPage = () => {
   const { loading: orderLoading, orderSuccess, orderId, ecomOrderId, error: orderError } = useSelector((state) => state.order);
   const allProducts = useSelector((state) => state.products?.products || []);
   const allCategories = useSelector((state) => state.products?.categories || []);
+  const productsLoaded = useSelector((state) => state.products?.productsLoaded || false);
   const { enabled: walletEnabled, balance: walletBalance } = useSelector((state) => state.wallet);
   
   const [address, setAddress] = useState(null);
@@ -154,8 +155,7 @@ const PlaceOrderPage = () => {
         await dispatch(getCart());
         await dispatch(fetchUserAddresses(userDetails.id));
       }
-      // Ensure products and categories are loaded for coupon validation and display
-      dispatch(fetchAllActiveProducts());
+      if (!productsLoaded) dispatch(fetchAllActiveProducts());
       dispatch(fetchAllCategories());
       dispatch(fetchWalletSettings());
       const uid = userDetails?.id || userDetails?.user?.id;

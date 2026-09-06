@@ -2082,37 +2082,37 @@ const handleAddToCart = async (product) => {
       toggleWishlist({ id: product.id, productVariantId: activeVariant?.productVariantId, name: product.name, image: product.image_url, price: displayPrice, originalPrice: activeVariant?.actualPrice || displayPrice, weight: wishlistKey_weight, in_stock: activeVariant?.in_stock });
     };
     return (
-      <div key={product.id} onClick={() => handleProductClick(product)} className="bg-white rounded-2xl border border-gray-100 overflow-hidden cursor-pointer hover:shadow-lg transition-shadow flex flex-col w-[160px] md:w-[180px] flex-shrink-0">
-        <div className="bg-gray-50 flex items-center justify-center p-3 relative" style={{ height: 150 }}>
+      <div key={product.id} onClick={() => handleProductClick(product)} className="bg-white rounded-xl overflow-hidden cursor-pointer hover:shadow-md transition-shadow flex flex-col w-[160px] md:w-[180px] flex-shrink-0" style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+        <div className="relative flex items-center justify-center px-3 pt-3 pb-2" style={{ backgroundColor: '#f3f4f6', height: 150 }}>
           <i className="ri-image-line text-4xl text-gray-200 absolute"></i>
-          {product.image_url && (<img src={product.image_url} alt={product.name} className="relative z-10 w-full h-full object-contain" loading="lazy" decoding="async" onError={(e) => { e.currentTarget.style.display='none'; }} />)}
-          {(() => { const pct = (activeVariant?.discountedPrice > 0 && activeVariant?.actualPrice > activeVariant.discountedPrice) ? Math.round((1 - activeVariant.discountedPrice / activeVariant.actualPrice) * 100) : 0; return pct > 0 ? (<div className="absolute top-2 left-2 bg-[#e23744] text-white text-[10px] font-bold px-2 py-0.5 rounded-md z-20">{pct}% OFF</div>) : null; })()}
-          <button onClick={handleWishlistToggle} className="absolute top-2 right-2 z-20 w-7 h-7 flex items-center justify-center rounded-full bg-white shadow-sm">
+          {product.image_url && (<img src={product.image_url} alt={product.name} className="relative z-10 w-full h-full object-contain" style={{ padding: '4px' }} loading="lazy" decoding="async" onError={(e) => { e.currentTarget.style.display='none'; }} />)}
+          {(() => { const pct = (activeVariant?.discountedPrice > 0 && activeVariant?.actualPrice > activeVariant.discountedPrice) ? Math.round((1 - activeVariant.discountedPrice / activeVariant.actualPrice) * 100) : 0; return pct > 0 ? (<div className="absolute top-2 left-2 text-white text-[10px] font-bold px-1.5 py-0.5 rounded z-20" style={{ backgroundColor: '#e23744' }}>{pct}% OFF</div>) : null; })()}
+          <button onClick={handleWishlistToggle} className="absolute top-2 right-2 z-20 w-6 h-6 flex items-center justify-center rounded-full bg-white shadow-sm">
             <i className={`${wishlisted ? 'ri-heart-fill text-red-500' : 'ri-heart-line text-gray-400'} text-sm`}></i>
           </button>
         </div>
-        <div className="p-3 flex flex-col flex-1">
-          <h3 className="font-semibold text-gray-800 text-[13px] line-clamp-2 leading-snug">{product.name}</h3>
-          {activeVariant?.weight && (<p className="text-[11px] text-gray-400 mt-0.5">{activeVariant.weight}</p>)}
-          <div className="flex items-center justify-between mt-auto pt-2">
+        <div className="px-2.5 pt-2 pb-2.5 flex flex-col flex-1">
+          <p className="text-gray-500 text-[11px] leading-tight mb-0.5 font-medium">{activeVariant?.weight || ''}</p>
+          <h3 className="font-semibold text-gray-900 text-[13px] line-clamp-2 leading-snug flex-1" style={{ minHeight: '36px' }}>{product.name}</h3>
+          <div className="flex items-center justify-between mt-2">
             <div>
-              <p className="text-base font-extrabold text-gray-900">₹{displayPrice}</p>
-              {activeVariant?.actualPrice > displayPrice && (<p className="text-xs text-gray-400 line-through">₹{activeVariant.actualPrice}</p>)}
+              <p className="text-sm font-extrabold text-gray-900">₹{displayPrice}</p>
+              {activeVariant?.actualPrice > displayPrice && (<p className="text-[10px] text-gray-400 line-through">₹{activeVariant.actualPrice}</p>)}
             </div>
             {allOutOfStock || activeVariant?.in_stock === false ? (
-              <span className="text-[10px] text-gray-400 font-medium">Out of stock</span>
+              <span className="text-[10px] text-gray-400 font-medium bg-gray-100 px-2 py-1 rounded-lg">Out</span>
             ) : (() => {
               const cartItem = cartItems?.find(ci => ci.product_variant_id === activeVariant?.productVariantId);
               if (cartItem) {
                 return (
-                  <div className="flex items-center gap-2 bg-[#0c831f] rounded-lg px-2 py-1">
-                    <button onClick={(e) => { e.stopPropagation(); if (cartItem.quantity <= 1) { dispatch(removeFromCart({ cartItemId: cartItem.cart_item_id })).then(() => dispatch(getCart())); } else { dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity - 1 })).then(() => dispatch(getCart())); } }} className="text-white font-bold text-sm leading-none">−</button>
-                    <span className="text-white font-bold text-xs">{cartItem.quantity}</span>
-                    <button onClick={(e) => { e.stopPropagation(); dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity + 1 })).then(() => dispatch(getCart())); }} className="text-white font-bold text-sm leading-none">+</button>
+                  <div className="flex items-center gap-1 rounded-lg px-1.5 py-1" style={{ border: '1.5px solid #0c831f', backgroundColor: '#f0fdf4' }}>
+                    <button onClick={(e) => { e.stopPropagation(); if (cartItem.quantity <= 1) { dispatch(removeFromCart({ cartItemId: cartItem.cart_item_id })).then(() => dispatch(getCart())); } else { dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity - 1 })).then(() => dispatch(getCart())); } }} className="font-bold text-base w-5 h-5 flex items-center justify-center" style={{ color: '#0c831f' }}>−</button>
+                    <span className="font-bold text-xs w-4 text-center" style={{ color: '#0c831f' }}>{cartItem.quantity}</span>
+                    <button onClick={(e) => { e.stopPropagation(); dispatch(updateCartQuantity({ cartItemId: cartItem.cart_item_id, productId: cartItem.product_id, weight: cartItem.weight, quantity: cartItem.quantity + 1 })).then(() => dispatch(getCart())); }} className="font-bold text-base w-5 h-5 flex items-center justify-center" style={{ color: '#0c831f' }}>+</button>
                   </div>
                 );
               }
-              return (<button onClick={(e) => { e.stopPropagation(); handleAddToCart({ ...product, variants: [activeVariant, ...(product.variants || [])] }); }} disabled={addingToCart} className="bg-white border-2 border-[#0c831f] text-[#0c831f] font-bold text-xl w-9 h-9 rounded-xl flex items-center justify-center hover:bg-green-50 transition disabled:opacity-50">+</button>);
+              return (<button onClick={(e) => { e.stopPropagation(); handleAddToCart({ ...product, variants: [activeVariant, ...(product.variants || [])] }); }} disabled={addingToCart} className="rounded-xl px-3 py-1.5 text-[11px] font-bold bg-white hover:bg-green-50 transition disabled:opacity-50" style={{ border: '1.5px solid #0c831f', color: '#0c831f' }}>+ Add</button>);
             })()}
           </div>
         </div>

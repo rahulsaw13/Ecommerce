@@ -45,7 +45,7 @@ const ViewCart = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const cart = useSelector(state => state.cart.items || []);
-  const { products, loading: productsLoading } = useSelector((state) => state.products);
+  const { products, loading: productsLoading, productsLoaded } = useSelector((state) => state.products);
   const { isAuthenticated } = useSelector(state => state.auth);
 
   // Show toast
@@ -413,9 +413,10 @@ const ViewCart = () => {
     if (isLoggedIn) {
       fetchCartData();
     }
-    // Always refresh products on cart page so variant prices are available
-    dispatch(fetchAllActiveProducts());
-  }, [dispatch, fetchCartData, checkUserLoginStatus]);
+    if (!productsLoaded) {
+      dispatch(fetchAllActiveProducts());
+    }
+  }, [dispatch, fetchCartData, checkUserLoginStatus, productsLoaded]);
 
   // Cleanup on unmount
   useEffect(() => {

@@ -197,7 +197,7 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
             </button>
           )}
         </div>
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-2 md:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 md:gap-3">
           {products.map((product) => {
             const firstVariant = product.originalProduct?.variants?.[0];
             const hasMultipleVariants = product.originalProduct?.variants?.length > 1;
@@ -230,30 +230,30 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
               <div
                 key={product.id}
                 onClick={() => handleProductClick(product)}
-                className="bg-white rounded-2xl overflow-hidden cursor-pointer transition-all hover:shadow-md"
-                style={{ border: '1px solid #e5e7eb' }}
+                className="bg-white rounded-xl overflow-hidden cursor-pointer transition-all hover:shadow-md flex flex-col"
+                style={{ border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}
               >
                 {/* Image */}
-                <div className="relative p-2 md:p-3" style={{ backgroundColor: '#f8f9fa' }}>
+                <div className="relative px-3 pt-3 pb-2" style={{ backgroundColor: '#f3f4f6' }}>
                   {product.discount > 0 && (
-                    <div className="absolute top-1.5 left-1.5 text-white rounded-md font-bold z-10 text-[9px] px-1.5 py-0.5 leading-tight" style={{ backgroundColor: '#e23744' }}>
+                    <div className="absolute top-2 left-2 text-white rounded font-bold z-10 text-[10px] px-1.5 py-0.5 leading-tight" style={{ backgroundColor: '#e23744' }}>
                       {product.discount}% off
                     </div>
                   )}
-                  {/* Wishlist heart */}
                   <button
                     onClick={handleWishlistToggle}
-                    className="absolute top-1.5 right-1.5 z-10 w-5 h-5 flex items-center justify-center rounded-full bg-white shadow-sm"
+                    className="absolute top-2 right-2 z-10 w-6 h-6 flex items-center justify-center rounded-full bg-white shadow-sm"
                   >
-                    <i className={`${wishlisted ? 'ri-heart-fill text-red-500' : 'ri-heart-line text-gray-400'} text-xs`}></i>
+                    <i className={`${wishlisted ? 'ri-heart-fill text-red-500' : 'ri-heart-line text-gray-400'} text-sm`}></i>
                   </button>
-                  <div className="relative w-full h-24 md:h-36 flex items-center justify-center">
-                    <i className={`${icon} text-4xl text-gray-200 absolute`}></i>
+                  <div className="relative w-full" style={{ height: '130px' }}>
+                    <i className={`${icon} text-5xl text-gray-200 absolute inset-0 flex items-center justify-center`} style={{ display: 'flex' }}></i>
                     {product.image && (
                       <img
                         src={product.image}
                         alt={product.name}
-                        className="relative z-10 w-full h-full object-contain"
+                        className="absolute inset-0 w-full h-full object-contain"
+                        style={{ padding: '4px' }}
                         loading="lazy"
                         decoding="async"
                         onError={(e) => { e.currentTarget.style.display = 'none'; }}
@@ -263,61 +263,67 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
                 </div>
 
                 {/* Info */}
-                <div className="px-2 md:px-3 pt-1 pb-2.5 md:pb-3">
-                  <p className="text-gray-400 text-[10px] leading-tight mb-0.5">{firstVariant?.net_weight > 0 ? `${firstVariant.net_weight} ${firstVariant.weight}` : (firstVariant?.weight || product.weight)}</p>
-                  <h3 className="text-gray-900 text-[11px] md:text-[13px] leading-snug font-semibold line-clamp-2 min-h-[28px] md:min-h-[36px] mb-1">
+                <div className="px-2.5 pt-2 pb-2.5 flex flex-col flex-1">
+                  <p className="text-gray-500 text-[11px] leading-tight mb-0.5 font-medium">
+                    {firstVariant?.net_weight > 0 ? `${firstVariant.net_weight} ${firstVariant.weight}` : (firstVariant?.weight || product.weight)}
+                  </p>
+                  <h3 className="text-gray-900 text-xs md:text-[13px] leading-snug font-semibold line-clamp-2 mb-1.5 flex-1" style={{ minHeight: '32px' }}>
                     {decodeHtml(product.name)}
                   </h3>
-                  <p className="font-extrabold text-sm md:text-base leading-tight mb-1.5">
-                    ₹{product.price.toFixed(0)}
-                    {product.originalPrice > product.price && (
-                      <span className="text-gray-400 line-through font-normal text-[10px] ml-1.5">₹{product.originalPrice.toFixed(0)}</span>
-                    )}
-                  </p>
+                  <div className="flex items-center justify-between mt-auto">
+                    <div>
+                      <p className="font-extrabold text-sm md:text-[15px] leading-tight">
+                        ₹{product.price.toFixed(0)}
+                      </p>
+                      {product.originalPrice > product.price && (
+                        <p className="text-gray-400 line-through font-normal text-[10px] leading-tight">₹{product.originalPrice.toFixed(0)}</p>
+                      )}
+                    </div>
 
-                  {hasMultipleVariants ? (
-                    (() => {
-                      const allOut = product.originalProduct?.variants?.every(v => v.in_stock === false);
-                      return allOut ? (
-                        <button disabled className="w-full rounded-xl py-1 md:py-1.5 text-[10px] font-bold text-gray-400 bg-gray-100 cursor-not-allowed">Out of Stock</button>
-                      ) : (
-                        <button onClick={(e) => handleOptionsClick(e, product)} className="w-full rounded-xl py-1 md:py-1.5 text-[10px] font-bold bg-white hover:bg-green-50 transition-colors" style={{ border: '1.5px solid #0c831f', color: '#0c831f' }}>
-                          Options
-                        </button>
+                    {hasMultipleVariants ? (
+                      (() => {
+                        const allOut = product.originalProduct?.variants?.every(v => v.in_stock === false);
+                        return allOut ? (
+                          <button disabled className="rounded-lg px-2 py-1.5 text-[10px] font-bold text-gray-400 bg-gray-100 cursor-not-allowed">Out</button>
+                        ) : (
+                          <button onClick={(e) => handleOptionsClick(e, product)} className="rounded-lg px-2.5 py-1.5 text-[11px] font-bold bg-white hover:bg-green-50 transition-colors" style={{ border: '1.5px solid #0c831f', color: '#0c831f' }}>
+                            Options
+                          </button>
+                        );
+                      })()
+                    ) : (() => {
+                      const availableQty = firstVariant?.available_qty ?? null;
+                      const inStock = firstVariant?.in_stock !== false && availableQty !== 0;
+                      const cartItem = getCartItem(product.originalProduct?.id || product.id, firstVariant?.weight || product.weight);
+                      const key = `${product.originalProduct?.id || product.id}_${firstVariant?.weight || product.weight}`;
+                      const isUpdating = updatingQuantity[key];
+
+                      if (!inStock) return (
+                        <button disabled className="rounded-lg px-2 py-1.5 text-[10px] font-bold text-gray-400 bg-gray-100 cursor-not-allowed">Out</button>
                       );
-                    })()
-                  ) : (() => {
-                    const availableQty = firstVariant?.available_qty ?? null;
-                    const inStock = firstVariant?.in_stock !== false && availableQty !== 0;
-                    const cartItem = getCartItem(product.originalProduct?.id || product.id, firstVariant?.weight || product.weight);
-                    const key = `${product.originalProduct?.id || product.id}_${firstVariant?.weight || product.weight}`;
-                    const isUpdating = updatingQuantity[key];
 
-                    if (!inStock) return (
-                      <button disabled className="w-full rounded-xl py-1 md:py-1.5 text-[10px] font-bold text-gray-400 bg-gray-100 cursor-not-allowed">Out of Stock</button>
-                    );
+                      if (cartItem) return (
+                        <div className="flex items-center gap-1 rounded-lg px-1.5 py-1" style={{ border: '1.5px solid #0c831f', backgroundColor: '#f0fdf4' }}>
+                          <button onClick={(e) => { e.stopPropagation(); updateQuantity(product.originalProduct?.id || product.id, firstVariant?.weight || product.weight, cartItem.quantity - 1, cartItem.cart_item_id); }} disabled={isUpdating} className="font-bold text-base w-5 h-5 flex items-center justify-center disabled:opacity-50" style={{ color: '#0c831f' }}>−</button>
+                          {isUpdating
+                            ? <div className="w-3 h-3 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#0c831f' }}></div>
+                            : <span className="font-bold text-xs w-4 text-center" style={{ color: '#0c831f' }}>{cartItem.quantity}</span>}
+                          <button onClick={(e) => { e.stopPropagation(); updateQuantity(product.originalProduct?.id || product.id, firstVariant?.weight || product.weight, cartItem.quantity + 1, cartItem.cart_item_id); }} disabled={isUpdating || (availableQty !== null && cartItem.quantity >= availableQty)} className="font-bold text-base w-5 h-5 flex items-center justify-center disabled:opacity-50" style={{ color: '#0c831f' }}>+</button>
+                        </div>
+                      );
 
-                    if (cartItem) return (
-                      <div className="w-full flex items-center justify-between rounded-xl py-1 px-2" style={{ border: '1.5px solid #0c831f', backgroundColor: '#f0fdf4' }}>
-                        <button onClick={(e) => { e.stopPropagation(); updateQuantity(product.originalProduct?.id || product.id, firstVariant?.weight || product.weight, cartItem.quantity - 1, cartItem.cart_item_id); }} disabled={isUpdating} className="font-bold text-lg disabled:opacity-50" style={{ color: '#0c831f' }}>−</button>
-                        {isUpdating
-                          ? <div className="w-3 h-3 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#0c831f' }}></div>
-                          : <span className="font-bold text-xs" style={{ color: '#0c831f' }}>{cartItem.quantity}</span>}
-                        <button onClick={(e) => { e.stopPropagation(); updateQuantity(product.originalProduct?.id || product.id, firstVariant?.weight || product.weight, cartItem.quantity + 1, cartItem.cart_item_id); }} disabled={isUpdating || (availableQty !== null && cartItem.quantity >= availableQty)} className="font-bold text-lg disabled:opacity-50" style={{ color: '#0c831f' }}>+</button>
-                      </div>
-                    );
-
-                    return (
-                      <>
-                        {availableQty !== null && availableQty <= 10 && availableQty > 0 && (
-                          <p className="text-[9px] text-orange-500 font-medium mb-0.5 text-center">Only {availableQty} left</p>
-                        )}
-                        <button onClick={(e) => { e.stopPropagation(); addToCart(product, firstVariant); }} disabled={addingToCart} className="w-full rounded-xl py-1 md:py-1.5 text-[10px] font-bold bg-white hover:bg-green-50 transition-colors disabled:opacity-50" style={{ border: '1.5px solid #0c831f', color: '#0c831f' }}>
-                          + Add
-                        </button>
-                      </>
-                    );
-                  })()}
+                      return (
+                        <div className="flex flex-col items-end gap-0.5">
+                          {availableQty !== null && availableQty <= 10 && availableQty > 0 && (
+                            <p className="text-[9px] text-orange-500 font-medium">Only {availableQty} left</p>
+                          )}
+                          <button onClick={(e) => { e.stopPropagation(); addToCart(product, firstVariant); }} disabled={addingToCart} className="rounded-lg px-3 py-1.5 text-[11px] font-bold bg-white hover:bg-green-50 transition-colors disabled:opacity-50" style={{ border: '1.5px solid #0c831f', color: '#0c831f' }}>
+                            + Add
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
               </div>
             );

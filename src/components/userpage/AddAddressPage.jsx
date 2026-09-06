@@ -520,16 +520,33 @@ const AddAddressPage = () => {
     }
 
     setSaving(true);
-    
+
+    // Auto-detect coords if not already set
+    let resolvedCoords = { ...coords };
+    if (!resolvedCoords.latitude && navigator.geolocation) {
+      try {
+        resolvedCoords = await new Promise((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+            () => resolve({ latitude: null, longitude: null }),
+            { timeout: 5000 }
+          );
+        });
+        setCoords(resolvedCoords);
+      } catch (_) {
+        resolvedCoords = { latitude: null, longitude: null };
+      }
+    }
+
     try {
       const userDetails = JSON.parse(localStorage.getItem('userDetails'));
-      
+
       if (!userDetails?.id) {
         alert('User not found. Please login again.');
         navigate('/sign-in');
         return;
       }
-      
+
       // Prepare address data as per backend requirements
       const addressData = {
         user_id: userDetails.id,
@@ -546,14 +563,14 @@ const AddAddressPage = () => {
         address_type: addressType,
         address_label: addressType.charAt(0).toUpperCase() + addressType.slice(1),
         ordering_for: orderingFor,
-        latitude: coords.latitude,
-        longitude: coords.longitude
+        latitude: resolvedCoords.latitude,
+        longitude: resolvedCoords.longitude
       };
 
       console.log("Saving address:", addressData);
 
       await dispatch(saveAddress(addressData)).unwrap();
-      
+
     } catch (error) {
       console.error('Error saving address:', error);
       const errorMsg = typeof error === 'string' ? error : error?.message || 'Failed to save address. Please try again.';
