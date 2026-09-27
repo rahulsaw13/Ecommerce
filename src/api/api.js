@@ -135,8 +135,14 @@ import axios from "axios";
 const BASE_URL = (process.env.REACT_APP_BASE_URL || "") + "/api/v1/ecommerce";
 const TENANT_DOMAIN = typeof window !== "undefined" ? window.location.hostname : "localhost";
 
-// All stock and order fulfillment is at Gopalpur branch 6887
-const _getBranchIdFromCookie = () => '6887';
+const _getBranchIdFromCookie = () => {
+  try {
+    const match = document.cookie.match(/(?:^|;)\s*userLocation=([^;]*)/);
+    if (!match) return null;
+    const loc = JSON.parse(decodeURIComponent(match[1]));
+    return loc?.branch_id ? String(loc.branch_id) : null;
+  } catch (e) { return null; }
+};
 
 // ✅ normal api
 const allApi = axios.create({
