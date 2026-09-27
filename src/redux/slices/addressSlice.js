@@ -90,12 +90,13 @@ const addressSlice = createSlice({
         state.loading = false;
         state.success = action.payload?.address_id || action.payload?.id || Date.now();
         if (action.payload) {
-          // Add new address to list if returned from API
-          const newAddress = {
-            id: action.payload?.address_id || action.payload?.id,
-            ...action.payload
-          };
-          state.addresses.push(newAddress);
+          const savedId = action.payload?.address_id || action.payload?.id;
+          const existingIndex = state.addresses.findIndex(a => a.id === savedId);
+          if (existingIndex >= 0) {
+            state.addresses[existingIndex] = { ...state.addresses[existingIndex], ...action.payload };
+          } else {
+            state.addresses.push({ id: savedId, ...action.payload });
+          }
         }
         state.error = null;
       })

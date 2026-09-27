@@ -944,26 +944,22 @@ const Header = ({ onSearch }) => {
     };
   }, [isListening]);
 
-  // Search only on Enter / submit — no auto-navigate on typing
+  // Debounced auto-navigate while typing
   useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, []);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (searchQuery.trim().length >= 2) {
+      searchTimeoutRef.current = setTimeout(() => {
+        navigate(`/category?search=${encodeURIComponent(searchQuery.trim())}`);
+      }, 500);
+    }
+    return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current); };
+  }, [searchQuery, navigate]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     if (searchQuery.trim().length >= 2) {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-      try {
-        navigate(`/category?search=${encodeURIComponent(searchQuery.trim())}`);
-      } catch (error) {
-        console.error('Navigation error:', error);
-      }
+      navigate(`/category?search=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
 
@@ -1209,9 +1205,8 @@ const Header = ({ onSearch }) => {
       
       <header className="fixed top-0 left-0 right-0 z-50">
         <div 
-          className="shadow-md md:rounded-b-2xl"
+          className="shadow-md md:rounded-b-2xl bg-white border-b border-gray-200"
           style={{
-            background: 'linear-gradient(180deg, #FFC107 0%, #FFD54F 100%)'
           }}
         >
           <div className="w-full px-3 md:px-6 py-3 md:py-4">
@@ -1229,10 +1224,19 @@ const Header = ({ onSearch }) => {
                   className="cursor-pointer"
                   onClick={() => navigate('/')}
                 >
-                  <h1 className="text-2xl font-bold leading-tight">
-                    <span className="text-gray-900">Sriram</span>
-                    <span className="text-green-600">mart</span>
-                  </h1>
+                  <div className="flex items-center gap-1.5">
+                    <svg width="28" height="28" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect width="100" height="100" rx="20" fill="#F5B800"/>
+                      <path d="M36 44 C36 28 64 28 64 44" stroke="#1a5c2e" strokeWidth="5.5" fill="none" strokeLinecap="round"/>
+                      <path d="M22 47 L28 82 L72 82 L78 47 Z" fill="#1a5c2e"/>
+                      <path d="M57 53 L44 64 L54 64 L41 76" stroke="white" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                      <path d="M61 55 L48 66 L58 66 L45 78" stroke="#F5B800" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    </svg>
+                    <h1 className="text-2xl font-bold leading-tight">
+                      <span style={{ color: '#1a5c2e' }}>Sriram</span>
+                      <span style={{ color: '#F5B800' }}>mart</span>
+                    </h1>
+                  </div>
                 </div>
 
                 {userDetails ? (
@@ -1308,7 +1312,7 @@ const Header = ({ onSearch }) => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder={placeholder}
-                    className="w-full pl-10 pr-12 py-2.5 bg-white border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 text-sm"
+                    className="w-full pl-10 pr-12 py-2.5 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-300 text-sm"
                   />
                   <button
                     type="button"
@@ -1331,12 +1335,23 @@ const Header = ({ onSearch }) => {
                   className="cursor-pointer"
                   onClick={() => navigate('/')}
                 >
-                  <div className="flex items-baseline gap-0.5">
-                    <span className="text-[1.6rem] font-bold text-gray-900 leading-none">Sriram</span>
-                    <span className="text-2xl font-bold text-green-600 leading-none">Mart</span>
-                  </div>
-                  <div className="text-[9px] text-center text-gray-800 leading-tight -mt-0.5 max-w-[120px]">
-                    Fresh Grocery Delivery in 30 minutes
+                  <div className="flex items-center gap-2">
+                    <svg width="38" height="38" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect width="100" height="100" rx="20" fill="#F5B800"/>
+                      <path d="M36 44 C36 28 64 28 64 44" stroke="#1a5c2e" strokeWidth="5.5" fill="none" strokeLinecap="round"/>
+                      <path d="M22 47 L28 82 L72 82 L78 47 Z" fill="#1a5c2e"/>
+                      <path d="M57 53 L44 64 L54 64 L41 76" stroke="white" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                      <path d="M61 55 L48 66 L58 66 L45 78" stroke="#F5B800" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                    </svg>
+                    <div>
+                      <div className="flex items-baseline gap-0.5">
+                        <span className="text-[1.6rem] font-bold leading-none" style={{ color: '#1a5c2e' }}>Sriram</span>
+                        <span className="text-2xl font-bold leading-none" style={{ color: '#F5B800' }}>Mart</span>
+                      </div>
+                      <div className="text-[9px] text-center text-gray-800 leading-tight -mt-0.5 max-w-[120px]">
+                        Fresh Grocery Delivery in 30 minutes
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -1365,7 +1380,7 @@ const Header = ({ onSearch }) => {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder={placeholder}
-                    className="w-full pl-10 pr-20 py-2 bg-white border-none rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-300 text-sm"
+                    className="w-full pl-10 pr-20 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-300 text-sm"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
                     <button
@@ -1393,7 +1408,7 @@ const Header = ({ onSearch }) => {
                           menu.current.toggle(e);
                         }
                       }}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-white rounded-lg hover:bg-gray-50 transition-colors"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                       type="button"
                     >
                       <i className="ri-user-line text-lg"></i>
@@ -1403,7 +1418,7 @@ const Header = ({ onSearch }) => {
                 ) : (
                   <button
                     onClick={() => navigate('/sign-in')}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-white rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <i className="ri-user-line text-lg"></i>
                     <span className="text-sm font-medium">Account</span>
@@ -1414,7 +1429,7 @@ const Header = ({ onSearch }) => {
                   <>
                     <button
                       onClick={() => navigate('/wishlist')}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-white rounded-lg hover:bg-gray-50 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       <div className="relative">
                         <i className="ri-heart-line text-lg"></i>
@@ -1427,17 +1442,18 @@ const Header = ({ onSearch }) => {
                     </button>
                     <button
                       onClick={() => navigate('/view-cart')}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-white rounded-lg hover:bg-gray-50 transition-colors"
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg transition-colors font-bold"
+                      style={{ backgroundColor: '#F5B800', color: '#1a5c2e' }}
                     >
                       <div className="relative">
-                        <i className="ri-shopping-cart-line text-lg"></i>
+                        <i className="ri-shopping-bag-line text-lg"></i>
                         {cartItemCount > 0 && (
-                          <span className="absolute -top-3 -right-3 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                          <span className="absolute -top-3 -right-3 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold" style={{ backgroundColor: '#1a5c2e' }}>
                             {cartItemCount}
                           </span>
                         )}
                       </div>
-                      <span className="text-sm font-medium">My Cart</span>
+                      <span className="text-sm font-bold">My Cart</span>
                     </button>
                   </>
                 )}
@@ -1517,8 +1533,9 @@ const Header = ({ onSearch }) => {
       <LocationPickerPopup
         isOpen={showLocationPicker}
         onClose={() => setShowLocationPicker(false)}
-        onLocationSelected={(loc) => setUserLocation(loc)}
+        onLocationSelected={(loc) => { setUserLocation(loc); setShowLocationPicker(false); }}
         anchorRef={locationBtnRef}
+        mandatory={!userLocation}
       />
     </>
   );

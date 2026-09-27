@@ -3,30 +3,16 @@ import { useSelector } from 'react-redux';
 import { allApi } from '@api/api';
 import { saveLocationToCookie, checkDeliveryAvailabilityLocal } from '@services/locationService';
 
-const NOMINATIM_SEARCH = 'https://nominatim.openstreetmap.org/search';
-const NOMINATIM_REVERSE = 'https://nominatim.openstreetmap.org/reverse';
-
-const extractShortName = (addressObj) => {
-  if (!addressObj) return null;
-  return (
-    addressObj.suburb ||
-    addressObj.neighbourhood ||
-    addressObj.quarter ||
-    addressObj.city_district ||
-    addressObj.village ||
-    addressObj.town ||
-    addressObj.city ||
-    null
-  );
+const getGoogleServices = () => {
+  const g = window.google?.maps?.places;
+  if (!g) return null;
+  return {
+    autocomplete: new g.AutocompleteService(),
+    geocoder: new window.google.maps.Geocoder(),
+  };
 };
 
-const extractSecondary = (addressObj) => {
-  if (!addressObj) return '';
-  return [addressObj.city || addressObj.town || addressObj.village, addressObj.state]
-    .filter(Boolean).join(', ');
-};
-
-const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef }) => {
+const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef, mandatory = false }) => {
   const companyInfo = useSelector((state) => state.company?.info);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
@@ -105,9 +91,9 @@ const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef })
     };
   }, [isOpen, isMobile]);
 
-  // Close on outside click
+  // Close on outside click (only when not mandatory)
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || mandatory) return;
     const handleClick = (e) => {
       if (cardRef.current && !cardRef.current.contains(e.target) &&
           anchorRef?.current && !anchorRef.current.contains(e.target)) {
@@ -116,7 +102,7 @@ const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef })
     };
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [isOpen, onClose, anchorRef]);
+  }, [isOpen, onClose, anchorRef, mandatory]);
 
   const validateAndSave = useCallback(async (lat, lng, shortName, fullAddress) => {
     setValidating(true);
@@ -156,16 +142,22 @@ const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef })
     navigator.geolocation.getCurrentPosition(
       async ({ coords: { latitude, longitude } }) => {
         try {
-          const res = await fetch(
-            `${NOMINATIM_REVERSE}?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1`,
-            { headers: { 'Accept-Language': 'en' } }
-          );
-          const data = await res.json();
-          const shortName = extractShortName(data.address) || data.display_name?.split(',')[0] || 'Your location';
-          await validateAndSave(latitude, longitude, shortName, data.display_name || '');
+          const svc = getGoogleServices();
+          if (svc) {
+            svc.geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (results, status) => {
+              const addr = status === 'OK' && results?.[0];
+              const shortName = addr
+                ? (addr.address_components?.find(c => c.types.includes('sublocality_level_1') || c.types.includes('locality'))?.long_name || addr.formatted_address?.split(',')[0])
+                : 'Your location';
+              validateAndSave(latitude, longitude, shortName, addr?.formatted_address || '');
+              setDetecting(false);
+            });
+          } else {
+            await validateAndSave(latitude, longitude, 'Your location', '');
+            setDetecting(false);
+          }
         } catch {
           await validateAndSave(latitude, longitude, 'Your location', '');
-        } finally {
           setDetecting(false);
         }
       },
@@ -177,34 +169,74 @@ const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef })
     );
   };
 
+  const searchNominatim = async (query) => {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=5&addressdetails=1`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    const data = await res.json();
+    return data.map((item) => ({
+      place_id: item.place_id,
+      _isNominatim: true,
+      _lat: parseFloat(item.lat),
+      _lng: parseFloat(item.lon),
+      description: item.display_name,
+      structured_formatting: {
+        main_text: item.display_name.split(',')[0],
+        secondary_text: item.display_name.split(',').slice(1).join(',').trim(),
+      },
+    }));
+  };
+
   const handleSearch = (query) => {
     setSearchQuery(query);
     setError('');
     if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
     if (!query.trim() || query.length < 3) { setSearchResults([]); return; }
     searchTimeoutRef.current = setTimeout(async () => {
-      setSearching(true);
-      try {
-        const res = await fetch(
-          `${NOMINATIM_SEARCH}?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=6&countrycodes=in`,
-          { headers: { 'Accept-Language': 'en' } }
+      const svc = getGoogleServices();
+      if (svc) {
+        setSearching(true);
+        svc.autocomplete.getPlacePredictions(
+          { input: query, componentRestrictions: { country: 'in' } },
+          async (predictions, status) => {
+            const ok = window.google?.maps?.places?.PlacesServiceStatus?.OK;
+            if (status === ok && predictions?.length) {
+              setSearching(false);
+              setSearchResults(predictions);
+            } else {
+              // Google returned empty/error — fall back to Nominatim
+              try {
+                const results = await searchNominatim(query);
+                setSearchResults(results);
+              } catch { setSearchResults([]); }
+              setSearching(false);
+            }
+          }
         );
-        setSearchResults(await res.json());
-      } catch {
-        setSearchResults([]);
-      } finally {
+      } else {
+        // Google Maps not loaded — use Nominatim directly
+        setSearching(true);
+        try {
+          const results = await searchNominatim(query);
+          setSearchResults(results);
+        } catch { setSearchResults([]); }
         setSearching(false);
       }
     }, 400);
   };
 
   const handleSelectResult = async (result) => {
-    const lat = parseFloat(result.lat);
-    const lng = parseFloat(result.lon);
-    const shortName = extractShortName(result.address) || result.display_name?.split(',')[0];
     setSearchResults([]);
     setSearchQuery('');
-    await validateAndSave(lat, lng, shortName, result.display_name);
+    const svc = getGoogleServices();
+    if (!svc) return;
+    svc.geocoder.geocode({ placeId: result.place_id }, async (geoResults, status) => {
+      if (status !== 'OK' || !geoResults?.[0]) { setError('Could not get location details.'); return; }
+      const loc = geoResults[0].geometry.location;
+      const lat = loc.lat();
+      const lng = loc.lng();
+      const shortName = result.structured_formatting?.main_text || result.description?.split(',')[0];
+      await validateAndSave(lat, lng, shortName, result.description);
+    });
   };
 
   if (!isOpen) return null;
@@ -217,7 +249,7 @@ const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef })
         style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
         onTouchStart={(e) => { touchStartY.current = e.touches[0].clientY; touchMoved.current = false; }}
         onTouchMove={(e) => { if (Math.abs(e.touches[0].clientY - touchStartY.current) > 8) touchMoved.current = true; }}
-        onClick={(e) => { if (!touchMoved.current && e.target === e.currentTarget) onClose(); }}
+        onClick={(e) => { if (!mandatory && !touchMoved.current && e.target === e.currentTarget) onClose(); }}
       >
         <div ref={cardRef} className="bg-white w-full rounded-t-3xl shadow-2xl overflow-y-auto" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, maxHeight: '85vh', zIndex: 81 }}>
           <div className="flex justify-center pt-3 pb-1">
@@ -284,20 +316,16 @@ const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef })
 
             {searchResults.length > 0 && (
               <div className="border border-gray-200 rounded-xl overflow-hidden">
-                {searchResults.map((r, i) => {
-                  const short = extractShortName(r.address) || r.display_name?.split(',')[0];
-                  const sec = extractSecondary(r.address);
-                  return (
-                    <button key={r.place_id || i} onClick={() => handleSelectResult(r)} disabled={validating}
-                      className="w-full flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 last:border-0 hover:bg-gray-50 text-left disabled:opacity-60">
-                      <i className="ri-map-pin-line text-gray-400 text-sm flex-shrink-0"></i>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-xs text-gray-900 truncate">{short}</p>
-                        <p className="text-[10px] text-gray-500 truncate">{sec}</p>
-                      </div>
-                    </button>
-                  );
-                })}
+                {searchResults.map((r, i) => (
+                  <button key={r.place_id || i} onClick={() => handleSelectResult(r)} disabled={validating}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 border-b border-gray-100 last:border-0 hover:bg-gray-50 text-left disabled:opacity-60">
+                    <i className="ri-map-pin-line text-gray-400 text-sm flex-shrink-0"></i>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-xs text-gray-900 truncate">{r.structured_formatting?.main_text || r.description?.split(',')[0]}</p>
+                      <p className="text-[10px] text-gray-500 truncate">{r.structured_formatting?.secondary_text || ''}</p>
+                    </div>
+                  </button>
+                ))}
               </div>
             )}
           </div>
@@ -308,7 +336,7 @@ const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef })
 
   // ── DESKTOP: floating card below header button ────────────────────────────
   return (
-    <div className="fixed inset-0 z-[80]" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="fixed inset-0 z-[80]" onClick={(e) => { if (!mandatory && e.target === e.currentTarget) onClose(); }}>
       <div
         ref={cardRef}
         className="bg-white rounded-2xl shadow-2xl overflow-hidden"
@@ -324,9 +352,11 @@ const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef })
               <p className="text-green-600 font-semibold text-sm mb-0.5">Welcome to SriramMart</p>
               <p className="text-gray-700 text-sm leading-snug">Please provide your delivery location to see products at nearby store</p>
             </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
-              <i className="ri-close-line text-xl"></i>
-            </button>
+            {!mandatory && (
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 flex-shrink-0">
+                <i className="ri-close-line text-xl"></i>
+              </button>
+            )}
           </div>
 
           {/* Detect + OR + Search on same row */}
@@ -383,20 +413,16 @@ const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef })
           {/* Search results */}
           {searchResults.length > 0 && (
             <div className="mt-3 border border-gray-200 rounded-xl overflow-hidden">
-              {searchResults.map((r, i) => {
-                const short = extractShortName(r.address) || r.display_name?.split(',')[0];
-                const sec = extractSecondary(r.address);
-                return (
-                  <button key={r.place_id || i} onClick={() => handleSelectResult(r)} disabled={validating}
-                    className="w-full flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 text-left disabled:opacity-60">
-                    <i className="ri-map-pin-line text-gray-400 flex-shrink-0"></i>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-gray-900 truncate">{short}</p>
-                      <p className="text-xs text-gray-500 truncate">{sec}</p>
-                    </div>
-                  </button>
-                );
-              })}
+              {searchResults.map((r, i) => (
+                <button key={r.place_id || i} onClick={() => handleSelectResult(r)} disabled={validating}
+                  className="w-full flex items-center gap-3 px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 text-left disabled:opacity-60">
+                  <i className="ri-map-pin-line text-gray-400 flex-shrink-0"></i>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-gray-900 truncate">{r.structured_formatting?.main_text || r.description?.split(',')[0]}</p>
+                    <p className="text-xs text-gray-500 truncate">{r.structured_formatting?.secondary_text || ''}</p>
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </div>

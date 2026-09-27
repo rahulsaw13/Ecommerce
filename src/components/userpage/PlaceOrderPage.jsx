@@ -112,33 +112,48 @@ const PlaceOrderPage = () => {
     return new Date().getHours() >= hours;
   };
 
-  // Update cart totals and items from Redux
+  // Update cart totals and items from Redux — then fetch charges from ERP
   useEffect(() => {
     if (cartItems && cartItems.length > 0) {
       const subtotal_mrp = cartItems.reduce((sum, item) => sum + ((item.mrp || item.original_price || 0) * (item.quantity || 1)), 0);
       const subtotal_selling_price = cartItems.reduce((sum, item) => sum + ((item.selling_price || item.price || 0) * (item.quantity || 1)), 0);
       const product_discount = subtotal_mrp - subtotal_selling_price;
-      const handling_fee = 0;
-      const grand_total = subtotal_selling_price + handling_fee;
-      
-      setCartTotals({
-        subtotal_mrp: subtotal_mrp,
-        subtotal_selling_price: subtotal_selling_price,
-        product_discount: product_discount,
-        promo_discount: 0,
-        savings: product_discount,
-        total: subtotal_selling_price,
-        handling_fee: handling_fee,
-        delivery_charge: 0,
-        igst_rate: 0,
-        cgst_rate: 0,
-        sgst_rate: 0,
-        igst_amount: 0,
-        cgst_amount: 0,
-        sgst_amount: 0,
-        tax_amount: 0,
-        grand_total: grand_total
-      });
+
+      // Fetch delivery charge + handling fee from ERP config
+      allApi.get(`/orders/charges?total=${subtotal_selling_price}`)
+        .then(res => {
+          const dc = Number(res.data?.delivery_charge || 0);
+          const hf = Number(res.data?.handling_fee || 0);
+          setCartTotals({
+            subtotal_mrp,
+            subtotal_selling_price,
+            product_discount,
+            promo_discount: 0,
+            savings: product_discount,
+            total: subtotal_selling_price,
+            handling_fee: hf,
+            delivery_charge: dc,
+            igst_rate: 0, cgst_rate: 0, sgst_rate: 0,
+            igst_amount: 0, cgst_amount: 0, sgst_amount: 0, tax_amount: 0,
+            grand_total: subtotal_selling_price + dc + hf
+          });
+        })
+        .catch(() => {
+          setCartTotals({
+            subtotal_mrp,
+            subtotal_selling_price,
+            product_discount,
+            promo_discount: 0,
+            savings: product_discount,
+            total: subtotal_selling_price,
+            handling_fee: 0,
+            delivery_charge: 0,
+            igst_rate: 0, cgst_rate: 0, sgst_rate: 0,
+            igst_amount: 0, cgst_amount: 0, sgst_amount: 0, tax_amount: 0,
+            grand_total: subtotal_selling_price
+          });
+        });
+
       setCartItemsLocal(cartItems);
     }
   }, [cartItems]);
@@ -472,12 +487,14 @@ const PlaceOrderPage = () => {
         orderType: 'home_delivery',
         couponCode: appliedCoupon?.code || null,
         couponDiscount: couponDiscount || 0,
+        walletAmountUsed: walletAmountUsed > 0 ? walletAmountUsed : undefined,
         ...locationCoords
       })).unwrap();
       
     } catch (error) {
       console.error('Error placing order:', error);
-      alert('Failed to place order. Please try again.');
+      const msg = typeof error === 'string' ? error : (error?.message || 'Failed to place order. Please try again.');
+      alert(msg);
       setPlacingOrder(false);
     }
   };
@@ -899,21 +916,25 @@ const PlaceOrderPage = () => {
                 </div>
               )}
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <i className="ri-truck-line text-gray-700 text-base"></i>
-                  <span className="text-gray-900 font-medium">Delivery charge</span>
+              {cartTotals.delivery_charge > 0 && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <i className="ri-truck-line text-gray-700 text-base"></i>
+                    <span className="text-gray-900 font-medium">Delivery charge</span>
+                  </div>
+                  <span className="text-gray-700">₹{cartTotals.delivery_charge.toFixed(2)}</span>
                 </div>
-                <span className="text-gray-700">₹{cartTotals.delivery_charge.toFixed(2)}</span>
-              </div>
+              )}
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <i className="ri-hand-coin-line text-gray-700 text-base"></i>
-                  <span className="text-gray-900 font-medium">Handling charge</span>
+              {cartTotals.handling_fee > 0 && (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <i className="ri-hand-coin-line text-gray-700 text-base"></i>
+                    <span className="text-gray-900 font-medium">Handling charge</span>
+                  </div>
+                  <span className="text-gray-700">₹{cartTotals.handling_fee.toFixed(2)}</span>
                 </div>
-                <span className="text-gray-700">₹{cartTotals.handling_fee.toFixed(2)}</span>
-              </div>
+              )}
 
               {cartTotals.igst_amount > 0 && (
                 <div className="flex items-center justify-between">

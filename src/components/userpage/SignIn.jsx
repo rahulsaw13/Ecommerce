@@ -769,6 +769,10 @@ const SignInRegister = () => {
   const [googleError, setGoogleError] = useState("");
   const [isOtpLoginMode, setIsOtpLoginMode] = useState(false);
   const [otpLoginPhone, setOtpLoginPhone] = useState("");
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [regName, setRegName] = useState("");
+  const [regEmail, setRegEmail] = useState("");
+  const [regLoader, setRegLoader] = useState(false);
   const [isDeliveryMode, setIsDeliveryMode] = useState(false);
   const [deliveryUsername, setDeliveryUsername] = useState("");
   const [deliveryPassword, setDeliveryPassword] = useState("");
@@ -1058,7 +1062,8 @@ const SignInRegister = () => {
       setOtpLoader(true);
     }
     try {
-      await allApi.post("user_dashboard/send_login_otp", { phone });
+      const res = await allApi.post("user_dashboard/send_login_otp", { phone });
+      if (res.data?.is_new_user) setIsNewUser(true);
       setShowOTPVerification(true);
       setTimeLeft(300);
       setIsOTPExpired(false);
@@ -1107,6 +1112,28 @@ const SignInRegister = () => {
     }
   };
 
+  const handleCompleteRegistration = async () => {
+    if (!regName.trim()) { setLoginError("Name is required"); return; }
+    setRegLoader(true);
+    try {
+      const response = await allApi.post("user_dashboard/complete_registration", {
+        phone: otpLoginPhone || userPhoneNumber,
+        name: regName.trim(),
+        email: regEmail.trim() || undefined,
+      });
+      const userData = response.data?.data;
+      if (userData) localStorage.setItem("userDetails", JSON.stringify(userData));
+      showSuccessToast("Welcome, " + regName + "!");
+      setTimeout(() => { navigate("/"); resetForm(); }, 1500);
+    } catch (err) {
+      const msg = err?.response?.data?.message || "Registration failed. Please try again.";
+      setLoginError(msg);
+      showErrorToast(msg);
+    } finally {
+      setRegLoader(false);
+    }
+  };
+
   const handleResendOTP = () => {
     const phone = otpLoginPhone || userPhoneNumber;
     if (phone) sendLoginOTP(phone, true);
@@ -1124,6 +1151,11 @@ const SignInRegister = () => {
         phone: otpLoginPhone || userPhoneNumber,
         otp: otpValue
       });
+      if (response.data?.is_new_user) {
+        setIsNewUser(true);
+        setLoginError("");
+        return;
+      }
       const userData = response.data?.data;
       if (userData) localStorage.setItem("userDetails", JSON.stringify(userData));
       showSuccessToast(t('login_successful'));
@@ -1231,6 +1263,9 @@ const SignInRegister = () => {
     setUserPhoneNumber("");
     setWelcomeUserName("");
     setFieldValue('otp', '');
+    setIsNewUser(false);
+    setRegName("");
+    setRegEmail("");
   };
 
   const resetPasswordFlow = () => {
@@ -1422,6 +1457,52 @@ const SignInRegister = () => {
                   )}
                   
                   {!showWelcomeMessage && (
+                    isNewUser ? (
+                      // Registration form for new users after OTP verified
+                      <div className="space-y-4">
+                        <p className="text-[#1D2E43] text-[0.85rem]">OTP verified! Please complete your registration.</p>
+                        <input
+                          type="text"
+                          value={regName}
+                          onChange={(e) => setRegName(e.target.value)}
+                          placeholder="Full Name *"
+                          className="text-[0.8rem] rounded-none w-full border border-gray-300 px-4 py-2 focus:outline-none focus:ring-1 focus:ring-gray-700"
+                        />
+                        <input
+                          type="email"
+                          value={regEmail}
+                          onChange={(e) => setRegEmail(e.target.value)}
+                          placeholder="Email (optional)"
+                          className="text-[0.8rem] rounded-none w-full border border-gray-300 px-4 py-2 focus:outline-none focus:ring-1 focus:ring-gray-700"
+                        />
+                        {loginError && (
+                          <div className="text-red-600 text-[0.8rem] font-medium">{loginError}</div>
+                        )}
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <button
+                            type="button"
+                            onClick={handleCompleteRegistration}
+                            disabled={regLoader || !regName.trim()}
+                            className="w-full sm:w-auto text-black text-[1.1rem] font-[playfair] hover:bg-white border px-6 py-2 rounded-md hover:text-[#cca438] hover:border hover:border-[#caa446] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                            style={{ background: 'linear-gradient(rgb(255, 193, 7) 0%, rgb(255, 213, 79) 100%)' }}
+                          >
+                            {regLoader ? (
+                              <div className="flex items-center">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Registering...
+                              </div>
+                            ) : "Complete Registration"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={resetOTPFlow}
+                            className="w-full sm:w-auto hover:border border border-white text-[1.1rem] font-[playfair] bg-white px-6 py-2 rounded-md text-[#cca438] hover:border-[#cca438]"
+                          >
+                            {t("cancel")}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
                     <div className="space-y-4">
                       <InputTextComponent
                         value={values?.otp || ''}
@@ -1440,7 +1521,7 @@ const SignInRegister = () => {
                           {loginError}
                         </div>
                       )}
-                      
+
                       <div className='flex flex-col sm:flex-row gap-3'>
                         <button
                           type="button"
@@ -1460,7 +1541,7 @@ const SignInRegister = () => {
                             t("verify_otp")
                           )}
                         </button>
-                        
+
                         <button
                           type="button"
                           onClick={handleResendOTP}
@@ -1476,7 +1557,7 @@ const SignInRegister = () => {
                             t("resend_otp")
                           )}
                         </button>
-                        
+
                         <button
                           type="button"
                           onClick={resetOTPFlow}
@@ -1486,6 +1567,7 @@ const SignInRegister = () => {
                         </button>
                       </div>
                     </div>
+                    )
                   )}
                 </>
               ) : isOtpLoginMode ? (

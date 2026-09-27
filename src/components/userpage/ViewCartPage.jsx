@@ -31,15 +31,14 @@ const ViewCart = () => {
   const [appliedDiscount, setAppliedDiscount] = useState(null);
   const [nextDiscount, setNextDiscount] = useState(null);
   const [showAddressMenu, setShowAddressMenu] = useState(null);
-  const [showLocationMap, setShowLocationMap] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
-  const [detectedAddress, setDetectedAddress] = useState(null);
   const [cartItemsWithDetails, setCartItemsWithDetails] = useState([]);
   const [removingItem, setRemovingItem] = useState(null);
   const [toastMessage, setToastMessage] = useState({ show: false, message: '', type: '' });
   const [deliveryAvailable, setDeliveryAvailable] = useState(null); // null=unchecked, true/false
   const [deliveryLocationName, setDeliveryLocationName] = useState('');
   const [showLocationPickerCart, setShowLocationPickerCart] = useState(false);
+  const [locating, setLocating] = useState(false);
   const cartLocationBtnRef = useRef(null);
   const { t } = useTranslation("msg");
   const navigate = useNavigate();
@@ -314,7 +313,9 @@ const ViewCart = () => {
   const handleDeleteAddress = async (addressId) => {
     setShowAddressMenu(null);
     try {
-      const response = await fetch(`${process.env.REACT_APP_BASE_URL || ''}/api/v1/ecommerce/addresses/${addressId}`, {
+      const userDetails = JSON.parse(localStorage.getItem('userDetails') || '{}');
+      const userId = userDetails?.id;
+      const response = await fetch(`${process.env.REACT_APP_BASE_URL || ''}/api/v1/ecommerce/addresses/${addressId}?user_id=${userId}`, {
         method: 'DELETE',
         headers: {
           'X-Tenant-Domain': typeof window !== 'undefined' ? window.location.hostname : 'localhost',
@@ -332,66 +333,84 @@ const ViewCart = () => {
     }
   };
 
-  // Handle use current location
-  const handleUseCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          setCurrentLocation({ lat: latitude, lng: longitude });
-          
-          try {
-            const response = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
-            );
-            const data = await response.json();
-            
-            setDetectedAddress({
-              display_name: data.display_name || 'Current Location',
-              city: data.address?.city || data.address?.town || data.address?.village || '',
-              state: data.address?.state || '',
-              country: data.address?.country || '',
-              postcode: data.address?.postcode || ''
-            });
-            
-            setVisible(false);
-            setShowLocationMap(true);
-          } catch (error) {
-            console.error('Error getting address:', error);
-            setDetectedAddress({
-              display_name: 'Current Location',
-              city: '',
-              state: '',
-              country: '',
-              postcode: ''
-            });
-            setVisible(false);
-            setShowLocationMap(true);
-          }
-        },
-        (error) => {
-          console.error('Error getting location:', error);
-          alert('Unable to get your location. Please enable location services.');
-        }
-      );
-    } else {
-      alert('Geolocation is not supported by your browser.');
-    }
+  // Haversine distance in km between two lat/lng pairs
+  const getDistanceKm = (lat1, lng1, lat2, lng2) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   };
 
-  // Handle continue from location map
-  const handleContinueFromMap = () => {
-    setShowLocationMap(false);
-    const params = new URLSearchParams({
-      from: 'place-order',
-      use_location: 'true',
-      lat: currentLocation?.lat || '',
-      lng: currentLocation?.lng || '',
-      city: detectedAddress?.city || '',
-      state: detectedAddress?.state || '',
-      postcode: detectedAddress?.postcode || ''
-    });
-    navigate(`/add-address?${params.toString()}`);
+  // Handle use current location
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setCurrentLocation({ lat: latitude, lng: longitude });
+
+        // Check if any saved address is within 500m — use it directly
+        const nearby = addresses.find(addr => {
+          const addrLat = parseFloat(addr.latitude);
+          const addrLng = parseFloat(addr.longitude);
+          if (!addrLat || !addrLng) return false;
+          return getDistanceKm(latitude, longitude, addrLat, addrLng) < 0.5;
+        });
+
+        if (nearby) {
+          setLocating(false);
+          setSelectedAddress(nearby);
+          setVisible(false);
+          navigate(`/place-order?address_id=${nearby.id}`);
+          return;
+        }
+
+        // No nearby saved address — reverse geocode then go directly to add-address
+        const goToAddAddress = (city = '', state = '', postcode = '') => {
+          setLocating(false);
+          setVisible(false);
+          const params = new URLSearchParams({
+            from: 'place-order',
+            use_location: 'true',
+            lat: latitude,
+            lng: longitude,
+            city,
+            state,
+            postcode
+          });
+          navigate(`/add-address?${params.toString()}`);
+        };
+
+        const geocoder = window.google?.maps?.Geocoder && new window.google.maps.Geocoder();
+        if (geocoder) {
+          geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (results, status) => {
+            if (status === 'OK' && results?.[0]) {
+              const components = results[0].address_components || [];
+              const get = (type) => components.find(c => c.types.includes(type))?.long_name || '';
+              goToAddAddress(
+                get('locality') || get('administrative_area_level_2'),
+                get('administrative_area_level_1'),
+                get('postal_code')
+              );
+            } else {
+              goToAddAddress();
+            }
+          });
+        } else {
+          goToAddAddress();
+        }
+      },
+      () => {
+        setLocating(false);
+        alert('Unable to get your location. Please enable location services.');
+      }
+    );
   };
 
   // Handle proceed with selected address
@@ -756,12 +775,15 @@ const ViewCart = () => {
                   <i className="ri-arrow-right-s-line text-lg text-[#FFC107] group-hover:translate-x-1 transition-transform"></i>
                 </button>
 
-                <button 
+                <button
                   onClick={handleUseCurrentLocation}
-                  className="w-full bg-white border border-gray-200 rounded-lg p-2.5 mb-3 flex items-center gap-2 hover:bg-gray-50 transition-colors"
+                  disabled={locating}
+                  className="w-full bg-white border border-gray-200 rounded-lg p-2.5 mb-3 flex items-center gap-2 hover:bg-gray-50 transition-colors disabled:opacity-60"
                 >
-                  <i className="ri-map-pin-line text-lg text-[#FFC107]"></i>
-                  <span className="text-[#FFC107] font-semibold text-sm">Use current location</span>
+                  {locating
+                    ? <div className="w-4 h-4 border-2 border-[#FFC107] border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+                    : <i className="ri-map-pin-line text-lg text-[#FFC107]"></i>}
+                  <span className="text-[#FFC107] font-semibold text-sm">{locating ? 'Detecting location…' : 'Use current location'}</span>
                 </button>
 
                 <h3 className="text-sm font-semibold text-gray-700 mb-2.5">Your saved addresses</h3>
@@ -849,102 +871,6 @@ const ViewCart = () => {
           </>
         )}
 
-        {/* Location Map Modal */}
-        {showLocationMap && (
-          <>
-            <div 
-              className="fixed inset-0 bg-black bg-opacity-50 z-[9998]"
-              onClick={() => setShowLocationMap(false)}
-            />
-            
-            <div className="fixed inset-0 z-[9999] bg-white">
-              <div className="sticky top-0 bg-white border-b border-gray-200 px-4 py-3 z-10">
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => setShowLocationMap(false)}
-                    className="text-gray-700"
-                  >
-                    <i className="ri-arrow-left-line text-2xl"></i>
-                  </button>
-                  <h2 className="text-lg font-semibold text-gray-900">Add Address</h2>
-                </div>
-              </div>
-
-              <div className="relative h-[60vh] bg-gray-100">
-                <div className="absolute top-4 left-4 bg-white rounded-lg shadow-md flex z-10">
-                  <button className="px-4 py-2 text-sm font-semibold text-gray-900 border-r border-gray-200">
-                    Map
-                  </button>
-                  <button className="px-4 py-2 text-sm text-gray-600">
-                    Satellite
-                  </button>
-                </div>
-
-                <button className="absolute top-4 right-4 bg-white p-2 rounded-lg shadow-md z-10">
-                  <i className="ri-fullscreen-line text-xl text-gray-700"></i>
-                </button>
-
-                <div className="w-full h-full bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center relative">
-                  <div className="absolute inset-0 opacity-20">
-                    <div className="w-full h-full" style={{
-                      backgroundImage: 'repeating-linear-gradient(0deg, #e5e7eb 0px, #e5e7eb 1px, transparent 1px, transparent 40px), repeating-linear-gradient(90deg, #e5e7eb 0px, #e5e7eb 1px, transparent 1px, transparent 40px)',
-                    }}></div>
-                  </div>
-                  
-                  <div className="relative z-10">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                      <div className="w-48 h-48 bg-blue-300 rounded-full opacity-30 animate-pulse"></div>
-                    </div>
-                    <div className="relative">
-                      <i className="ri-map-pin-fill text-6xl text-green-500" style={{ filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' }}></i>
-                    </div>
-                  </div>
-
-                  <button className="absolute bottom-4 left-4 bg-white p-2 rounded-full shadow-md">
-                    <i className="ri-focus-3-line text-xl text-gray-700"></i>
-                  </button>
-
-                  <div className="absolute bottom-4 right-4 bg-white rounded-lg shadow-md">
-                    <button className="p-2 border-b border-gray-200">
-                      <i className="ri-add-line text-xl text-gray-700"></i>
-                    </button>
-                    <button className="p-2">
-                      <i className="ri-subtract-line text-xl text-gray-700"></i>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-4">
-                <div className="flex items-start gap-3 mb-4">
-                  <div className="flex-shrink-0 mt-1">
-                    <i className="ri-refresh-line text-xl text-gray-600"></i>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-base font-bold text-gray-900 mb-1">
-                      Delivering your order to
-                    </h3>
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                      <p className="text-sm font-semibold text-gray-900 mb-1">
-                        {detectedAddress?.display_name || 'Current Location'}
-                      </p>
-                      <p className="text-xs text-gray-600">
-                        {[detectedAddress?.city, detectedAddress?.state].filter(Boolean).join(', ')}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleContinueFromMap}
-                  className="w-full bg-[#FFC107] hover:bg-[#FFB300] text-gray-900 font-bold py-3 rounded-lg text-base transition-colors"
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          </>
-        )}
       </div>
 
       <div className="mt-16">

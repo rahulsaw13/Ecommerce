@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { allApiWithHeaderToken } from "@api/api";
 import { API_CONSTANTS } from "@constants/apiurl";
 import { useTranslation } from "react-i18next";
@@ -7,9 +7,12 @@ import { useCompanyInfo } from '@hooks/useCompanyInfo';
 import Header from '@common/Header';
 import Footer from '@common/Footer';
 import UserLoader from '@userpage-pages/UserLoader';
+import DeliveryMap from '@common/DeliveryMap';
 
 const TrackOrderPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlOrderId = searchParams.get('orderId');
   const { t } = useTranslation("msg");
   const companyInfo = useCompanyInfo();
   const [orders, setOrders] = useState([]);
@@ -19,6 +22,8 @@ const TrackOrderPage = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [showAllOrders, setShowAllOrders] = useState(false);
   const [actualRoadDistance, setActualRoadDistance] = useState(null);
+  const [agentLocation, setAgentLocation] = useState(null);
+  const [trackingInterval, setTrackingInterval] = useState(null);
 
   const storeLocation = {
     lat: companyInfo.latitude || 0,
@@ -29,17 +34,6 @@ const TrackOrderPage = () => {
     fetchOrders();
     fetchMenuList();
     getUserLocation();
-
-    const googleMapsScript = document.createElement('script');
-    googleMapsScript.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
-    googleMapsScript.async = true;
-    document.body.appendChild(googleMapsScript);
-
-    return () => {
-      if (document.body.contains(googleMapsScript)) {
-        document.body.removeChild(googleMapsScript);
-      }
-    };
   }, []);
 
   const getUserLocation = () => {
@@ -84,7 +78,10 @@ const TrackOrderPage = () => {
         setOrders(trackableOrders);
 
         if (trackableOrders.length > 0) {
-          setSelectedOrder(trackableOrders[0]);
+          const matched = urlOrderId
+            ? trackableOrders.find(o => o.order_id === urlOrderId) || trackableOrders[0]
+            : trackableOrders[0];
+          setSelectedOrder(matched);
         }
       }
     } catch (error) {
@@ -172,28 +169,33 @@ const TrackOrderPage = () => {
     return null;
   };
 
-  useEffect(() => {
-    if (userLocation && window.google && window.google.maps) {
-      const service = new window.google.maps.DistanceMatrixService();
-      const origin = new window.google.maps.LatLng(storeLocation.lat, storeLocation.lng);
-      const destination = new window.google.maps.LatLng(userLocation.lat, userLocation.lng);
-
-      service.getDistanceMatrix(
-        {
-          origins: [origin],
-          destinations: [destination],
-          travelMode: window.google.maps.TravelMode.DRIVING,
-          unitSystem: window.google.maps.UnitSystem.METRIC,
-        },
-        (response, status) => {
-          if (status === 'OK' && response.rows[0].elements[0].status === 'OK') {
-            const distanceInMeters = response.rows[0].elements[0].distance.value;
-            setActualRoadDistance((distanceInMeters / 1000).toFixed(2));
-          }
-        }
+  // Poll delivery agent location every 10s when order is shipped/out for delivery
+  const pollAgentLocation = useCallback(async (orderId) => {
+    if (!orderId) return;
+    try {
+      const res = await allApiWithHeaderToken(
+        `${API_CONSTANTS.DELIVERY_TRACK_ORDER}/${orderId}`,
+        '', 'get'
       );
+      if (res?.status === 200 && res?.data?.tracking_active) {
+        setAgentLocation({ lat: res.data.agent_lat, lng: res.data.agent_lng });
+      } else {
+        setAgentLocation(null);
+      }
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    if (trackingInterval) { clearInterval(trackingInterval); setTrackingInterval(null); }
+    setAgentLocation(null);
+    const trackableStatuses = ['shipped', 'out for delivery'];
+    if (selectedOrder && trackableStatuses.includes(selectedOrder.order_status?.toLowerCase())) {
+      pollAgentLocation(selectedOrder.id);
+      const id = setInterval(() => pollAgentLocation(selectedOrder.id), 10000);
+      setTrackingInterval(id);
     }
-  }, [userLocation]);
+    return () => { if (trackingInterval) clearInterval(trackingInterval); };
+  }, [selectedOrder]);
 
   const calculateDeliveryCharge = () => {
     const distance = actualRoadDistance || getDeliveryDistance();
@@ -202,16 +204,6 @@ const TrackOrderPage = () => {
       return (parseFloat(distance) * costPerKm).toFixed(2);
     }
     return null;
-  };
-
-  const getMapUrl = () => {
-    const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
-    const storeCoords = `${storeLocation.lat},${storeLocation.lng}`;
-    if (userLocation) {
-      const userCoords = `${userLocation.lat},${userLocation.lng}`;
-      return `https://www.google.com/maps/embed/v1/directions?key=${apiKey}&origin=${storeCoords}&destination=${userCoords}&mode=driving`;
-    }
-    return `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${storeCoords}&zoom=15`;
   };
 
   if (loader) {
@@ -514,19 +506,15 @@ const TrackOrderPage = () => {
                 {selectedOrder && (
                   <div className="bg-white rounded-lg border p-6 sticky top-20">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                      {userLocation ? 'Delivery Route' : 'Store Location'}
+                      {agentLocation ? 'Live Tracking' : userLocation ? 'Delivery Route' : 'Store Location'}
                     </h2>
 
-                    <div className="w-full h-[400px] rounded-lg overflow-hidden border border-gray-200">
-                      <iframe
-                        width="100%"
-                        height="100%"
-                        style={{ border: 0 }}
-                        src={getMapUrl()}
-                        allowFullScreen
-                        title="Store Location"
-                      ></iframe>
-                    </div>
+                    <DeliveryMap
+                      storeLocation={storeLocation.lat ? storeLocation : null}
+                      agentLocation={agentLocation}
+                      customerLocation={userLocation}
+                      height="400px"
+                    />
 
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-start gap-3">

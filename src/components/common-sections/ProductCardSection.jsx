@@ -284,22 +284,22 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
                       (() => {
                         const allOut = product.originalProduct?.variants?.every(v => v.in_stock === false);
                         return allOut ? (
-                          <button disabled className="rounded-lg px-2 py-1.5 text-[10px] font-bold text-gray-400 bg-gray-100 cursor-not-allowed">Out</button>
+                          <button disabled className="rounded-lg px-2 py-1.5 text-[10px] font-bold text-gray-400 bg-gray-100 cursor-not-allowed">Out of Stock</button>
                         ) : (
-                          <button onClick={(e) => handleOptionsClick(e, product)} className="rounded-lg px-2.5 py-1.5 text-[11px] font-bold bg-white hover:bg-green-50 transition-colors" style={{ border: '1.5px solid #0c831f', color: '#0c831f' }}>
+                          <button onClick={(e) => handleOptionsClick(e, product)} className="rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors" style={{ backgroundColor: '#0c831f' }}>
                             Options
                           </button>
                         );
                       })()
                     ) : (() => {
                       const availableQty = firstVariant?.available_qty ?? null;
-                      const inStock = firstVariant?.in_stock !== false && availableQty !== 0;
+                      const inStock = firstVariant?.in_stock !== false;
                       const cartItem = getCartItem(product.originalProduct?.id || product.id, firstVariant?.weight || product.weight);
                       const key = `${product.originalProduct?.id || product.id}_${firstVariant?.weight || product.weight}`;
                       const isUpdating = updatingQuantity[key];
 
                       if (!inStock) return (
-                        <button disabled className="rounded-lg px-2 py-1.5 text-[10px] font-bold text-gray-400 bg-gray-100 cursor-not-allowed">Out</button>
+                        <button disabled className="rounded-lg px-2 py-1.5 text-[10px] font-bold text-gray-400 bg-gray-100 cursor-not-allowed">Out of Stock</button>
                       );
 
                       if (cartItem) return (
@@ -317,7 +317,7 @@ const ProductCardSection = ({ title, products, icon = "ri-shopping-bag-line", on
                           {availableQty !== null && availableQty <= 10 && availableQty > 0 && (
                             <p className="text-[9px] text-orange-500 font-medium">Only {availableQty} left</p>
                           )}
-                          <button onClick={(e) => { e.stopPropagation(); addToCart(product, firstVariant); }} disabled={addingToCart} className="rounded-lg px-3 py-1.5 text-[11px] font-bold bg-white hover:bg-green-50 transition-colors disabled:opacity-50" style={{ border: '1.5px solid #0c831f', color: '#0c831f' }}>
+                          <button onClick={(e) => { e.stopPropagation(); addToCart(product, firstVariant); }} disabled={addingToCart} className="rounded-lg px-3 py-1.5 text-[11px] font-bold text-white transition-colors disabled:opacity-50" style={{ backgroundColor: '#0c831f' }}>
                             + Add
                           </button>
                         </div>

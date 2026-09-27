@@ -1654,6 +1654,9 @@ function HomePage() {
     return () => obs.disconnect();
   }, [categories]);
 
+  // Category grid show-all toggle
+  const [showAllCats, setShowAllCats] = useState(false);
+
   // Active category filter (sidebar / tab bar)
   const [activeCategoryId, setActiveCategoryId] = useState(null);
   const [activeCategoryName, setActiveCategoryName] = useState(null);
@@ -2100,7 +2103,7 @@ const handleAddToCart = async (product) => {
               {activeVariant?.actualPrice > displayPrice && (<p className="text-[10px] text-gray-400 line-through">₹{activeVariant.actualPrice}</p>)}
             </div>
             {allOutOfStock || activeVariant?.in_stock === false ? (
-              <span className="text-[10px] text-gray-400 font-medium bg-gray-100 px-2 py-1 rounded-lg">Out</span>
+              <span className="text-[10px] text-gray-400 font-medium bg-gray-100 px-2 py-1 rounded-lg">Out of Stock</span>
             ) : (() => {
               const cartItem = cartItems?.find(ci => ci.product_variant_id === activeVariant?.productVariantId);
               if (cartItem) {
@@ -2112,7 +2115,7 @@ const handleAddToCart = async (product) => {
                   </div>
                 );
               }
-              return (<button onClick={(e) => { e.stopPropagation(); handleAddToCart({ ...product, variants: [activeVariant, ...(product.variants || [])] }); }} disabled={addingToCart} className="rounded-xl px-3 py-1.5 text-[11px] font-bold bg-white hover:bg-green-50 transition disabled:opacity-50" style={{ border: '1.5px solid #0c831f', color: '#0c831f' }}>+ Add</button>);
+              return (<button onClick={(e) => { e.stopPropagation(); handleAddToCart({ ...product, variants: [activeVariant, ...(product.variants || [])] }); }} disabled={addingToCart} className="rounded-xl px-3 py-1.5 text-[11px] font-bold text-white transition disabled:opacity-50" style={{ backgroundColor: '#0c831f' }}>+ Add</button>);
             })()}
           </div>
         </div>
@@ -2212,8 +2215,8 @@ const handleAddToCart = async (product) => {
       
       <main className="pt-[160px] md:pt-20 pb-20 md:pb-8 bg-white">
 
-        {/* Mobile sticky category tab bar — scrolls to section on homepage */}
-        {hasCategories && (
+        {/* Mobile sticky category tab bar — hidden */}
+        {/* {hasCategories && (
           <div className="md:hidden sticky top-[100px] z-30 bg-white border-b border-gray-100 shadow-sm">
             <CategoryTabBar
               categories={categories}
@@ -2221,13 +2224,13 @@ const handleAddToCart = async (product) => {
               onCategoryChange={handleHomeCategoryTab}
             />
           </div>
-        )}
+        )} */}
 
         {/* ── HOMEPAGE VIEW: Blinkit-style full width ── */}
         <div className="px-3 md:px-6">
 
-          {/* Desktop category tab bar — scrolls to section on homepage */}
-          {hasCategories && (
+          {/* Desktop category tab bar — hidden */}
+          {/* {hasCategories && (
             <div className="hidden md:block mb-4 mt-2">
               <CategoryTabBar
                 categories={categories}
@@ -2235,7 +2238,7 @@ const handleAddToCart = async (product) => {
                 onCategoryChange={handleHomeCategoryTab}
               />
             </div>
-          )}
+          )} */}
 
             {/* Hero banner */}
             <div className="mb-4">
@@ -2283,11 +2286,10 @@ const handleAddToCart = async (product) => {
                   const categoryId = category.id || category.category?.id;
                   const catProducts = products.filter(p => p.category_name === categoryName);
                   const categoryImg = category.image_url || category.category?.image_url;
-                  const featuredImg = categoryImg || catProducts.find(p => p.image_url)?.image_url;
-                  const PROMO_BG = ['#1c60ff', '#0ea5e9', '#f59e0b', '#e2e8f0'];
-                  const PROMO_TEXT = ['#ffffff', '#ffffff', '#1e293b', '#1e293b'];
+                  const productFeaturedImg = catProducts.find(p => p.image_url)?.image_url;
+                  const featuredImg = categoryImg || productFeaturedImg;
+                  const PROMO_BG = ['#1c60ff', '#0ea5e9', '#f59e0b', '#64748b'];
                   const bg = PROMO_BG[i % PROMO_BG.length];
-                  const textColor = PROMO_TEXT[i % PROMO_TEXT.length];
                   return (
                     <div
                       key={categoryId || categoryName}
@@ -2295,21 +2297,9 @@ const handleAddToCart = async (product) => {
                       className="rounded-2xl p-4 cursor-pointer relative overflow-hidden h-36 md:h-44 flex flex-col justify-between hover:opacity-95 active:scale-[.98] transition-all"
                       style={{ backgroundColor: bg }}
                     >
-                      {categoryImg && (
-                        <>
-                          <img
-                            src={categoryImg}
-                            alt={categoryName}
-                            className="absolute inset-0 w-full h-full object-cover"
-                            loading="lazy"
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                          />
-                          <div className="absolute inset-0 bg-black/45" />
-                        </>
-                      )}
                       <div className="relative z-10">
-                        <p className="font-bold text-sm md:text-base leading-tight pr-16" style={{ color: categoryImg ? '#ffffff' : textColor }}>{decodeHtml(categoryName)}</p>
-                        <p className="text-xs mt-1 opacity-70 pr-16" style={{ color: categoryImg ? '#ffffff' : textColor }}>{catProducts.length} items available</p>
+                        <p className="font-bold text-sm md:text-base leading-tight pr-20 text-white">{decodeHtml(categoryName)}</p>
+                        <p className="text-xs mt-1 opacity-75 pr-20 text-white">{catProducts.length} items</p>
                       </div>
                       <button
                         className="w-fit bg-white text-gray-900 text-xs font-bold px-3 py-1.5 rounded-full hover:bg-gray-100 transition relative z-10"
@@ -2317,23 +2307,76 @@ const handleAddToCart = async (product) => {
                       >
                         Order Now
                       </button>
-                      {!categoryImg && (
-                        featuredImg ? (
+                      {featuredImg ? (
+                        <div className="absolute right-0 bottom-0 h-28 md:h-36 w-28 md:w-36" style={{ backgroundColor: bg }}>
                           <img
                             src={featuredImg}
                             alt={categoryName}
-                            className="absolute right-1 bottom-0 h-24 md:h-32 w-24 md:w-32 object-contain"
+                            className="h-full w-full object-contain"
                             loading="lazy"
-                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
                           />
-                        ) : (
-                          <i className={`${category.icon || category.category?.icon || 'ri-store-3-line'} absolute right-4 bottom-4 text-6xl md:text-7xl opacity-20`} style={{ color: textColor }}></i>
-                        )
+                        </div>
+                      ) : (
+                        <i className={`${category.icon || category.category?.icon || 'ri-store-3-line'} absolute right-3 bottom-3 opacity-15 text-white`} style={{ fontSize: '5rem' }}></i>
                       )}
                     </div>
                   );
                 })}
               </div>
+            )}
+
+            {/* Blinkit-style category grid */}
+            {hasCategories && (
+              <section className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base md:text-lg font-extrabold text-gray-900">Shop by Category</h2>
+                </div>
+                <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 md:gap-3">
+                  {(showAllCats ? categories : categories.slice(0, 20)).map((cat) => {
+                    const category = cat.category || cat;
+                    const categoryId = category.id;
+                    const categoryName = category.name;
+                    const imageUrl = category.image_url;
+                    return (
+                      <div
+                        key={categoryId || categoryName}
+                        onClick={() => navigate(`/category?id=${categoryId}`)}
+                        className="flex flex-col items-center cursor-pointer group"
+                      >
+                        <div className="w-full h-16 md:h-20 bg-[#f0f0f5] rounded-xl overflow-hidden flex items-center justify-center mb-1 group-hover:shadow-md transition-shadow">
+                          {imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={categoryName}
+                              className="w-full h-full object-contain p-1"
+                              loading="lazy"
+                              onError={(e) => { e.currentTarget.src = '/assets/images/No-image-found.jpg'; }}
+                            />
+                          ) : (
+                            <i className={`${category.icon || 'ri-store-3-line'} text-2xl text-gray-400`}></i>
+                          )}
+                        </div>
+                        <p className="text-[10px] md:text-[11px] font-semibold text-gray-700 text-center leading-tight line-clamp-2">{decodeHtml(categoryName)}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                {categories.length > 20 && (
+                  <div className="flex justify-center mt-4">
+                    <button
+                      onClick={() => setShowAllCats(prev => !prev)}
+                      className="flex items-center gap-2 px-5 py-2 rounded-full border border-gray-300 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 transition shadow-sm"
+                    >
+                      {showAllCats ? (
+                        <><i className="ri-arrow-up-s-line text-base"></i> View less</>
+                      ) : (
+                        <><i className="ri-arrow-down-s-line text-base"></i> View more ({categories.length - 20} more)</>
+                      )}
+                    </button>
+                  </div>
+                )}
+              </section>
             )}
 
             {/* Curated sections: Best Selling, On Sale, New Arrivals */}

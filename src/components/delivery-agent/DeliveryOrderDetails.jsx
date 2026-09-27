@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import useDeliveryLocationTracker from "@hooks/useDeliveryLocationTracker";
 import { Toast } from "primereact/toast";
 import { Button } from "primereact/button";
 import { Dialog } from "primereact/dialog";
@@ -26,6 +27,11 @@ const DeliveryOrderDetails = () => {
   const { orderId } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  // Live GPS tracking — pushes location to backend every 15s while on this page
+  const trackableStatuses = ['shipped', 'out for delivery', 'Out for delivery'];
+  const trackingOrderId = trackableStatuses.includes(order?.order_status) ? orderId : null;
+  const { gpsError } = useDeliveryLocationTracker(trackingOrderId);
   
   // Payment method state
   const [paymentMethod, setPaymentMethod] = useState('');
@@ -606,6 +612,14 @@ const DeliveryOrderDetails = () => {
     <div className="min-h-screen bg-gray-50">
       <Toast ref={toast} />
       
+      {/* GPS error banner */}
+      {gpsError && trackingOrderId && (
+        <div className="bg-red-500 text-white text-sm px-4 py-2 text-center flex items-center justify-center gap-2">
+          <i className="ri-map-pin-off-line"></i>
+          {gpsError}
+        </div>
+      )}
+
       {/* Custom CSS for Dropdown */}
       <style>{`
         .p-dropdown .p-dropdown-label,

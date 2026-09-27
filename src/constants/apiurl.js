@@ -54,6 +54,8 @@ export const API_CONSTANTS = {
     SEND_LOGIN_OTP_URL: "api/v1/user_dashboard/send_login_otp",
     VERIFY_LOGIN_OTP_URL: "api/v1/user_dashboard/verify_login_otp",
     CHANGE_PASSWORD_URL: "api/v1/users/change_password",
+    DELIVERY_UPDATE_LOCATION: "delivery_agent/update_location",
+    DELIVERY_TRACK_ORDER: "delivery_agent/track",
     GOOGLE_AUTH: "api/v1/users/google_signin",
     PAYMENT_INTENT_CREATE: "api/v1/payment_transactions/create_payment_intent",
     PAYMENT_INTENT_VERIFY: "api/v1/payment_transactions/verify_payment",

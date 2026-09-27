@@ -479,11 +479,27 @@ const AddAddressPage = () => {
     setDetectingLocation(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setCoords({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude
-        });
-        setDetectingLocation(false);
+        const { latitude, longitude } = position.coords;
+        setCoords({ latitude, longitude });
+        // Auto-fill address fields via Google Geocoder
+        const geocoder = window.google?.maps?.Geocoder && new window.google.maps.Geocoder();
+        if (geocoder) {
+          geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (results, status) => {
+            setDetectingLocation(false);
+            if (status !== 'OK' || !results?.[0]) return;
+            const components = results[0].address_components || [];
+            const get = (type) => components.find(c => c.types.includes(type))?.long_name || '';
+            setFormData(prev => ({
+              ...prev,
+              address: prev.address || results[0].formatted_address || '',
+              city: prev.city || get('locality') || get('administrative_area_level_2') || '',
+              state: prev.state || get('administrative_area_level_1') || '',
+              pinCode: prev.pinCode || get('postal_code') || ''
+            }));
+          });
+        } else {
+          setDetectingLocation(false);
+        }
       },
       () => {
         alert('Could not detect location. Please allow location access.');
@@ -549,6 +565,7 @@ const AddAddressPage = () => {
 
       // Prepare address data as per backend requirements
       const addressData = {
+        ...(existingAddressId ? { id: parseInt(existingAddressId) } : {}),
         user_id: userDetails.id,
         name: formData.name || '',
         phone_number: formData.phone,

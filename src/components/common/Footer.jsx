@@ -42,15 +42,24 @@ const Footer = ({ data }) => {
     return (
         <>
         {/* Desktop Footer */}
-        <footer className="w-full bg-yellow-400 py-12 hidden md:block">
+        <footer className="w-full bg-white border-t border-gray-200 py-12 hidden md:block">
             <div className="max-w-7xl mx-auto px-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     
                     {/* Left Section - Logo and Description */}
                     <div className="text-gray-900">
-                        <div className="flex items-center gap-1 mb-4">
-                            <span className="text-3xl font-bold text-gray-900">{(companyInfo.name || 'Dukaansarthi').replace('Mart', '').replace('mart', '')}</span>
-                            <span className="text-3xl font-bold text-green-600">{(companyInfo.name || '').includes('art') ? 'mart' : ''}</span>
+                        <div className="flex items-center gap-2 mb-4">
+                            <svg width="44" height="44" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <rect width="100" height="100" rx="20" fill="#F5B800"/>
+                              <path d="M36 44 C36 28 64 28 64 44" stroke="#1a5c2e" strokeWidth="5.5" fill="none" strokeLinecap="round"/>
+                              <path d="M22 47 L28 82 L72 82 L78 47 Z" fill="#1a5c2e"/>
+                              <path d="M57 53 L44 64 L54 64 L41 76" stroke="white" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                              <path d="M61 55 L48 66 L58 66 L45 78" stroke="#F5B800" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                            </svg>
+                            <div>
+                              <span className="text-3xl font-bold" style={{ color: '#1a5c2e' }}>{(companyInfo.name || 'Sriram').replace(/mart/gi, '').trim()}</span>
+                              <span className="text-3xl font-bold" style={{ color: '#F5B800' }}>Mart</span>
+                            </div>
                         </div>
                         <p className="text-sm leading-relaxed mb-2">
                             Your trusted source for quality products delivered fresh to your doorstep.
