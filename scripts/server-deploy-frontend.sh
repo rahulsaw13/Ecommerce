@@ -40,7 +40,7 @@ cd $REMOTE_SRC
 mv .env.production.tmp .env.production
 
 echo "  Installing dependencies..."
-npm ci --prefer-offline --no-audit --no-fund 2>&1 | tail -3
+npm ci --prefer-offline --no-audit --no-fund --legacy-peer-deps 2>&1 | tail -3
 
 echo "  Building..."
 npm run build:prod 2>&1 | tail -10
