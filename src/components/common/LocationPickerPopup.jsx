@@ -227,8 +227,14 @@ const LocationPickerPopup = ({ isOpen, onClose, onLocationSelected, anchorRef, m
   const handleSelectResult = async (result) => {
     setSearchResults([]);
     setSearchQuery('');
+    // Nominatim results already carry coordinates
+    if (result._isNominatim) {
+      const shortName = result.structured_formatting?.main_text || result.description?.split(',')[0];
+      await validateAndSave(result._lat, result._lng, shortName, result.description);
+      return;
+    }
     const svc = getGoogleServices();
-    if (!svc) return;
+    if (!svc) { setError('Could not get location details.'); return; }
     svc.geocoder.geocode({ placeId: result.place_id }, async (geoResults, status) => {
       if (status !== 'OK' || !geoResults?.[0]) { setError('Could not get location details.'); return; }
       const loc = geoResults[0].geometry.location;
