@@ -8,6 +8,7 @@ import Header from '@common/Header';
 import Footer from '@common/Footer';
 import UserLoader from '@userpage-pages/UserLoader';
 import DeliveryMap from '@common/DeliveryMap';
+import useDeliveryWebSocket from '@hooks/useDeliveryWebSocket';
 
 const TrackOrderPage = () => {
   const navigate = useNavigate();
@@ -179,15 +180,24 @@ const TrackOrderPage = () => {
         `${API_CONSTANTS.DELIVERY_TRACK_ORDER}/${orderId}`,
         '', 'get'
       );
-      if (res?.status === 200 && res?.data?.tracking_active) {
-        setAgentLocation({ lat: res.data.agent_lat, lng: res.data.agent_lng });
-        setAgentInfo({
-          name: res.data.partner_name,
-          phone: res.data.partner_phone,
-          heading: res.data.agent_heading,
-          speed_kmh: res.data.agent_speed_kmh,
-        });
-        setEtaMinutes(res.data.eta_minutes ?? null);
+      if (res?.status === 200) {
+        const d = res.data?.data || res.data;
+        if (d.agent_lat != null && d.agent_lng != null) {
+          setAgentLocation({ lat: d.agent_lat, lng: d.agent_lng });
+        } else {
+          setAgentLocation(null);
+        }
+        if (d.partner_name) {
+          setAgentInfo({
+            name: d.partner_name,
+            phone: d.partner_phone,
+            heading: d.agent_heading,
+            speed_kmh: d.agent_speed_kmh,
+          });
+        } else {
+          setAgentInfo(null);
+        }
+        setEtaMinutes(d.eta_minutes ?? null);
       } else {
         setAgentLocation(null);
         setAgentInfo(null);
@@ -196,15 +206,30 @@ const TrackOrderPage = () => {
     } catch (_) {}
   }, []);
 
+  const trackableStatuses = ['shipped', 'out for delivery'];
+  const wsActive = !!(selectedOrder && trackableStatuses.includes(selectedOrder.order_status?.toLowerCase()));
+
+  // Real-time GPS updates via WebSocket
+  const handleWsLocation = useCallback((loc) => {
+    if (loc?.latitude != null && loc?.longitude != null) {
+      setAgentLocation({ lat: loc.latitude, lng: loc.longitude });
+    }
+    if (loc?.speed_kmh != null) {
+      setAgentInfo(prev => prev ? { ...prev, speed_kmh: loc.speed_kmh, heading: loc.heading } : prev);
+    }
+  }, []);
+
+  useDeliveryWebSocket(selectedOrder?.id, handleWsLocation, wsActive);
+
   useEffect(() => {
     if (trackingInterval) { clearInterval(trackingInterval); setTrackingInterval(null); }
     setAgentLocation(null);
     setAgentInfo(null);
     setEtaMinutes(null);
-    const trackableStatuses = ['shipped', 'out for delivery'];
     if (selectedOrder && trackableStatuses.includes(selectedOrder.order_status?.toLowerCase())) {
       pollAgentLocation(selectedOrder.id);
-      const id = setInterval(() => pollAgentLocation(selectedOrder.id), 10000);
+      // keep polling every 30s as fallback (WebSocket handles real-time)
+      const id = setInterval(() => pollAgentLocation(selectedOrder.id), 30000);
       setTrackingInterval(id);
     }
     return () => { if (trackingInterval) clearInterval(trackingInterval); };
@@ -523,7 +548,7 @@ const TrackOrderPage = () => {
                     </h2>
 
                     {/* Delivery partner info + ETA */}
-                    {agentLocation && agentInfo && (
+                    {agentInfo && (
                       <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
