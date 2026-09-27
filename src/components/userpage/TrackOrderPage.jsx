@@ -27,6 +27,7 @@ const TrackOrderPage = () => {
   const [trackingInterval, setTrackingInterval] = useState(null);
   const [agentInfo, setAgentInfo] = useState(null);
   const [etaMinutes, setEtaMinutes] = useState(null);
+  const [deliveryAddressLocation, setDeliveryAddressLocation] = useState(null);
 
   const storeLocation = {
     lat: companyInfo.latitude || 0,
@@ -198,6 +199,9 @@ const TrackOrderPage = () => {
           setAgentInfo(null);
         }
         setEtaMinutes(d.eta_minutes ?? null);
+        if (d.customer_lat != null && d.customer_lat !== 0 && d.customer_lng != null && d.customer_lng !== 0) {
+          setDeliveryAddressLocation({ lat: d.customer_lat, lng: d.customer_lng });
+        }
       } else {
         setAgentLocation(null);
         setAgentInfo(null);
@@ -226,6 +230,7 @@ const TrackOrderPage = () => {
     setAgentLocation(null);
     setAgentInfo(null);
     setEtaMinutes(null);
+    setDeliveryAddressLocation(null);
     if (selectedOrder && trackableStatuses.includes(selectedOrder.order_status?.toLowerCase())) {
       pollAgentLocation(selectedOrder.id);
       // keep polling every 30s as fallback (WebSocket handles real-time)
@@ -577,10 +582,16 @@ const TrackOrderPage = () => {
                       </div>
                     )}
 
+                    {agentInfo && !agentLocation && (
+                      <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700 flex items-center gap-2">
+                        <i className="ri-loader-4-line animate-spin"></i>
+                        Waiting for agent to share live location...
+                      </div>
+                    )}
                     <DeliveryMap
                       storeLocation={storeLocation.lat ? storeLocation : null}
                       agentLocation={agentLocation}
-                      customerLocation={userLocation}
+                      customerLocation={deliveryAddressLocation || userLocation}
                       height="400px"
                     />
 
