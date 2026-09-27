@@ -84,7 +84,8 @@ function App() {
   initializeThemeFromStorage();
 
   const dispatch = useDispatch();
-  const companyName = useSelector((state) => state.company?.info?.name);
+  const companyInfo = useSelector((state) => state.company?.info);
+  const companyName = companyInfo?.name;
 
   useEffect(() => {
     dispatch(fetchCompanyInfo());
@@ -98,6 +99,19 @@ function App() {
   useEffect(() => {
     if (companyName) document.title = companyName;
   }, [companyName]);
+
+  // Load Google Maps script dynamically using key from company settings
+  useEffect(() => {
+    const apiKey = companyInfo?.google_maps_api_key;
+    if (!apiKey || window.google?.maps) return;
+    if (document.getElementById('google-maps-script')) return;
+    const script = document.createElement('script');
+    script.id = 'google-maps-script';
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+  }, [companyInfo?.google_maps_api_key]);
 
   return (
     <Suspense fallback={<RouteLoader />}>

@@ -117,6 +117,9 @@ export const API_CONSTANTS = {
         THEME_COLORS: "api/v1/settings/theme_colors"
     },
 
+    // Ecommerce admin settings (Google Maps key, etc.)
+    ECOMMERCE_ADMIN_SETTINGS: "api/v1/ecommerce/admin/settings",
+
     // Wallet API endpoints (admin — DukanSarthi token required)
     WALLET_ADMIN_SETTINGS: "api/v1/ecommerceadmin/wallet/settings",
     WALLET_ADMIN_BONUS: "api/v1/ecommerceadmin/wallet/bonus",

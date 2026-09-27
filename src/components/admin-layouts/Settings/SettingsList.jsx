@@ -54,6 +54,11 @@ const SettingsList = ({ search }) => {
   const [newCarouselImages, setNewCarouselImages] = useState([]);
   const [deletedCarouselImageIds, setDeletedCarouselImageIds] = useState([]);
 
+  // Google Maps API Key
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState('');
+  const [originalGoogleMapsApiKey, setOriginalGoogleMapsApiKey] = useState('');
+  const [savingMapsKey, setSavingMapsKey] = useState(false);
+
   const item = {
     heading: "Settings",
     routes: [
@@ -64,6 +69,7 @@ const SettingsList = ({ search }) => {
 
   useEffect(() => {
     fetchSettingsList();
+    fetchEcommerceSettings();
   }, []);
 
   const fetchSettingsList = () => {
@@ -144,6 +150,34 @@ const SettingsList = ({ search }) => {
       .finally(() => {
         setLoader(false);
       });
+  };
+
+  const fetchEcommerceSettings = () => {
+    allApiWithHeaderToken(API_CONSTANTS.ECOMMERCE_ADMIN_SETTINGS, "", "get")
+      .then((response) => {
+        if (response?.status === 200) {
+          const key = response.data?.google_maps_api_key || '';
+          setGoogleMapsApiKey(key);
+          setOriginalGoogleMapsApiKey(key);
+        }
+      })
+      .catch(() => {});
+  };
+
+  const handleSaveGoogleMapsKey = () => {
+    if (googleMapsApiKey === originalGoogleMapsApiKey) return;
+    setSavingMapsKey(true);
+    allApiWithHeaderToken(API_CONSTANTS.ECOMMERCE_ADMIN_SETTINGS, { google_maps_api_key: googleMapsApiKey }, "post")
+      .then((response) => {
+        if (response?.status === 200) {
+          setOriginalGoogleMapsApiKey(googleMapsApiKey);
+          toast.current?.show({ severity: 'success', summary: 'Saved', detail: 'Google Maps API key updated', life: 3000 });
+        }
+      })
+      .catch(() => {
+        toast.current?.show({ severity: 'error', summary: 'Error', detail: 'Failed to save Google Maps API key', life: 3000 });
+      })
+      .finally(() => setSavingMapsKey(false));
   };
 
   const handleColorChange = (color) => {
@@ -582,6 +616,45 @@ const SettingsList = ({ search }) => {
                 </div>
               </div>
 
+            </div>
+
+            {/* Google Maps API Key Section */}
+            <div className="mt-8">
+              <div className="mb-4">
+                <h2 className="text-xl font-semibold text-gray-900 mb-1">API Integrations</h2>
+                <p className="text-sm text-gray-600">Third-party API keys used by the ecommerce storefront.</p>
+              </div>
+              <div className="border border-gray-200 rounded-lg p-5 bg-white max-w-2xl">
+                <h3 className="text-sm font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                  <i className="ri-map-pin-line text-TextPrimaryColor text-base"></i>
+                  Google Maps API Key
+                </h3>
+                <p className="text-[10px] text-gray-600 mb-3">
+                  Used for location search, address detection, and delivery map. Get your key from the Google Cloud Console.
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={googleMapsApiKey}
+                    onChange={(e) => setGoogleMapsApiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-TextPrimaryColor"
+                  />
+                  <button
+                    onClick={handleSaveGoogleMapsKey}
+                    disabled={savingMapsKey || googleMapsApiKey === originalGoogleMapsApiKey}
+                    className="px-4 py-2 rounded-lg text-xs font-medium bg-TextPrimaryColor text-white disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                  >
+                    {savingMapsKey ? <i className="ri-loader-4-line animate-spin"></i> : <i className="ri-save-line"></i>}
+                    Save
+                  </button>
+                </div>
+                {originalGoogleMapsApiKey && (
+                  <p className="mt-2 text-[10px] text-green-600 flex items-center gap-1">
+                    <i className="ri-checkbox-circle-line"></i> API key configured
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Banner Images Section */}

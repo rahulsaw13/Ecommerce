@@ -24,6 +24,8 @@ const TrackOrderPage = () => {
   const [actualRoadDistance, setActualRoadDistance] = useState(null);
   const [agentLocation, setAgentLocation] = useState(null);
   const [trackingInterval, setTrackingInterval] = useState(null);
+  const [agentInfo, setAgentInfo] = useState(null);
+  const [etaMinutes, setEtaMinutes] = useState(null);
 
   const storeLocation = {
     lat: companyInfo.latitude || 0,
@@ -179,8 +181,17 @@ const TrackOrderPage = () => {
       );
       if (res?.status === 200 && res?.data?.tracking_active) {
         setAgentLocation({ lat: res.data.agent_lat, lng: res.data.agent_lng });
+        setAgentInfo({
+          name: res.data.partner_name,
+          phone: res.data.partner_phone,
+          heading: res.data.agent_heading,
+          speed_kmh: res.data.agent_speed_kmh,
+        });
+        setEtaMinutes(res.data.eta_minutes ?? null);
       } else {
         setAgentLocation(null);
+        setAgentInfo(null);
+        setEtaMinutes(null);
       }
     } catch (_) {}
   }, []);
@@ -188,6 +199,8 @@ const TrackOrderPage = () => {
   useEffect(() => {
     if (trackingInterval) { clearInterval(trackingInterval); setTrackingInterval(null); }
     setAgentLocation(null);
+    setAgentInfo(null);
+    setEtaMinutes(null);
     const trackableStatuses = ['shipped', 'out for delivery'];
     if (selectedOrder && trackableStatuses.includes(selectedOrder.order_status?.toLowerCase())) {
       pollAgentLocation(selectedOrder.id);
@@ -508,6 +521,36 @@ const TrackOrderPage = () => {
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">
                       {agentLocation ? 'Live Tracking' : userLocation ? 'Delivery Route' : 'Store Location'}
                     </h2>
+
+                    {/* Delivery partner info + ETA */}
+                    {agentLocation && agentInfo && (
+                      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <i className="ri-e-bike-line text-white text-lg"></i>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm font-bold text-gray-900">{agentInfo.name || 'Delivery Partner'}</p>
+                            {agentInfo.phone && (
+                              <a href={`tel:${agentInfo.phone}`} className="text-xs text-green-600 hover:underline">
+                                <i className="ri-phone-line mr-1"></i>{agentInfo.phone}
+                              </a>
+                            )}
+                          </div>
+                          {etaMinutes != null && (
+                            <div className="text-center">
+                              <p className="text-lg font-bold text-green-700">{etaMinutes}</p>
+                              <p className="text-xs text-gray-500">min away</p>
+                            </div>
+                          )}
+                        </div>
+                        {agentInfo.speed_kmh != null && agentInfo.speed_kmh > 0 && (
+                          <p className="text-xs text-gray-500 mt-2 pl-1">
+                            <i className="ri-speed-line mr-1"></i>Speed: {agentInfo.speed_kmh} km/h
+                          </p>
+                        )}
+                      </div>
+                    )}
 
                     <DeliveryMap
                       storeLocation={storeLocation.lat ? storeLocation : null}

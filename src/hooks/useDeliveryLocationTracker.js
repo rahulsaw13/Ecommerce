@@ -38,7 +38,13 @@ const useDeliveryLocationTracker = (orderId, intervalMs = 15000) => {
       try {
         await allApiWithHeaderToken(
           API_CONSTANTS.DELIVERY_UPDATE_LOCATION,
-          { order_id: orderId, lat: coords.latitude, lng: coords.longitude },
+          {
+            order_id: orderId,
+            lat: coords.latitude,
+            lng: coords.longitude,
+            heading: coords.heading != null ? coords.heading : undefined,
+            speed_kmh: coords.speed != null ? parseFloat((coords.speed * 3.6).toFixed(1)) : undefined,
+          },
           'post'
         );
       } catch (_) {}
