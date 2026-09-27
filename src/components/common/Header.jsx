@@ -710,7 +710,7 @@
 
 
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { TieredMenu } from 'primereact/tieredmenu';
 import { useTranslation } from "react-i18next";
@@ -726,6 +726,8 @@ import { clearCart } from '../../redux/slices/cartSlice';
 const Header = ({ onSearch }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isAuthOrDeliveryPage = /^\/(sign-in|login|delivery-dashboard|delivery-order)/.test(pathname);
   const { t } = useTranslation("msg");
   
   // Redux state
@@ -739,7 +741,7 @@ const Header = ({ onSearch }) => {
   const [cartCount, setCartCount] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const [userLocation, setUserLocation] = useState(() => getLocationFromCookie());
-  const [showLocationPicker, setShowLocationPicker] = useState(() => !getLocationFromCookie());
+  const [showLocationPicker, setShowLocationPicker] = useState(() => !isAuthOrDeliveryPage && !getLocationFromCookie());
 
   const menu = useRef(null);
   const searchTimeoutRef = useRef(null);
@@ -1530,13 +1532,15 @@ const Header = ({ onSearch }) => {
         </>
       )}
 
-      <LocationPickerPopup
-        isOpen={showLocationPicker}
-        onClose={() => setShowLocationPicker(false)}
-        onLocationSelected={(loc) => { setUserLocation(loc); setShowLocationPicker(false); }}
-        anchorRef={locationBtnRef}
-        mandatory={!userLocation}
-      />
+      {!isAuthOrDeliveryPage && (
+        <LocationPickerPopup
+          isOpen={showLocationPicker}
+          onClose={() => setShowLocationPicker(false)}
+          onLocationSelected={(loc) => { setUserLocation(loc); setShowLocationPicker(false); }}
+          anchorRef={locationBtnRef}
+          mandatory={!userLocation}
+        />
+      )}
     </>
   );
 };

@@ -28,9 +28,11 @@ const DeliveryOrderDetails = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Live GPS tracking — pushes location to backend every 15s while on this page
+  // Live GPS tracking — agent must click "Start Delivery" to begin sharing location
+  const [trackingStarted, setTrackingStarted] = useState(false);
   const trackableStatuses = ['shipped', 'out for delivery', 'Out for delivery'];
-  const trackingOrderId = trackableStatuses.includes(order?.order_status) ? orderId : null;
+  const canTrack = trackableStatuses.includes(order?.order_status);
+  const trackingOrderId = (canTrack && trackingStarted) ? orderId : null;
   const { gpsError } = useDeliveryLocationTracker(trackingOrderId);
   
   // Payment method state
@@ -612,8 +614,24 @@ const DeliveryOrderDetails = () => {
     <div className="min-h-screen bg-gray-50">
       <Toast ref={toast} />
       
-      {/* GPS error banner */}
-      {gpsError && trackingOrderId && (
+      {/* Start Delivery / Tracking banner */}
+      {canTrack && !trackingStarted && (
+        <div className="bg-yellow-400 text-gray-900 text-sm px-4 py-2 flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2"><i className="ri-map-pin-line"></i> Share your live location with the customer</span>
+          <button
+            onClick={() => setTrackingStarted(true)}
+            className="bg-gray-900 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1"
+          >
+            <i className="ri-record-circle-line text-red-400"></i> Start Tracking
+          </button>
+        </div>
+      )}
+      {trackingStarted && !gpsError && (
+        <div className="bg-green-500 text-white text-sm px-4 py-2 text-center flex items-center justify-center gap-2">
+          <i className="ri-radio-button-line animate-pulse"></i> Live location sharing active
+        </div>
+      )}
+      {gpsError && trackingStarted && (
         <div className="bg-red-500 text-white text-sm px-4 py-2 text-center flex items-center justify-center gap-2">
           <i className="ri-map-pin-off-line"></i>
           {gpsError}
